@@ -6,7 +6,7 @@ Hubyt is a Windows app and firmware package for reusing Tidbyt-style LED matrix 
 
 Most users should download:
 
-**Hubyt-windows-v1.3.14.zip**
+**Hubyt-windows-v1.3.18.zip**
 
 Unzip it, then double-click:
 
@@ -33,7 +33,7 @@ After the first flash, Hubyt can manage cards and send updates over Wi-Fi.
 
 The file below is for advanced/manual flashing:
 
-**Hubyt-firmware-v1.3.14.zip**
+**Hubyt-firmware-v1.3.18.zip**
 
 It contains generic prebuilt firmware images. No personal Wi-Fi password, device name, or Hubyt endpoint is baked into the firmware.
 
