@@ -6,7 +6,7 @@ Pixora is a Windows app and firmware package for reusing Tidbyt-style LED matrix
 
 Most users should download:
 
-**Pixora-windows-v1.3.33.zip**
+**Pixora-windows-v1.3.34.zip**
 
 Unzip it, then double-click:
 
@@ -33,7 +33,7 @@ After the first flash, Pixora can manage cards and send updates over Wi-Fi.
 
 The file below is for advanced/manual flashing:
 
-**Pixora-firmware-v1.3.33.zip**
+**Pixora-firmware-v1.3.34.zip**
 
 It contains generic prebuilt firmware images. No personal Wi-Fi password, device name, or Pixora endpoint is baked into the firmware.
 
