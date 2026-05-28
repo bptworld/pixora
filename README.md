@@ -14,15 +14,13 @@ Pixora is a Windows app and firmware package for reusing Tidbyt-style LED matrix
 
 ## Download
 
-Most users should download:
+Most users should download the installer:
 
-**Pixora-windows-v1.3.51.zip**
+**PixoraSetup-v1.3.61.exe**
 
-Unzip it, then double-click:
+Run it, then launch Pixora from the Start menu or desktop shortcut.
 
-```text
-Pixora.exe
-```
+For a no-install portable copy, download **Pixora-windows-v1.3.61.zip**, unzip it, then double-click `Pixora.exe`.
 
 Pixora will start a local server and open the control page in your browser.
 
