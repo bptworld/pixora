@@ -66,7 +66,7 @@ Do not assume only one panel size. If a card has a special 128 layout, keep the 
 Pixora adds internal metadata to options:
 
 ```python
-_target            # device target, such as matrixportal-s3-waveshare or matrixportal-s3-128x32
+_target            # device target, such as matrixportal-s3-64x32 or matrixportal-s3-128x32
 _dwell             # user-selected dwell seconds
 _device_id         # active device id
 _firmware_version  # device firmware version
@@ -255,7 +255,7 @@ spec = importlib.util.spec_from_file_location("card", path)
 card = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(card)
 
-for target in ("matrixportal-s3-waveshare", "matrixportal-s3-128x32"):
+for target in ("matrixportal-s3-64x32", "matrixportal-s3-128x32"):
     body = card.render({"_target": target, "_dwell": 10})
     out = Path(r"C:\Pixora\data") / f"check-{card.CARD_ID}-{target}.webp"
     out.write_bytes(body["body"] if isinstance(body, dict) else body)
