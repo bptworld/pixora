@@ -16,11 +16,11 @@ Pixora is a Windows app and firmware package for reusing Tidbyt-style LED matrix
 
 Most users should download the installer:
 
-**PixoraSetup-v1.3.61.exe**
+[PixoraSetup-v1.3.61.exe](https://github.com/bptworld/pixora/releases/latest/download/PixoraSetup-v1.3.61.exe)
 
 Run it, then launch Pixora from the Start menu or desktop shortcut.
 
-For a no-install portable copy, download **Pixora-windows-v1.3.61.zip**, unzip it, then double-click `Pixora.exe`.
+For a no-install portable copy, download [Pixora-windows-v1.3.61.zip](https://github.com/bptworld/pixora/releases/latest/download/Pixora-windows-v1.3.61.zip), unzip it, then double-click `Pixora.exe`.
 
 Pixora will start a local server and open the control page in your browser.
 
@@ -41,7 +41,7 @@ After the first flash, Pixora can manage cards and send updates over Wi-Fi.
 
 The file below is for advanced/manual flashing:
 
-**Pixora-firmware-v1.3.61.zip**
+[Pixora-firmware-v1.3.61.zip](https://github.com/bptworld/pixora/releases/latest/download/Pixora-firmware-v1.3.61.zip)
 
 It contains generic prebuilt firmware images. No personal Wi-Fi password, device name, or Pixora endpoint is baked into the firmware.
 
@@ -54,3 +54,7 @@ Pixora cards are available in the [Pixora Cards](https://github.com/bptworld/pix
 ## Card Creation
 
 The `Card-Creation` folder has a step-by-step starter guide for making your own Pixora cards.
+
+## Release Files
+
+Download files are attached to [GitHub Releases](https://github.com/bptworld/pixora/releases), not stored in this repository root.
