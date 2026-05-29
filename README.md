@@ -24,20 +24,7 @@ Firmware downloads are provided only as official prebuilt `.bin` files on the re
 
 ## Cards
 
-The public card catalog lives in:
-
-```text
-cards/
-```
-
-Pixora downloads cards from the official registry:
-
-```text
-https://raw.githubusercontent.com/bptworld/pixora/main/cards/registry.json
-```
-
-Downloaded card files are stored locally by the app.
-
+Cards are downloaded and managed within the Pixora app.
 Card updates must be submitted by pull request.
 
 ## Running Pixora
