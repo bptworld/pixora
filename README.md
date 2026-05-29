@@ -1,12 +1,12 @@
-# Pixora 
+# Pixora
 *noun* | **pix-or-a**
 
 A connected display platform for turning live data, alerts, messages, and personal dashboards into pixel-perfect cards across one or many screens.
 
-**Definition:**  
+**Definition:**
 A system that collects useful information from apps, services, devices, and the internet, then presents it as clear, glanceable pixel displays.
 
-**Origin:**  
+**Origin:**
 From **pix**, meaning pixels or small points of light, and **aura**, suggesting the ambient flow of information around a space.
 
 ## About
@@ -54,5 +54,3 @@ Pixora cards are available in the [Pixora Cards](https://github.com/bptworld/pix
 ## Card Creation
 
 The `Card-Creation` folder has a step-by-step starter guide for making your own Pixora cards.
-
-
