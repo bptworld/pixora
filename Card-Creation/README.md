@@ -199,14 +199,6 @@ pixora/cards/
 4. Add the card to a device.
 5. Watch the device or preview endpoint.
 
-For registry testing:
-
-1. Push the card to GitHub.
-2. Add it to `registry.json`.
-3. In Pixora, open **Browse Cards**.
-4. Set the registry source if needed.
-5. Install the card.
-
 ## Starter Template
 
 Use [starter_card.py](starter_card.py) as a copy/paste starting point.
