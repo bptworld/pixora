@@ -1,0 +1,74 @@
+hubitat:
+  base_url: "http://192.168.1.50"
+  app_id: "1234"
+  access_token: "paste-maker-api-token-here"
+  request_timeout_seconds: 10
+
+bridge:
+  poll_hubitat_seconds: 2
+  reconnect_seconds: 10
+  state_file: "/data/state.json"
+  status_host: "0.0.0.0"
+  status_port: 8099
+  log_level: "INFO"
+
+esphome:
+  devices:
+    - id: "bedroom-mmwave"
+      name: "Bedroom mmWave"
+      host: "192.168.1.91"
+      port: 6053
+      password: null
+      encryption_key: null
+
+mappings:
+  # Example: ESPHome binary_sensor -> Hubitat virtual motion sensor.
+  - name: "Bedroom Presence"
+    esphome_device: "bedroom-mmwave"
+    esphome_entity: "binary_sensor.bedroom_mmwave_presence"
+    hubitat_device_id: "101"
+    hubitat_attribute: "motion"
+    state_to_hubitat:
+      true:
+        command: "active"
+      false:
+        command: "inactive"
+
+  # Example: ESPHome binary_sensor -> Hubitat virtual contact sensor.
+  - name: "Fall Detected"
+    esphome_device: "bedroom-mmwave"
+    esphome_entity: "binary_sensor.fall_detected"
+    hubitat_device_id: "102"
+    hubitat_attribute: "contact"
+    state_to_hubitat:
+      true:
+        command: "open"
+      false:
+        command: "close"
+
+  # Example: ESPHome switch mirrored to a Hubitat virtual switch, both ways.
+  - name: "ESP Relay"
+    esphome_device: "bedroom-mmwave"
+    esphome_entity: "switch.esp_relay"
+    hubitat_device_id: "103"
+    hubitat_attribute: "switch"
+    state_to_hubitat:
+      true:
+        command: "on"
+      false:
+        command: "off"
+    hubitat_to_esphome:
+      "on": true
+      "off": false
+
+  # Example: ESPHome numeric sensor -> a custom Hubitat driver command.
+  # The optional hubitat-drivers/esphome-bridge-omni.groovy driver exposes this command.
+  - name: "Heart Rate"
+    esphome_device: "bedroom-mmwave"
+    esphome_entity: "sensor.heart_rate"
+    hubitat_device_id: "104"
+    hubitat_attribute: "heartRate"
+    state_to_hubitat:
+      value:
+        command: "setAttributeValue"
+        args: ["heartRate", "{value}"]
