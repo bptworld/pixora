@@ -65,6 +65,45 @@ function Copy-IfPresent {
   Copy-Item -LiteralPath $source -Destination $dest -Force
 }
 
+function Assert-UnderPath {
+  param(
+    [string]$Child,
+    [string]$Parent
+  )
+
+  $childFull = [System.IO.Path]::GetFullPath($Child)
+  $parentFull = [System.IO.Path]::GetFullPath($Parent)
+  if (!$parentFull.EndsWith([System.IO.Path]::DirectorySeparatorChar)) {
+    $parentFull += [System.IO.Path]::DirectorySeparatorChar
+  }
+  if (!$childFull.StartsWith($parentFull, [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw "Refusing to modify path outside cards checkout: $childFull"
+  }
+}
+
+function Sync-Directory {
+  param(
+    [string]$RelativePath,
+    [switch]$Required
+  )
+
+  $source = Join-Path $SourceRoot $RelativePath
+  $dest = Join-Path $cardsRepo $RelativePath
+  if (!(Test-Path -LiteralPath $source)) {
+    if ($Required) {
+      throw "Required source directory not found: $source"
+    }
+    return
+  }
+
+  Assert-UnderPath -Child $dest -Parent $cardsRepo
+  if (Test-Path -LiteralPath $dest) {
+    Remove-Item -LiteralPath $dest -Recurse -Force
+  }
+  New-Item -ItemType Directory -Force -Path (Split-Path -Parent $dest) | Out-Null
+  Copy-Item -LiteralPath $source -Destination $dest -Recurse -Force
+}
+
 Invoke-Step "Update card repo checkout" {
   Push-Location $cardsRepo
   try {
@@ -83,19 +122,15 @@ try {
   }
 
   Assert-File (Join-Path $SourceRoot "addons")
-  Copy-Item -LiteralPath (Join-Path $SourceRoot "addons") -Destination $cardsRepo -Recurse -Force
+  Sync-Directory -RelativePath "addons" -Required
   Get-ChildItem -Path (Join-Path $cardsRepo "addons") -Directory -Filter "__pycache__" -Recurse -ErrorAction SilentlyContinue |
     Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 
   Copy-IfPresent -RelativePath "card_utils.py" -Required
   Copy-IfPresent -RelativePath "event_sport_utils.py" -Required
   Copy-IfPresent -RelativePath "Pixora-Codex-Card-Brief.md"
-  foreach ($assetDir in @("assets\fonts", "assets\previews")) {
-    $sourceAssetDir = Join-Path $SourceRoot $assetDir
-    if (Test-Path -LiteralPath $sourceAssetDir) {
-      New-Item -ItemType Directory -Force -Path (Join-Path $cardsRepo $assetDir) | Out-Null
-      Copy-Item -Path (Join-Path $sourceAssetDir "*") -Destination (Join-Path $cardsRepo $assetDir) -Force
-    }
+  foreach ($assetDir in @("assets\airlines", "assets\fonts", "assets\previews")) {
+    Sync-Directory -RelativePath $assetDir
   }
 
   if ($IncludeRegistry) {
@@ -123,7 +158,7 @@ try {
     Write-Host "Compiled $($files.Count) cards plus shared utilities."
   }
 
-  git add addons assets/fonts assets/previews card_utils.py event_sport_utils.py Pixora-Codex-Card-Brief.md
+  git add addons assets/airlines assets/fonts assets/previews card_utils.py event_sport_utils.py Pixora-Codex-Card-Brief.md
   if ($IncludeRegistry) {
     git add registry.json
   }

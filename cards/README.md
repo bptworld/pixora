@@ -185,9 +185,9 @@ See [`docs/card-creation/STEP_BY_STEP.md`](docs/card-creation/STEP_BY_STEP.md) f
 From the Pixora checkout, sync and publish changed cards with:
 
 ```powershell
-.\scripts\update-pixora-cards.ps1 -Publish
+.\cards\scripts\update-from-pixora.ps1 -Publish -IncludeRegistry
 ```
 
-That command copies changed card files and shared helpers into `cards\`, compiles every card, commits the update, and pushes `main`.
+That command mirrors card files, card assets, previews, shared helpers, and the public registry into `cards\`; compiles every card; commits the update; and pushes `main`.
 
-The public `registry.json` is not replaced by default. Use `-IncludeRegistry` only when the source registry is the full public catalog.
+Use `-GeneratePreviews` when thumbnails should be regenerated before publishing.
