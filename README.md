@@ -38,15 +38,7 @@ https://raw.githubusercontent.com/bptworld/pixora/main/cards/registry.json
 
 Downloaded card files are stored locally by the app.
 
-## Maintainer Card Updates
-
-From the Pixora checkout, publish card changes to GitHub with:
-
-```powershell
-.\cards\scripts\update-from-pixora.ps1 -Publish -IncludeRegistry
-```
-
-That flow updates only the public card catalog under `cards/`. Windows installers and firmware binaries are distributed only through GitHub Releases.
+Card updates must be submitted by pull request.
 
 ## Running Pixora
 

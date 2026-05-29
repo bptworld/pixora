@@ -180,14 +180,6 @@ def render(options=None):
 
 See [`docs/card-creation/STEP_BY_STEP.md`](docs/card-creation/STEP_BY_STEP.md) for the card framework walkthrough.
 
-## Maintainer Update Flow
+## Updating Cards
 
-From the Pixora checkout, sync and publish changed cards with:
-
-```powershell
-.\cards\scripts\update-from-pixora.ps1 -Publish -IncludeRegistry
-```
-
-That command mirrors card files, card assets, previews, shared helpers, and the public registry into `cards\`; compiles every card; commits the update; and pushes `main`.
-
-Use `-GeneratePreviews` when thumbnails should be regenerated before publishing.
+Card updates must be submitted by pull request.
