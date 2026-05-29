@@ -104,6 +104,37 @@ function Sync-Directory {
   Copy-Item -LiteralPath $source -Destination $dest -Recurse -Force
 }
 
+function Convert-TextFilesToLf {
+  param([string[]]$RelativePaths)
+
+  $textExtensions = @(".json", ".md", ".ps1", ".py", ".yaml", ".yml")
+  foreach ($relativePath in $RelativePaths) {
+    $path = Join-Path $cardsRepo $relativePath
+    if (!(Test-Path -LiteralPath $path)) {
+      continue
+    }
+
+    $item = Get-Item -LiteralPath $path
+    $files = if ($item.PSIsContainer) {
+      Get-ChildItem -LiteralPath $path -Recurse -File
+    } else {
+      @($item)
+    }
+
+    foreach ($file in $files) {
+      if ($textExtensions -notcontains $file.Extension.ToLowerInvariant()) {
+        continue
+      }
+      $text = [System.IO.File]::ReadAllText($file.FullName)
+      $normalized = $text -replace "`r`n", "`n" -replace "`r", "`n"
+      if ($normalized -ne $text) {
+        $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+        [System.IO.File]::WriteAllText($file.FullName, $normalized, $utf8NoBom)
+      }
+    }
+  }
+}
+
 Invoke-Step "Update card repo checkout" {
   Push-Location $cardsRepo
   try {
@@ -145,6 +176,12 @@ try {
   } else {
     Write-Host "Registry left unchanged. Use -IncludeRegistry only when the source registry is the public catalog."
   }
+
+  $textPaths = @("addons", "assets\airlines", "card_utils.py", "event_sport_utils.py", "Pixora-Codex-Card-Brief.md")
+  if ($IncludeRegistry) {
+    $textPaths += "registry.json"
+  }
+  Convert-TextFilesToLf -RelativePaths $textPaths
 
   if ($GeneratePreviews) {
     Invoke-Step "Generate card previews" {
