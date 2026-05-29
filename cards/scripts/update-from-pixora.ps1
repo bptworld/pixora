@@ -158,12 +158,12 @@ try {
     Write-Host "Compiled $($files.Count) cards plus shared utilities."
   }
 
-  git add addons assets/airlines assets/fonts assets/previews card_utils.py event_sport_utils.py Pixora-Codex-Card-Brief.md
+  git -c core.autocrlf=false add addons assets/airlines assets/fonts assets/previews card_utils.py event_sport_utils.py Pixora-Codex-Card-Brief.md
   if ($IncludeRegistry) {
-    git add registry.json
+    git -c core.autocrlf=false add registry.json
   }
   if ($GeneratePreviews) {
-    git add assets/previews
+    git -c core.autocrlf=false add assets/previews
   }
 
   $changes = git status --porcelain
