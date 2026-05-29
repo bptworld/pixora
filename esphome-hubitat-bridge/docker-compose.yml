@@ -1,9 +1,0 @@
-services:
-  esphome-hubitat-bridge:
-    build: .
-    container_name: esphome-hubitat-bridge
-    restart: unless-stopped
-    network_mode: host
-    volumes:
-      - ./config.yaml:/config/config.yaml:ro
-      - ./data:/data

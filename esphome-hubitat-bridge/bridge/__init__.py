@@ -1,1 +1,0 @@
-"""ESPHome to Hubitat bridge."""
