@@ -20,15 +20,15 @@ def _version_tuple(value):
 
 def _latest_pixora_version():
     data = fetch_json_with_headers(
-        "https://api.github.com/repos/bptworld/pixora/contents",
+        "https://api.github.com/repos/bptworld/pixora/releases/latest",
         {"Accept": "application/vnd.github+json"},
         seconds=900,
-        cache_key="pixora:contents",
+        cache_key="pixora:latest-release",
     )
     versions = []
-    for item in data:
+    for item in data.get("assets") or []:
         name = item.get("name", "")
-        match = re.match(r"Pixora-windows-v([0-9][0-9A-Za-z._-]*)\.zip$", name)
+        match = re.match(r"PixoraSetup-v([0-9][0-9A-Za-z._-]*)\.exe$", name)
         if match:
             versions.append(match.group(1))
     if not versions:

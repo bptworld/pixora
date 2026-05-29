@@ -1137,7 +1137,7 @@
             <button id="stop_server_btn" type="button" class="ghost-button" style="min-height: 42px; padding: 0 16px;" title="Stop Pixora before installing an update">Stop Server</button>
             <button id="log_btn" type="button" class="ghost-button" style="min-height: 42px; padding: 0 16px;" title="Server Log">Log</button>
             <button id="help_btn" type="button" class="ghost-button" style="min-height: 42px; padding: 0 16px;" title="Pixora Help">Help</button>
-            <a class="primary-action" href="getting-started.html">Setup a New Device</a>
+            <a class="primary-action" href="https://github.com/bptworld/pixora/releases/latest">Downloads</a>
           </div>
         </div>
         <p class="brand-tagline">Live data, beautifully displayed.</p>
@@ -1198,7 +1198,7 @@
           <button class="help-link" type="button" data-help-topic="custom-graphics">Custom Graphics</button>
           <button class="help-link" type="button" data-help-topic="device-groups">Device Groups</button>
           <button class="help-link" type="button" data-help-topic="display-setup">Display Setup</button>
-          <button class="help-link" type="button" data-help-topic="firmware-reflash">Firmware & Reflash</button>
+          <button class="help-link" type="button" data-help-topic="firmware-reflash">Firmware</button>
           <button class="help-link" type="button" data-help-topic="make-card">How to Make Your Own Card</button>
           <button class="help-link" type="button" data-help-topic="hubitat-setup">Hubitat Setup</button>
           <button class="help-link" type="button" data-help-topic="send-message">Messages & Automations</button>
@@ -1446,29 +1446,8 @@ http://your-computer-ip:8088</div>
           </article>
 
           <article class="help-topic" data-help-content="firmware-reflash">
-            <h2>Firmware & Reflash</h2>
-            <p>Firmware tools are available from each display tab after the display has been added to Pixora.</p>
-
-            <h3>Update Firmware by Wi-Fi</h3>
-            <p>Use this when the display is online and reachable from Pixora. Pixora sends the update URL to the display and the display installs it over the network.</p>
-
-            <h3>Update Firmware by USB</h3>
-            <ul>
-              <li>Connect the display to the Windows computer by USB.</li>
-              <li>Select the display tab.</li>
-              <li>Open <strong>Reflash Firmware</strong>.</li>
-              <li>Enter the USB port if Pixora does not detect it automatically.</li>
-              <li>Click <strong>Update Firmware by USB</strong>.</li>
-            </ul>
-
-            <h3>Set Up Wi-Fi by USB</h3>
-            <p>Use this when a display has moved networks, changed Wi-Fi credentials, or cannot reconnect. It updates the saved Wi-Fi details without removing the display from Pixora.</p>
-
-            <h3>Factory Reset and Flash</h3>
-            <p>Use factory reset only when normal firmware update or Wi-Fi setup is not working. It clears the display firmware state and flashes a fresh Pixora build.</p>
-
-            <h3>After Flashing</h3>
-            <p>Leave Pixora running and wait for the display to reboot. Once it checks in, use the display tab to confirm brightness, quiet hours, and cards.</p>
+            <h2>Firmware</h2>
+            <p>Firmware is distributed only as official prebuilt release binaries from the Pixora release page.</p>
           </article>
 
           <article class="help-topic" data-help-content="make-card">
@@ -1547,7 +1526,7 @@ def render(options=None):
               <li>Make sure Pixora is running on the Windows computer.</li>
               <li>Confirm the display and Windows computer are on the same Wi-Fi network.</li>
               <li>Wait up to a minute after the display reboots.</li>
-              <li>If it still does not appear, use <strong>Set Up Wi-Fi by USB</strong>.</li>
+              <li>If it still does not appear, download the official firmware from the Pixora release page.</li>
             </ul>
 
             <h3>Display Keeps Restarting</h3>
@@ -1555,7 +1534,7 @@ def render(options=None):
               <li>Check the power supply and USB cable.</li>
               <li>Move the display closer to Wi-Fi and try again.</li>
               <li>Use <strong>Reboot</strong> from the display tab if the display is visible.</li>
-              <li>If it keeps looping, use <strong>Update Firmware by USB</strong>.</li>
+              <li>If it keeps looping, download the official firmware from the Pixora release page.</li>
             </ul>
 
             <h3>Messages Do Not Show</h3>
@@ -1974,8 +1953,10 @@ def render(options=None):
           <div id="device_queue" class="playlist"></div>
 
           <div id="device_reflash" style="display:none; margin-top:10px;">
-            <button id="reflash_toggle_btn" type="button" class="ghost-button" style="width:100%;font-size:12px;min-height:32px;">⚡ Reflash Firmware</button>
+            <button id="reflash_toggle_btn" type="button" class="ghost-button" style="width:100%;font-size:12px;min-height:32px;">Firmware Downloads</button>
             <div id="reflash_panel" style="display:none; margin-top:8px; background:#111619; border:1px solid var(--line); border-radius:7px; padding:10px 12px;">
+              <p style="margin:0 0 8px; color:var(--muted); font-size:12px; line-height:1.4;">Firmware is distributed only as official prebuilt release binaries.</p>
+              <a href="https://github.com/bptworld/pixora/releases/latest" style="display:block; text-align:center; min-height:34px; line-height:34px; background:var(--accent); color:#06110f; border-radius:6px; font-weight:700; text-decoration:none;">Open Downloads</a>
               <div style="display:grid; gap:6px; margin-bottom:8px;">
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
                   <div>
@@ -1999,12 +1980,12 @@ def render(options=None):
               </div>
             </div>
               <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
-                <button id="usb_wifi_btn" type="button" style="min-height:34px; background:#24313a; color:var(--text); border:1px solid var(--line); border-radius:6px; font-weight:700; font-size:12px; cursor:pointer;">Set Up Wi-Fi by USB</button>
-                <button id="reflash_wifi_btn" type="button" style="min-height:34px; background:#1a2a3a; color:var(--text); border:1px solid var(--line); border-radius:6px; font-weight:700; font-size:12px; cursor:pointer;">Update Firmware by Wi-Fi</button>
+                <button id="usb_wifi_btn" type="button" disabled style="display:none; min-height:34px; background:#24313a; color:var(--text); border:1px solid var(--line); border-radius:6px; font-weight:700; font-size:12px; cursor:pointer;">Set Up Wi-Fi by USB</button>
+                <button id="reflash_wifi_btn" type="button" disabled style="display:none; min-height:34px; background:#1a2a3a; color:var(--text); border:1px solid var(--line); border-radius:6px; font-weight:700; font-size:12px; cursor:pointer;">Official Firmware</button>
               </div>
               <div style="display:grid; grid-template-columns:1fr; gap:6px; margin-top:6px;">
-                <button id="reflash_btn" type="button" style="min-height:34px; background:var(--accent); color:#06110f; border:none; border-radius:6px; font-weight:700; font-size:12px; cursor:pointer;">Update Firmware by USB</button>
-                <button id="factory_flash_btn" type="button" style="min-height:34px; background:#3a2024; color:#ffd5db; border:1px solid #7b2d3a; border-radius:6px; font-weight:700; font-size:12px; cursor:pointer;">Factory Reset + Flash USB</button>
+                <button id="reflash_btn" type="button" disabled style="display:none; min-height:34px; background:var(--accent); color:#06110f; border:none; border-radius:6px; font-weight:700; font-size:12px; cursor:pointer;">Official Firmware</button>
+                <button id="factory_flash_btn" type="button" disabled style="display:none; min-height:34px; background:#3a2024; color:#ffd5db; border:1px solid #7b2d3a; border-radius:6px; font-weight:700; font-size:12px; cursor:pointer;">Official Firmware</button>
               </div>
               <div id="reflash_status" style="display:none; margin-top:8px; max-height:140px; overflow-y:auto; padding:8px; background:#0d1117; border:1px solid var(--line); border-radius:6px; font:11px Consolas,monospace; color:var(--muted); white-space:pre-wrap;"></div>
             </div>
@@ -3821,7 +3802,7 @@ def render(options=None):
               clearInterval(poll);
               btn.disabled = false;
               if (!s.ok && /download mode|Wrong boot mode/i.test(s.lines.join(" "))) {
-                status.textContent += "\n\nUnplug the display, plug it back in with the USB-A to USB-C cable, then press " + (factoryReset ? "Factory Reset + Flash USB" : "Update Firmware by USB") + " again.";
+                status.textContent += "\n\nDownload the official firmware from the Pixora release page.";
               }
             }
           } catch(e) {}

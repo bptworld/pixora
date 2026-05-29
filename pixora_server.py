@@ -2661,10 +2661,7 @@ def check_device_reachable(device_ip):
 
 
 def firmware_source_available():
-    return (
-        (ROOT / "firmware" / "pixora-firmware").exists()
-        and (ROOT / "scripts" / "build-firmware.ps1").exists()
-    )
+    return False
 
 
 def queue_startup_device_syncs():
@@ -2679,268 +2676,18 @@ def queue_startup_device_syncs():
 
 def _run_flash_job(payload):
     global FLASH_JOB
-    try:
-        target     = payload["target"]
-        ssid       = payload["ssid"]
-        password   = payload["password"]
-        remote_url = payload["remoteUrl"]
-        port       = (payload.get("port") or payload.get("usbPort") or "").strip()
-
-        dist_dir     = ROOT / "dist" / "firmware" / target
-        firmware_bin = dist_dir / "merged_firmware.bin"
-        dev_id       = device_id_from_remote_url(remote_url)
-
-        if port:
-            generic_cache = dist_dir / "generic.sha256"
-            expected = firmware_cache_key(target, "", "", "")
-
-            if firmware_bin.exists() and generic_cache.exists() and generic_cache.read_text(encoding="ascii").strip() == expected:
-                FLASH_JOB["lines"].append("Generic firmware found - skipping build.")
-            elif firmware_bin.exists() and not firmware_source_available():
-                FLASH_JOB["lines"].append(f"Using installed generic firmware {firmware_image_version(firmware_bin)}.")
-            else:
-                FLASH_JOB["lines"].append("Building generic Pixora firmware...")
-                proc = subprocess.Popen(
-                    [POWERSHELL or "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
-                     "-File", str(ROOT / "scripts" / "build-firmware.ps1"),
-                     "-Target", target],
-                    cwd=ROOT, env=clean_env(),
-                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                    text=True, bufsize=1,
-                )
-                for line in proc.stdout:
-                    clean = strip_ansi(line.rstrip())
-                    if clean:
-                        FLASH_JOB["lines"].append(clean)
-                proc.wait()
-                if proc.returncode != 0:
-                    FLASH_JOB["ok"] = False
-                    FLASH_JOB["lines"].append("Build failed.")
-                    return
-                generic_cache.write_text(expected, encoding="ascii")
-
-            FLASH_JOB["lines"].append(f"Flashing firmware over USB on {port}...")
-            flash_command = [
-                POWERSHELL or "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
-                "-File", str(ROOT / "scripts" / "flash-device.ps1"),
-                "-Port", port, "-Target", target,
-            ]
-            if payload.get("eraseConfig") or payload.get("firstFlash") or payload.get("factoryFlash"):
-                flash_command.append("-EraseConfig")
-            flash = subprocess.Popen(
-                flash_command,
-                cwd=ROOT, env=clean_env(),
-                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                text=True, bufsize=1,
-            )
-            flash_output = []
-            for line in flash.stdout:
-                clean = strip_ansi(line.rstrip())
-                if clean:
-                    flash_output.append(clean)
-            flash.wait()
-            if flash.returncode != 0:
-                FLASH_JOB["ok"] = False
-                FLASH_JOB["lines"].append("Flash failed.")
-                FLASH_JOB["lines"].extend(flash_output[-14:])
-                return
-
-            FLASH_JOB["lines"].append("Firmware flashed. Waiting for the device to reboot...")
-            time.sleep(8)
-            hostname = dev_id[:32]
-            configure_args = [
-                POWERSHELL or "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
-                "-File", str(ROOT / "scripts" / "configure-device-usb.ps1"),
-                "-Port", port,
-                "-WifiSsid", ssid,
-                "-WifiPassword", password,
-                "-RemoteUrl", remote_url,
-                "-Hostname", hostname,
-            ]
-            if payload.get("swapColors") or payload.get("swap_colors"):
-                configure_args.append("-SwapColors")
-
-            setup_output = []
-            setup_ok = False
-            for attempt in range(1, 8):
-                FLASH_JOB["lines"].append(f"Sending Wi-Fi setup over USB... attempt {attempt}")
-                setup = subprocess.Popen(
-                    configure_args,
-                    cwd=ROOT, env=clean_env(),
-                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                    text=True, bufsize=1,
-                )
-                attempt_output = []
-                for line in setup.stdout:
-                    clean = strip_ansi(line.rstrip())
-                    if clean:
-                        attempt_output.append(clean)
-                setup.wait()
-                setup_output.extend(attempt_output)
-                if setup.returncode == 0:
-                    setup_ok = True
-                    for clean in attempt_output:
-                        FLASH_JOB["lines"].append(clean)
-                    break
-                FLASH_JOB["lines"].append("Device was not ready yet.")
-                time.sleep(4)
-
-            if not setup_ok:
-                FLASH_JOB["ok"] = False
-                FLASH_JOB["lines"].append("Firmware flashed, but USB Wi-Fi setup failed.")
-                FLASH_JOB["lines"].extend(setup_output[-8:])
-                return
-
-            existing = device_for_id(dev_id) or {}
-            device = {
-                **default_device_fields(),
-                **existing,
-                "id":       dev_id,
-                "name":     existing.get("name") or dev_id.replace("-", " ").replace("_", " "),
-                "ssid":     ssid,
-                "password": password,
-                "server":   re.sub(r"/[^/]+/next/?$", "", remote_url),
-                "endpoint": remote_url,
-                "target":   target,
-                "cards":    existing.get("cards") or ["clock"],
-                "createdAt": existing.get("createdAt") or datetime.now(timezone.utc).isoformat(),
-            }
-            save_device(device)
-            FLASH_JOB["ok"]     = True
-            FLASH_JOB["device"] = device
-            FLASH_JOB["lines"].append("Flash and Wi-Fi setup successful.")
-            return
-
-        ps1_cache    = dist_dir / "provisioning.ps1.sha256"
-        expected = firmware_cache_key(target, ssid, password, remote_url)
-
-        if firmware_bin.exists() and ps1_cache.exists() and ps1_cache.read_text(encoding="ascii").strip() == expected:
-            FLASH_JOB["lines"].append("Cached firmware found - skipping build, flashing only.")
-        else:
-            FLASH_JOB["lines"].append("Building firmware (first run takes several minutes)...")
-
-        proc = subprocess.Popen(
-            [POWERSHELL or "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
-             "-File", str(ROOT / "Build-And-Flash.ps1"),
-             "-Target", target, "-WifiSsid", ssid, "-WifiPassword", password, "-RemoteUrl", remote_url],
-            cwd=ROOT, env=clean_env(),
-            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            text=True, bufsize=1,
-        )
-        for line in proc.stdout:
-            clean = strip_ansi(line.rstrip())
-            if clean:
-                FLASH_JOB["lines"].append(clean)
-        proc.wait()
-
-        if proc.returncode == 0:
-            existing = device_for_id(dev_id) or {}
-            device   = {
-                **default_device_fields(),
-                **existing,
-                "id":       dev_id,
-                "name":     existing.get("name") or dev_id.replace("-", " ").replace("_", " "),
-                "ssid":     ssid,
-                "password": password,
-                "server":   re.sub(r"/[^/]+/next/?$", "", remote_url),
-                "endpoint": remote_url,
-                "target":   target,
-                "cards":    existing.get("cards") or ["clock"],
-                "createdAt": existing.get("createdAt") or datetime.now(timezone.utc).isoformat(),
-            }
-            save_device(device)
-            FLASH_JOB["ok"]     = True
-            FLASH_JOB["device"] = device
-            FLASH_JOB["lines"].append("Flash successful.")
-        else:
-            FLASH_JOB["ok"] = False
-            FLASH_JOB["lines"].append("Flash failed.")
-    except Exception as e:
-        FLASH_JOB["ok"] = False
-        FLASH_JOB["lines"].append(f"Error: {e}")
-    finally:
-        FLASH_JOB["running"] = False
-        FLASH_JOB["done"]    = True
+    FLASH_JOB["ok"] = False
+    FLASH_JOB["lines"].append("Firmware flashing is available only through official release binaries.")
+    FLASH_JOB["running"] = False
+    FLASH_JOB["done"] = True
 
 
 def _run_wifi_ota_job(payload):
-    import hashlib
     global FLASH_JOB
-    try:
-        target     = payload["target"]
-        ssid       = payload.get("ssid", "")
-        password   = payload.get("password", "")
-        remote_url = payload["remoteUrl"]
-        device_ip  = payload.get("deviceIp", "").strip()
-        skip_build = bool(payload.get("skipBuild") or payload.get("genericFirmware") or not firmware_source_available())
-        dev_id     = device_id_from_remote_url(remote_url)
-        device     = device_for_id(dev_id) or {}
-
-        dist_dir     = ROOT / "dist" / "firmware" / target
-        firmware_bin = dist_dir / "firmware.bin"
-        cache_file   = dist_dir / "provisioning.sha256"
-        expected = firmware_cache_key(target, ssid, password, remote_url)
-
-        if skip_build:
-            if not firmware_bin.exists():
-                FLASH_JOB["ok"] = False
-                FLASH_JOB["lines"].append(f"Firmware file is missing: {firmware_bin}")
-                return
-            FLASH_JOB["lines"].append(f"Using already-built generic firmware {firmware_image_version(firmware_bin)}.")
-        elif firmware_bin.exists() and cache_file.exists() and cache_file.read_text(encoding="ascii").strip() == expected:
-            FLASH_JOB["lines"].append(f"Firmware {firmware_image_version(firmware_bin)} is already built - skipping build.")
-        else:
-            if not ssid or not password:
-                FLASH_JOB["ok"] = False
-                FLASH_JOB["lines"].append("Wi-Fi SSID and password are required when rebuilding provisioned firmware.")
-                return
-            FLASH_JOB["lines"].append("Building firmware (first run takes several minutes)...")
-            proc = subprocess.Popen(
-                [POWERSHELL or "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
-                 "-File", str(ROOT / "scripts" / "build-firmware.ps1"),
-                 "-Target", target, "-WifiSsid", ssid, "-WifiPassword", password, "-RemoteUrl", remote_url],
-                cwd=ROOT, env=clean_env(),
-                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                text=True, bufsize=1,
-            )
-            for line in proc.stdout:
-                clean = strip_ansi(line.rstrip())
-                if clean:
-                    FLASH_JOB["lines"].append(clean)
-            proc.wait()
-            if proc.returncode != 0:
-                FLASH_JOB["ok"] = False
-                FLASH_JOB["lines"].append("Build failed.")
-                return
-            cache_file.write_text(expected, encoding="ascii")
-
-        server_base = re.sub(r"/[^/]+/next/?$", "", remote_url).rstrip("/")
-        firmware_base = ota_server_base(remote_url, device_ip)
-        firmware_url = f"{firmware_base}/dist/firmware/{urllib.parse.quote(target)}/firmware.bin"
-        OTA_PENDING[dev_id] = {"url": firmware_url, "version": firmware_build_stamp()}
-        FLASH_JOB["lines"].append(f"OTA queued: {firmware_url}")
-
-        updated = {
-            **device,
-            "id": dev_id,
-            "ssid": ssid or device.get("ssid", ""),
-            "password": password or device.get("password", ""),
-            "server": server_base,
-            "endpoint": remote_url,
-            "target": target,
-            "lastIp": device_ip or device.get("lastIp", ""),
-            "createdAt": device.get("createdAt") or datetime.now(timezone.utc).isoformat(),
-        }
-        save_device(updated)
-        FLASH_JOB["ok"] = True
-        FLASH_JOB["device"] = updated
-        FLASH_JOB["lines"].append("Watch the display for the OTA Update screen, then Rebooting.")
-    except Exception as e:
-        FLASH_JOB["ok"] = False
-        FLASH_JOB["lines"].append(f"Error: {e}")
-    finally:
-        FLASH_JOB["running"] = False
-        FLASH_JOB["done"]    = True
+    FLASH_JOB["ok"] = False
+    FLASH_JOB["lines"].append("Firmware updates are available only through official release binaries.")
+    FLASH_JOB["running"] = False
+    FLASH_JOB["done"] = True
 
 
 class PixoraHandler(SimpleHTTPRequestHandler):
@@ -4818,109 +4565,15 @@ class PixoraHandler(SimpleHTTPRequestHandler):
             return
 
         if self.path == "/api/wifi-ota":
-            try:
-                import threading
-                content_length = int(self.headers.get("Content-Length", "0"))
-                payload = json.loads(self.rfile.read(content_length).decode("utf-8"))
-                if FLASH_JOB["running"]:
-                    self._send_json(409, {"ok": False, "error": "A build job is already running."})
-                    return
-                FLASH_JOB.update({"running": True, "done": False, "ok": None, "lines": [], "device": None})
-                threading.Thread(target=_run_wifi_ota_job, args=(payload,), daemon=True).start()
-                self._send_json(200, {"ok": True, "started": True})
-            except Exception as e:
-                self._send_json(500, {"ok": False, "error": str(e)})
+            self._send_json(403, {"ok": False, "error": "Firmware updates are only distributed as official release binaries."})
             return
 
         if self.path == "/api/build-and-flash":
-            try:
-                import threading
-                content_length = int(self.headers.get("Content-Length", "0"))
-                payload = json.loads(self.rfile.read(content_length).decode("utf-8"))
-                if FLASH_JOB["running"]:
-                    self._send_json(409, {"ok": False, "error": "A flash job is already running."})
-                    return
-                remote_url = payload.get("remoteUrl", "")
-                dev_id = device_id_from_remote_url(remote_url)
-                existing = device_for_id(dev_id)
-                if existing and existing.get("endpoint", "") != remote_url:
-                    self._send_json(409, {"ok": False, "error": f"Device ID '{dev_id}' is already used by '{existing.get('name', dev_id)}' with a different endpoint. Choose a unique Device ID."})
-                    return
-                FLASH_JOB.update({"running": True, "done": False, "ok": None, "lines": [], "device": None})
-                threading.Thread(target=_run_flash_job, args=(payload,), daemon=True).start()
-                self._send_json(200, {"ok": True, "started": True})
-            except Exception as e:
-                self._send_json(500, {"ok": False, "error": str(e)})
+            self._send_json(403, {"ok": False, "error": "Firmware flashing is only supported with official release binaries."})
             return
 
-        if self.path not in ("/api/send-over-wifi",):
-            self.send_error(404)
-            return
-
-        try:
-            content_length = int(self.headers.get("Content-Length", "0"))
-            payload = json.loads(self.rfile.read(content_length).decode("utf-8"))
-
-            target = payload["target"]
-            ssid = payload["ssid"]
-            password = payload["password"]
-            remote_url = payload["remoteUrl"]
-            device_ip = payload.get("deviceIp", "")
-
-            build_script = ROOT / "scripts" / "build-firmware.ps1"
-            update_script = ROOT / "Update-DeviceWifi.ps1"
-            dist_dir = ROOT / "dist" / "firmware" / target
-            firmware_bin = dist_dir / "firmware.bin"
-            cache_file = dist_dir / "provisioning.sha256"
-            expected_cache = firmware_cache_key(target, ssid, password, remote_url)
-
-            if POWERSHELL is None:
-                self._send_json(500, {"ok": False, "step": "server", "output": "PowerShell was not found."})
-                return
-
-            if not device_ip:
-                self._send_json(400, {"ok": False, "step": "wifi-upload", "output": "Device IP is required for Wi-Fi updates."})
-                return
-
-            reachable, update_url, reachability_error = check_device_reachable(device_ip)
-            if not reachable:
-                self._send_json(502, {"ok": False, "step": "wifi-upload",
-                                      "output": f"Device did not answer at {update_url}. Check that the device is powered on, joined to the same Wi-Fi, and that this IP address is correct.\n\n{reachability_error}"})
-                return
-
-            cache_matches = (
-                firmware_bin.exists()
-                and cache_file.exists()
-                and cache_file.read_text(encoding="utf-8").strip() == expected_cache
-            )
-            build_output = "Using cached firmware.bin."
-
-            if not cache_matches:
-                build = subprocess.run(
-                    [POWERSHELL, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(build_script),
-                     "-Target", target, "-WifiSsid", ssid, "-WifiPassword", password, "-RemoteUrl", remote_url, "-Clean"],
-                    cwd=ROOT, env=clean_env(), capture_output=True, text=True, timeout=1200,
-                )
-                build_output = (build.stdout + "\n" + build.stderr).strip()
-                if build.returncode != 0:
-                    self._send_json(500, {"ok": False, "step": "build",
-                                          "output": "There was a problem building the firmware.\n\n" + summarize_command_error(build_output)})
-                    return
-                cache_file.write_text(expected_cache, encoding="utf-8")
-
-            update = subprocess.run(
-                [POWERSHELL, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(update_script),
-                 "-DeviceIp", device_ip, "-Target", target],
-                cwd=ROOT, env=clean_env(), capture_output=True, text=True, timeout=420,
-            )
-            if update.returncode != 0:
-                self._send_json(500, {"ok": False, "step": "wifi-upload",
-                                      "output": "There was a problem sending the update.\n\n" + summarize_command_error((update.stdout + "\n" + update.stderr).strip())})
-                return
-
-            self._send_json(200, {"ok": True, "output": "Flashed Successful"})
-        except Exception as error:
-            self._send_json(500, {"ok": False, "step": "server", "output": str(error)})
+        self.send_error(404)
+        return
 
 
 def main():
