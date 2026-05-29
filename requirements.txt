@@ -1,0 +1,3 @@
+Pillow
+zeroconf
+paho-mqtt

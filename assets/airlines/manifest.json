@@ -1,0 +1,131 @@
+{
+  "updated": "2026-05-09T00:24:00.797231Z",
+  "airlines": [
+    {
+      "iata": "AA",
+      "icao": "AAL",
+      "name": "American Airlines",
+      "file": "assets/airlines/AA.png",
+      "source": "https://content.r9cdn.net/rimg/provider-logos/airlines/v/AA.png?crop=false&width=300&height=300",
+      "sourceType": "iata-r9cdn",
+      "note": "Airline logo/trademark remains owned by its holder."
+    },
+    {
+      "iata": "UA",
+      "icao": "UAL",
+      "name": "United Airlines",
+      "file": "assets/airlines/UA.png",
+      "source": "https://content.r9cdn.net/rimg/provider-logos/airlines/v/UA.png?crop=false&width=300&height=300",
+      "sourceType": "iata-r9cdn",
+      "note": "Airline logo/trademark remains owned by its holder."
+    },
+    {
+      "iata": "DL",
+      "icao": "DAL",
+      "name": "Delta Air Lines",
+      "file": "assets/airlines/DL.png",
+      "source": "https://content.r9cdn.net/rimg/provider-logos/airlines/v/DL.png?crop=false&width=300&height=300",
+      "sourceType": "iata-r9cdn",
+      "note": "Airline logo/trademark remains owned by its holder."
+    },
+    {
+      "iata": "WN",
+      "icao": "SWA",
+      "name": "Southwest Airlines",
+      "file": "assets/airlines/WN.png",
+      "source": "https://content.r9cdn.net/rimg/provider-logos/airlines/v/WN.png?crop=false&width=300&height=300",
+      "sourceType": "iata-r9cdn",
+      "note": "Airline logo/trademark remains owned by its holder."
+    },
+    {
+      "iata": "AS",
+      "icao": "ASA",
+      "name": "Alaska Airlines",
+      "file": "assets/airlines/AS.png",
+      "source": "https://content.r9cdn.net/rimg/provider-logos/airlines/v/AS.png?crop=false&width=300&height=300",
+      "sourceType": "iata-r9cdn",
+      "note": "Airline logo/trademark remains owned by its holder."
+    },
+    {
+      "iata": "B6",
+      "icao": "JBU",
+      "name": "JetBlue",
+      "file": "assets/airlines/B6.png",
+      "source": "https://content.r9cdn.net/rimg/provider-logos/airlines/v/B6.png?crop=false&width=300&height=300",
+      "sourceType": "iata-r9cdn",
+      "note": "Airline logo/trademark remains owned by its holder."
+    },
+    {
+      "iata": "F9",
+      "icao": "FFT",
+      "name": "Frontier Airlines",
+      "file": "assets/airlines/F9.png",
+      "source": "https://content.r9cdn.net/rimg/provider-logos/airlines/v/F9.png?crop=false&width=300&height=300",
+      "sourceType": "iata-r9cdn",
+      "note": "Airline logo/trademark remains owned by its holder."
+    },
+    {
+      "iata": "NK",
+      "icao": "NKS",
+      "name": "Spirit Airlines",
+      "file": "assets/airlines/NK.png",
+      "source": "https://content.r9cdn.net/rimg/provider-logos/airlines/v/NK.png?crop=false&width=300&height=300",
+      "sourceType": "iata-r9cdn",
+      "note": "Airline logo/trademark remains owned by its holder."
+    },
+    {
+      "iata": "HA",
+      "icao": "HAL",
+      "name": "Hawaiian Airlines",
+      "file": "assets/airlines/HA.png",
+      "source": "https://content.r9cdn.net/rimg/provider-logos/airlines/v/HA.png?crop=false&width=300&height=300",
+      "sourceType": "iata-r9cdn",
+      "note": "Airline logo/trademark remains owned by its holder."
+    },
+    {
+      "iata": "BA",
+      "icao": "BAW",
+      "name": "British Airways",
+      "file": "assets/airlines/BA.png",
+      "source": "https://content.r9cdn.net/rimg/provider-logos/airlines/v/BA.png?crop=false&width=300&height=300",
+      "sourceType": "iata-r9cdn",
+      "note": "Airline logo/trademark remains owned by its holder."
+    },
+    {
+      "iata": "AF",
+      "icao": "AFR",
+      "name": "Air France",
+      "file": "assets/airlines/AF.png",
+      "source": "https://content.r9cdn.net/rimg/provider-logos/airlines/v/AF.png?crop=false&width=300&height=300",
+      "sourceType": "iata-r9cdn",
+      "note": "Airline logo/trademark remains owned by its holder."
+    },
+    {
+      "iata": "LH",
+      "icao": "DLH",
+      "name": "Lufthansa",
+      "file": "assets/airlines/LH.png",
+      "source": "https://content.r9cdn.net/rimg/provider-logos/airlines/v/LH.png?crop=false&width=300&height=300",
+      "sourceType": "iata-r9cdn",
+      "note": "Airline logo/trademark remains owned by its holder."
+    },
+    {
+      "iata": "EK",
+      "icao": "UAE",
+      "name": "Emirates",
+      "file": "assets/airlines/EK.png",
+      "source": "https://content.r9cdn.net/rimg/provider-logos/airlines/v/EK.png?crop=false&width=300&height=300",
+      "sourceType": "iata-r9cdn",
+      "note": "Airline logo/trademark remains owned by its holder."
+    },
+    {
+      "iata": "AC",
+      "icao": "ACA",
+      "name": "Air Canada",
+      "file": "assets/airlines/AC.png",
+      "source": "https://content.r9cdn.net/rimg/provider-logos/airlines/v/AC.png?crop=false&width=300&height=300",
+      "sourceType": "iata-r9cdn",
+      "note": "Airline logo/trademark remains owned by its holder."
+    }
+  ]
+}

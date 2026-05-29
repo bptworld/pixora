@@ -175,7 +175,7 @@ To make a card downloadable in Pixora, add it to the card registry:
   "description": "Shows HELLO on the display.",
   "author": "your-name",
   "version": "1.0",
-  "url": "https://raw.githubusercontent.com/your-name/pixora-cards/main/addons/hello.py"
+  "url": "https://raw.githubusercontent.com/your-name/pixora/main/cards/addons/hello.py"
 }
 ```
 
@@ -184,7 +184,7 @@ The `url` must point directly to the raw `.py` file.
 ## Suggested GitHub Layout
 
 ```text
-pixora-cards/
+pixora/cards/
   registry.json
   addons/
     hello.py
