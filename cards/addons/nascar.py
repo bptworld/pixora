@@ -128,8 +128,8 @@ def render(options=None):
         return render_text_webp("NO NASCAR", (160, 160, 160))
 
     try:
-        font = ImageFont.truetype("Silkscreen-Regular.ttf", 8)
-        bold = ImageFont.truetype("PixelifySans-Bold.ttf", 8)
+        font = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
+        bold = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
     except Exception:
         font = bold = ImageFont.load_default()
 

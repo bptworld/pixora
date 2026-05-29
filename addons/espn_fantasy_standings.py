@@ -35,8 +35,8 @@ def _draw_rows(rows, width, offset=0):
     image = Image.new("RGB", (width, 32), (5, 4, 13))
     draw = ImageDraw.Draw(image)
     try:
-        font = ImageFont.truetype("Silkscreen-Regular.ttf", 8)
-        bold = ImageFont.truetype("PixelifySans-Bold.ttf", 8)
+        font = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
+        bold = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
     except Exception:
         font = bold = ImageFont.load_default()
     draw.rectangle((0, 0, width - 1, 8), fill=(28, 8, 18))

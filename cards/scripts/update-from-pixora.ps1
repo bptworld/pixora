@@ -90,9 +90,12 @@ try {
   Copy-IfPresent -RelativePath "card_utils.py" -Required
   Copy-IfPresent -RelativePath "event_sport_utils.py" -Required
   Copy-IfPresent -RelativePath "Pixora-Codex-Card-Brief.md"
-  if (Test-Path -LiteralPath (Join-Path $SourceRoot "assets\previews")) {
-    New-Item -ItemType Directory -Force -Path (Join-Path $cardsRepo "assets\previews") | Out-Null
-    Copy-Item -Path (Join-Path $SourceRoot "assets\previews\*") -Destination (Join-Path $cardsRepo "assets\previews") -Force
+  foreach ($assetDir in @("assets\fonts", "assets\previews")) {
+    $sourceAssetDir = Join-Path $SourceRoot $assetDir
+    if (Test-Path -LiteralPath $sourceAssetDir) {
+      New-Item -ItemType Directory -Force -Path (Join-Path $cardsRepo $assetDir) | Out-Null
+      Copy-Item -Path (Join-Path $sourceAssetDir "*") -Destination (Join-Path $cardsRepo $assetDir) -Force
+    }
   }
 
   if ($IncludeRegistry) {
@@ -120,7 +123,7 @@ try {
     Write-Host "Compiled $($files.Count) cards plus shared utilities."
   }
 
-  git add addons assets/previews card_utils.py event_sport_utils.py Pixora-Codex-Card-Brief.md
+  git add addons assets/fonts assets/previews card_utils.py event_sport_utils.py Pixora-Codex-Card-Brief.md
   if ($IncludeRegistry) {
     git add registry.json
   }

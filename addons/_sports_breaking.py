@@ -129,8 +129,8 @@ def render_score_alert_frames(team, kind="score"):
     alt = _hex_color((team or {}).get("alternateColor"), (245, 250, 255))
     bg = tuple(max(0, c // 7) for c in color)
     try:
-        small = ImageFont.truetype("PixelifySans-Bold.ttf", 8)
-        big = ImageFont.truetype("PixelifySans-Bold.ttf", 10)
+        small = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
+        big = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 10)
     except Exception:
         small = big = ImageFont.load_default()
 

@@ -128,7 +128,7 @@ def _draw_logo_or_fallback(image, draw, team, color):
     abbr = (team.get("abbreviation") or team.get("shortDisplayName") or "NFL")[:3].upper()
     try:
         from PIL import ImageFont
-        font = ImageFont.truetype("PixelifySans-Bold.ttf", 8)
+        font = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
     except Exception:
         from PIL import ImageFont
         font = ImageFont.load_default()
@@ -200,8 +200,8 @@ def _render_score_animation_frames(team, kind="touchdown"):
     frames = []
     durations = []
     try:
-        big = ImageFont.truetype("PixelifySans-Bold.ttf", 9)
-        small = ImageFont.truetype("PixelifySans-Bold.ttf", 8)
+        big = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 9)
+        small = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
     except Exception:
         big = small = ImageFont.load_default()
 

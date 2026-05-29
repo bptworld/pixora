@@ -45,10 +45,10 @@ def render(options=None):
     width = 128 if opts.get("_target") == "matrixportal-s3-128x32" else 64
 
     try:
-        font = ImageFont.truetype("PixelifySans-Bold.ttf", 8)
+        font = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
     except Exception:
         try:
-            font = ImageFont.truetype("Silkscreen-Regular.ttf", 8)
+            font = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
         except Exception:
             font = ImageFont.load_default()
 

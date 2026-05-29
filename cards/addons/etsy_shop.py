@@ -388,7 +388,7 @@ def _text_card(opts, text, color):
     width = _display_width(opts)
     image = Image.new("RGB", (width, 32), (0, 0, 0))
     draw = ImageDraw.Draw(image)
-    font = _font("Silkscreen-Regular.ttf", 8)
+    font = _font("assets/fonts/Silkscreen-Regular.ttf", 8)
     bbox = draw.textbbox((0, 0), text, font=font)
     draw_sharp_text(
         image,
@@ -406,8 +406,8 @@ def _new_order_animation(data, opts):
     from PIL import Image, ImageDraw
 
     width = _display_width(opts)
-    font = _font("Silkscreen-Regular.ttf", 8)
-    bold = _font("PixelifySans-Bold.ttf", 8)
+    font = _font("assets/fonts/Silkscreen-Regular.ttf", 8)
+    bold = _font("assets/fonts/PixelifySans-Bold.ttf", 8)
     frames = []
     durations = []
     total = data.get("newest_total")
@@ -434,8 +434,8 @@ def _scroll_title_card(data, opts):
     from PIL import Image, ImageDraw
 
     width = _display_width(opts)
-    font = _font("Silkscreen-Regular.ttf", 8)
-    bold = _font("PixelifySans-Bold.ttf", 8)
+    font = _font("assets/fonts/Silkscreen-Regular.ttf", 8)
+    bold = _font("assets/fonts/PixelifySans-Bold.ttf", 8)
     orange = (245, 112, 35)
     white = (245, 250, 255)
     muted = (180, 145, 120)
@@ -480,9 +480,9 @@ def _render_card(data, opts):
     view = str(opts.get("view") or "pulse").lower()
     image = Image.new("RGB", (width, 32), (8, 5, 2))
     draw = ImageDraw.Draw(image)
-    font = _font("Silkscreen-Regular.ttf", 8)
-    bold = _font("PixelifySans-Bold.ttf", 8)
-    big = _font("PixelifySans-Bold.ttf", 16)
+    font = _font("assets/fonts/Silkscreen-Regular.ttf", 8)
+    bold = _font("assets/fonts/PixelifySans-Bold.ttf", 8)
+    big = _font("assets/fonts/PixelifySans-Bold.ttf", 16)
     orange = (245, 112, 35)
     muted = (180, 145, 120)
     white = (245, 250, 255)

@@ -137,13 +137,13 @@ Use `Image.Resampling.NEAREST` for pixel art scaling.
 Available fonts in the Pixora root include:
 
 ```text
-Silkscreen-Regular.ttf
-Silkscreen-Bold.ttf
-PixelifySans.ttf
-PixelifySans-Bold.ttf
-Jersey10-Regular.ttf
-Jersey15-Regular.ttf
-Jersey20-Regular.ttf
+assets/fonts/Silkscreen-Regular.ttf
+assets/fonts/Silkscreen-Bold.ttf
+assets/fonts/PixelifySans.ttf
+assets/fonts/PixelifySans-Bold.ttf
+assets/fonts/Jersey10-Regular.ttf
+assets/fonts/Jersey15-Regular.ttf
+assets/fonts/Jersey20-Regular.ttf
 ```
 
 Silkscreen Regular is usually best for small text. Be careful with bold fonts at tiny sizes. For numbers, prefer Pixora's bitmap number helpers when the card needs chunky LED-style numbers:
@@ -291,7 +291,7 @@ CARD_OPTIONS = [
 def _font(size):
     from PIL import ImageFont
     try:
-        return ImageFont.truetype("Silkscreen-Regular.ttf", size)
+        return ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", size)
     except Exception:
         return ImageFont.load_default()
 

@@ -445,9 +445,9 @@ def _fonts():
     from PIL import ImageFont
     try:
         return (
-            ImageFont.truetype("PixelifySans-Bold.ttf", 8),
-            ImageFont.truetype("Silkscreen-Regular.ttf", 8),
-            ImageFont.truetype("Jersey10-Regular.ttf", 10),
+            ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8),
+            ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8),
+            ImageFont.truetype("assets/fonts/Jersey10-Regular.ttf", 10),
         )
     except Exception:
         font = ImageFont.load_default()

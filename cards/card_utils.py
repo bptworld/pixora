@@ -547,9 +547,9 @@ def render_counter_card(title, label, value, color=(80, 180, 255), sublabel="FOL
     image = Image.new("RGB", (width, 32), (0, 5, 12))
     draw = ImageDraw.Draw(image)
     try:
-        font = ImageFont.truetype("Silkscreen-Regular.ttf", 8)
-        bold = ImageFont.truetype("PixelifySans-Bold.ttf", 8)
-        big = ImageFont.truetype("PixelifySans-Bold.ttf", 16)
+        font = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
+        bold = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
+        big = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 16)
     except Exception:
         font = bold = big = ImageFont.load_default()
 
@@ -964,7 +964,7 @@ def parse_color(value):
 def _msg_font():
     from PIL import ImageFont
     try:
-        return ImageFont.truetype("Silkscreen-Regular.ttf", 8)
+        return ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
     except Exception:
         return ImageFont.load_default()
 
@@ -1052,7 +1052,7 @@ def render_text_webp(text, color):
     image = Image.new("RGB", (64, 32), (0, 0, 0))
     draw = ImageDraw.Draw(image)
     try:
-        font = ImageFont.truetype("Silkscreen-Regular.ttf", 8)
+        font = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
     except Exception:
         font = ImageFont.load_default()
     bbox = draw.textbbox((0, 0), text, font=font)
@@ -1147,9 +1147,9 @@ def render_sport_card(options, url, cache, status_color, fallback_text):
     image = Image.new("RGB", (64, 32), (5, 7, 10))
     draw = ImageDraw.Draw(image)
     try:
-        tiny = ImageFont.truetype("Silkscreen-Regular.ttf", 8)
-        small = ImageFont.truetype("PixelifySans-Bold.ttf", 8)
-        score_font = ImageFont.truetype("PixelifySans-Bold.ttf", 8)
+        tiny = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
+        small = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
+        score_font = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
     except Exception:
         tiny = small = score_font = ImageFont.load_default()
 
@@ -1229,9 +1229,9 @@ def _render_sport_card_128(away, home, away_team, home_team, status, score, stat
     image = Image.new("RGB", (128, 32), (5, 7, 10))
     draw = ImageDraw.Draw(image)
     try:
-        tiny = ImageFont.truetype("Silkscreen-Regular.ttf", 8)
-        small = ImageFont.truetype("PixelifySans-Bold.ttf", 8)
-        score_font = ImageFont.truetype("PixelifySans-Bold.ttf", 12)
+        tiny = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
+        small = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
+        score_font = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 12)
     except Exception:
         tiny = small = score_font = ImageFont.load_default()
 
@@ -1409,8 +1409,8 @@ def render_flight_image(flight_num, airline_name, iata, alt_ft, speed_kt, line4)
     image = Image.new("RGB", (64, 32), (0, 5, 18))
     draw = ImageDraw.Draw(image)
     try:
-        font = ImageFont.truetype("Silkscreen-Regular.ttf", 8)
-        bold = ImageFont.truetype("PixelifySans-Bold.ttf", 8)
+        font = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
+        bold = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
     except Exception:
         font = bold = ImageFont.load_default()
     draw.rectangle((0, 0, 63, 8), fill=(0, 15, 45))

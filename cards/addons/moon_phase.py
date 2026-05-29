@@ -39,7 +39,7 @@ def render(options=None):
 
     label = "NEW" if age < 2 or age > 27.5 else "FULL" if 13 < age < 16 else "MOON"
     try:
-        font = ImageFont.truetype("PixelifySans-Bold.ttf", 8)
+        font = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
     except Exception:
         font = ImageFont.load_default()
     text_x = 74 if width == 128 else 43

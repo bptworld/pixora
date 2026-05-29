@@ -159,10 +159,10 @@ def render(options=None):
     image = Image.new("RGB", (width, 32), (0, 0, 0))
     draw = ImageDraw.Draw(image)
     try:
-        time_font = ImageFont.truetype("PixelifySans-Bold.ttf", 18 if is_wide else 16)
-        temp_font = ImageFont.truetype("Silkscreen-Regular.ttf", 14)
-        unit_font = ImageFont.truetype("Silkscreen-Regular.ttf", 8)
-        small_font = ImageFont.truetype("Silkscreen-Regular.ttf", 8)
+        time_font = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 18 if is_wide else 16)
+        temp_font = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 14)
+        unit_font = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
+        small_font = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
     except Exception:
         time_font = temp_font = unit_font = small_font = ImageFont.load_default()
 

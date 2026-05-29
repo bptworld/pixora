@@ -33,6 +33,7 @@ def app_root():
 
 
 ROOT = app_root()
+os.chdir(ROOT)
 APP_NAME = "Pixora"
 
 
@@ -1123,7 +1124,7 @@ def render_group_wait_message(text, width):
     width = 128 if int(width or 64) >= 96 else 64
     img = Image.new("RGB", (width, 32), (0, 0, 0))
     try:
-        font = ImageFont.truetype(str(ROOT / "Silkscreen-Regular.ttf"), 8)
+        font = ImageFont.truetype(str(ROOT / "assets/fonts/Silkscreen-Regular.ttf"), 8)
     except Exception:
         font = ImageFont.load_default()
     draw = ImageDraw.Draw(img)
@@ -1317,7 +1318,7 @@ def render_group_scroll_plan(group, text, color_rgb=(245, 250, 255), dwell_secs=
     total_width = sum(widths)
     height = 32
     try:
-        font = ImageFont.truetype(str(ROOT / "Silkscreen-Regular.ttf"), 8)
+        font = ImageFont.truetype(str(ROOT / "assets/fonts/Silkscreen-Regular.ttf"), 8)
     except Exception:
         font = ImageFont.load_default()
     dummy = ImageDraw.Draw(Image.new("RGB", (1, 1)))

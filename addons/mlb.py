@@ -154,7 +154,7 @@ def _draw_logo_or_fallback(image, draw, team, color):
     abbr = (team.get("abbreviation") or team.get("shortDisplayName") or "MLB")[:3].upper()
     try:
         from PIL import ImageFont
-        font = ImageFont.truetype("PixelifySans-Bold.ttf", 8)
+        font = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
     except Exception:
         from PIL import ImageFont
         font = ImageFont.load_default()
@@ -184,8 +184,8 @@ def _render_run_animation_frames(team, kind="run"):
     frames = []
     durations = []
     try:
-        font = ImageFont.truetype("PixelifySans-Bold.ttf", 8)
-        run_font = ImageFont.truetype("PixelifySans-Bold.ttf", 9)
+        font = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
+        run_font = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 9)
     except Exception:
         font = run_font = ImageFont.load_default()
 

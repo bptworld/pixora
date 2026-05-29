@@ -41,8 +41,8 @@ def _draw_wide_flight(row):
     image = Image.new("RGB", (128, 32), (0, 5, 18))
     draw = ImageDraw.Draw(image)
     try:
-        font = ImageFont.truetype("Silkscreen-Regular.ttf", 8)
-        bold = ImageFont.truetype("PixelifySans-Bold.ttf", 8)
+        font = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
+        bold = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
     except Exception:
         font = bold = ImageFont.load_default()
     draw.rectangle((0, 0, 127, 8), fill=(0, 15, 45))
@@ -99,8 +99,8 @@ def _draw_64_flight(row):
     image = Image.new("RGB", (64, 32), (0, 5, 18))
     draw = ImageDraw.Draw(image)
     try:
-        font = ImageFont.truetype("Silkscreen-Regular.ttf", 8)
-        bold = ImageFont.truetype("PixelifySans-Bold.ttf", 8)
+        font = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
+        bold = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
     except Exception:
         font = bold = ImageFont.load_default()
 
@@ -142,7 +142,7 @@ def _render_wide_flight(flight_num, airline_name, iata, alt_ft, speed_kt, line4)
     from PIL import ImageDraw, ImageFont
     draw = ImageDraw.Draw(image)
     try:
-        font = ImageFont.truetype("Silkscreen-Regular.ttf", 8)
+        font = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
     except Exception:
         font = ImageFont.load_default()
     lw = draw.textbbox((0, 0), line4[:22], font=font)[2]

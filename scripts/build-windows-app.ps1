@@ -65,17 +65,13 @@ $files = @(
   "setup.html",
   "setup-success.html",
   "getting-started.html",
-  "flash.html",
-  "Silkscreen-Regular.ttf",
-  "Silkscreen-Bold.ttf",
-  "PixelifySans.ttf",
-  "PixelifySans-Bold.ttf"
+  "flash.html"
 )
 foreach ($file in $files) {
   Copy-Item (Join-Path $root $file) $packageDir
 }
 
-foreach ($dir in @("dist\firmware", "docs")) {
+foreach ($dir in @("assets", "dist\firmware", "docs")) {
   $source = Join-Path $root $dir
   if (Test-Path $source) {
     Copy-Item $source (Join-Path $packageDir $dir) -Recurse

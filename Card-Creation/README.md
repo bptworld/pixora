@@ -34,7 +34,7 @@ def render(options=None):
     draw = ImageDraw.Draw(image)
 
     try:
-        font = ImageFont.truetype("Silkscreen-Regular.ttf", 8)
+        font = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
     except Exception:
         font = ImageFont.load_default()
 

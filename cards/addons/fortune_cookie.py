@@ -103,7 +103,7 @@ def render(options=None):
     text_box = _draw_cookie(draw, width)
 
     try:
-        font = ImageFont.truetype("Silkscreen-Regular.ttf", 8)
+        font = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
     except Exception:
         font = ImageFont.load_default()
     x1, y1, x2, y2 = text_box

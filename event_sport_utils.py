@@ -267,8 +267,8 @@ def render_event_sport_card(sport, league, title, color, fallback, icon="race", 
             return None
 
     try:
-        font = ImageFont.truetype("Silkscreen-Regular.ttf", 8)
-        bold = ImageFont.truetype("Silkscreen-Bold.ttf", 8)
+        font = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
+        bold = ImageFont.truetype("assets/fonts/Silkscreen-Bold.ttf", 8)
     except Exception:
         font = bold = ImageFont.load_default()
 

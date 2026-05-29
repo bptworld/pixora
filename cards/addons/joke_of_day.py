@@ -40,7 +40,7 @@ def render(options=None):
     image = Image.new("RGB", (128, 32), (8, 4, 0))
     draw = ImageDraw.Draw(image)
     try:
-        font = ImageFont.truetype("Silkscreen-Regular.ttf", 8)
+        font = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
     except Exception:
         font = ImageFont.load_default()
     text = _joke()[:140].upper()

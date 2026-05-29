@@ -96,7 +96,7 @@ THEMES = {
 def _font(size, bold=False):
     from PIL import ImageFont
 
-    names = ["Silkscreen-Bold.ttf", "Silkscreen-Regular.ttf"] if bold else ["Silkscreen-Regular.ttf"]
+    names = ["assets/fonts/Silkscreen-Bold.ttf", "assets/fonts/Silkscreen-Regular.ttf"] if bold else ["assets/fonts/Silkscreen-Regular.ttf"]
     for name in names:
         try:
             return ImageFont.truetype(name, size)

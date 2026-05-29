@@ -110,9 +110,9 @@ def render(options=None):
         days = None
 
     try:
-        header_font = ImageFont.truetype("PixelifySans-Bold.ttf", 8)
-        big_font    = ImageFont.truetype("Silkscreen-Regular.ttf", 20)
-        small_font  = ImageFont.truetype("Silkscreen-Regular.ttf", 8)
+        header_font = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
+        big_font    = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 20)
+        small_font  = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
     except Exception:
         header_font = big_font = small_font = ImageFont.load_default()
 

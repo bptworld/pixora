@@ -116,7 +116,7 @@ def _draw_logo_or_fallback(image, draw, team, color):
     abbr = (team.get("abbreviation") or team.get("shortDisplayName") or "NHL")[:3].upper()
     try:
         from PIL import ImageFont
-        font = ImageFont.truetype("PixelifySans-Bold.ttf", 8)
+        font = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
     except Exception:
         from PIL import ImageFont
         font = ImageFont.load_default()
@@ -166,7 +166,7 @@ def _render_goal_animation_frames(team):
     frames = []
     durations = []
     try:
-        goal_font = ImageFont.truetype("PixelifySans-Bold.ttf", 10)
+        goal_font = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 10)
     except Exception:
         goal_font = ImageFont.load_default()
 

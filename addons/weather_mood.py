@@ -99,8 +99,8 @@ def render(options=None):
     frame_count = max(16, min(max_frames, int(round(dwell_ms / 180))))
     frame_duration = max(35, int(round(dwell_ms / frame_count)))
     try:
-        font = ImageFont.truetype("Silkscreen-Regular.ttf", 8)
-        bold = ImageFont.truetype("PixelifySans-Bold.ttf", 8)
+        font = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
+        bold = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
     except Exception:
         font = bold = ImageFont.load_default()
 

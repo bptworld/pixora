@@ -20,7 +20,7 @@ OUT_DIR = ROOT / "assets" / "previews"
 ADDONS_DIR = ROOT / "addons"
 
 
-def _font(name="Silkscreen-Regular.ttf", size=8):
+def _font(name="assets/fonts/Silkscreen-Regular.ttf", size=8):
     try:
         return ImageFont.truetype(str(ROOT / name), size)
     except Exception:
@@ -28,8 +28,8 @@ def _font(name="Silkscreen-Regular.ttf", size=8):
 
 
 FONT = _font()
-BOLD = _font("PixelifySans-Bold.ttf")
-BIG = _font("PixelifySans-Bold.ttf", 16)
+BOLD = _font("assets/fonts/PixelifySans-Bold.ttf")
+BIG = _font("assets/fonts/PixelifySans-Bold.ttf", 16)
 
 
 def _webp(image):

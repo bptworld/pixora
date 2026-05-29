@@ -26,8 +26,8 @@ def render(options=None):
 
     frames = []
     try:
-        font = ImageFont.truetype("PixelifySans-Bold.ttf", 8)
-        big = ImageFont.truetype("Silkscreen-Regular.ttf", 20)
+        font = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
+        big = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 20)
     except Exception:
         font = big = ImageFont.load_default()
 

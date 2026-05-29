@@ -53,7 +53,7 @@ _CACHE = {}
 def _font(size=8, bold=False):
     from PIL import ImageFont
 
-    names = ["PixelifySans-Bold.ttf", "Silkscreen-Bold.ttf"] if bold else ["Silkscreen-Regular.ttf"]
+    names = ["assets/fonts/PixelifySans-Bold.ttf", "assets/fonts/Silkscreen-Bold.ttf"] if bold else ["assets/fonts/Silkscreen-Regular.ttf"]
     for name in names:
         try:
             return ImageFont.truetype(name, size)

@@ -442,7 +442,7 @@ def _draw_board(rows, airport, board_type, width, offset=0):
     image = Image.new("RGB", (width, 32), (1, 6, 14))
     draw = ImageDraw.Draw(image)
     try:
-        font = ImageFont.truetype("Silkscreen-Regular.ttf", 8)
+        font = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
     except Exception:
         font = ImageFont.load_default()
 
@@ -494,7 +494,7 @@ def _render_empty(airport, board_type, width):
     image = Image.new("RGB", (width, 32), (1, 6, 14))
     draw = ImageDraw.Draw(image)
     try:
-        font = ImageFont.truetype("Silkscreen-Regular.ttf", 8)
+        font = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
     except Exception:
         font = ImageFont.load_default()
     draw.rectangle((0, 0, width - 1, 8), fill=(12, 24, 36))

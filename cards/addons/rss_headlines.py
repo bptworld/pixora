@@ -57,8 +57,8 @@ def _render_scroll(label, headline, width=64):
     from PIL import Image, ImageDraw, ImageFont
 
     try:
-        font = ImageFont.truetype("Silkscreen-Regular.ttf", 8)
-        bold = ImageFont.truetype("PixelifySans-Bold.ttf", 8)
+        font = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
+        bold = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
     except Exception:
         font = bold = ImageFont.load_default()
     dummy = ImageDraw.Draw(Image.new("RGB", (1, 1)))

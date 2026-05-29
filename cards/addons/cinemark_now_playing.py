@@ -247,7 +247,7 @@ def _movie_groups(rows, max_movies):
 def _fonts():
     from PIL import ImageFont
     try:
-        return ImageFont.truetype("PixelifySans-Bold.ttf", 8), ImageFont.truetype("Silkscreen-Regular.ttf", 8)
+        return ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8), ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
     except Exception:
         font = ImageFont.load_default()
         return font, font

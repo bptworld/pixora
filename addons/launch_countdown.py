@@ -86,7 +86,7 @@ def _text_card(opts, text, color=(175, 220, 255)):
     width = _width(opts)
     image = Image.new("RGB", (width, 32), (0, 5, 15))
     draw = ImageDraw.Draw(image)
-    font = _font("Silkscreen-Regular.ttf", 8)
+    font = _font("assets/fonts/Silkscreen-Regular.ttf", 8)
     bbox = draw.textbbox((0, 0), text, font=font)
     draw_sharp_text(
         image,
@@ -497,8 +497,8 @@ def _draw_launch_page(launch, opts, rocket_x=None, rocket_y=5, rocket_offset=0, 
     view = str(opts.get("view") or "countdown").lower()
     image = Image.new("RGB", (width, 32), (2, 6, 18))
     draw = ImageDraw.Draw(image)
-    font = _font("Silkscreen-Regular.ttf", 8)
-    bold = _font("PixelifySans-Bold.ttf", 8)
+    font = _font("assets/fonts/Silkscreen-Regular.ttf", 8)
+    bold = _font("assets/fonts/PixelifySans-Bold.ttf", 8)
     blue = (80, 175, 255)
     orange = (255, 160, 65)
     white = (238, 245, 255)

@@ -47,9 +47,9 @@ def render(options=None):
     image = Image.new("RGB", (64, 32), (0, 5, 12))
     draw = ImageDraw.Draw(image)
     try:
-        font = ImageFont.truetype("Silkscreen-Regular.ttf", 8)
-        bold = ImageFont.truetype("PixelifySans-Bold.ttf", 8)
-        big = ImageFont.truetype("PixelifySans-Bold.ttf", 16)
+        font = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
+        bold = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
+        big = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 16)
     except Exception:
         font = bold = big = ImageFont.load_default()
     width = 128 if opts.get("_target") == "matrixportal-s3-128x32" else 64

@@ -26,7 +26,7 @@ def _render_text_image(text, color, width=64):
     image = Image.new("RGB", (width, 32), (0, 0, 0))
     draw = ImageDraw.Draw(image)
     try:
-        font = ImageFont.truetype("Silkscreen-Regular.ttf", 8)
+        font = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
     except Exception:
         font = ImageFont.load_default()
     bbox = draw.textbbox((0, 0), text, font=font)
@@ -178,8 +178,8 @@ def render(options=None):
     color = (100, 230, 140) if minutes < 30 else (255, 205, 75) if minutes < 60 else (255, 95, 80)
 
     try:
-        font = ImageFont.truetype("Silkscreen-Regular.ttf", 8)
-        bold = ImageFont.truetype("PixelifySans-Bold.ttf", 8)
+        font = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
+        bold = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
     except Exception:
         font = bold = ImageFont.load_default()
 

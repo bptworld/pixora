@@ -10,7 +10,7 @@ from card_utils import (
 
 try:
     from PIL import ImageFont
-    FONT_7 = ImageFont.truetype("C:/Pixora/Silkscreen-Regular.ttf", 8)
+    FONT_7 = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
 except Exception:
     from PIL import ImageFont
     FONT_7 = ImageFont.load_default()
