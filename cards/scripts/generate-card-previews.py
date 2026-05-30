@@ -7,6 +7,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "addons"))
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -39,6 +40,8 @@ def _webp(image):
 
 
 def _save(card_id, body):
+    if isinstance(body, dict):
+        body = body.get("body")
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     (OUT_DIR / f"{card_id}.webp").write_bytes(body)
 
@@ -458,6 +461,18 @@ def _standings():
     return _webp(image)
 
 
+def _fantasy(kind="MATCHUP", platform="FANTASY", color=(117, 231, 214)):
+    image, draw = _simple_header(platform, color)
+    draw.rectangle((2, 11, 29, 21), fill=(13, 28, 36), outline=(48, 82, 96))
+    draw.rectangle((35, 11, 62, 21), fill=(13, 28, 36), outline=(48, 82, 96))
+    _center(image, "YOU", 10, (245, 250, 255), BOLD, 2, 29)
+    _center(image, "OPP", 10, (245, 250, 255), BOLD, 35, 62)
+    _center(image, "88", 21, (80, 225, 150), BOLD, 2, 29)
+    _center(image, "82", 21, (255, 190, 70), BOLD, 35, 62)
+    _center(image, kind, 24, (160, 180, 195), FONT)
+    return _webp(image)
+
+
 def _message(title, l1, l2="", color=(24, 210, 190)):
     image, draw = _simple_header(title, color)
     _center(image, l1, 10, (245, 250, 255), BOLD)
@@ -528,6 +543,15 @@ CUSTOM = {
     "mega_millions": _mega_millions,
     "megabucks": _megabucks,
     "sports_standings": _standings,
+    "fantasy_matchup": lambda: _fantasy("MATCHUP", "FANTASY", (117, 231, 214)),
+    "fantasy_lineup": lambda: _fantasy("LINEUP", "FANTASY", (117, 231, 214)),
+    "fantasy_standings": lambda: _fantasy("STAND", "FANTASY", (117, 231, 214)),
+    "espn_fantasy_matchup": lambda: _fantasy("MATCHUP", "ESPN", (255, 70, 70)),
+    "espn_fantasy_lineup": lambda: _fantasy("LINEUP", "ESPN", (255, 70, 70)),
+    "espn_fantasy_standings": lambda: _fantasy("STAND", "ESPN", (255, 70, 70)),
+    "yahoo_fantasy_matchup": lambda: _fantasy("MATCHUP", "YAHOO", (165, 105, 255)),
+    "yahoo_fantasy_lineup": lambda: _fantasy("LINEUP", "YAHOO", (165, 105, 255)),
+    "yahoo_fantasy_standings": lambda: _fantasy("STAND", "YAHOO", (165, 105, 255)),
     "youtube_followers": lambda: render_counter_card("YOUTUBE", "Pixora", 123456, (255, 0, 0), "SUBS", "youtube"),
     "facebook_followers": lambda: render_counter_card("FACEBOOK", "Pixora", 123456, (24, 119, 242), "FOLLOW", "facebook"),
     "twitter_followers": lambda: render_counter_card("X", "@pixora", 123456, (245, 250, 255), "FOLLOW", "x"),
