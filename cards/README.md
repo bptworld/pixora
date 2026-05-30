@@ -163,22 +163,7 @@ Open Pixora, click **Browse Cards**, and click **Install** next to any card.
 
 ## Writing Your Own Card
 
-Each card is a single Python file in `addons/`. It must define:
-
-```python
-CARD_ID = "mycard"           # unique slug
-CARD_NAME = "My Card"        # display name
-CARD_DETAIL = "Short blurb"  # one-line description
-CARD_OPTIONS = [             # configurable options (can be empty list)
-    {"key": "myOption", "label": "Label", "type": "text", "default": "value", "maxlength": 10}
-]
-
-def render(options=None):
-    # Return WebP bytes for a 64x32 or 128x32 card frame.
-    ...
-```
-
-See [`docs/card-creation/STEP_BY_STEP.md`](docs/card-creation/STEP_BY_STEP.md) for the card framework walkthrough.
+See the [Card Creation](../Card-Creation/) guide.
 
 ## Updating Cards
 
