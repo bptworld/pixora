@@ -1,6 +1,6 @@
 # Creating Pixora Cards
 
-Pixora cards are small Python files that render a `64 x 32` image for the display.
+Pixora cards are small Python files that render an image for the display.
 
 Cards are downloaded by Pixora from a GitHub card registry, then stored locally in the user's `addons` folder.
 
@@ -117,9 +117,19 @@ Common option fields:
 
 ## Rendering Rules
 
+Pixora supports both `64 x 32` and `128 x 32` displays. Cards must render cleanly at both sizes.
+
+Use the `_target` option to choose the output width:
+
+```python
+target = (options or {}).get("_target", "matrixportal-s3-64x32")
+width = 128 if target == "matrixportal-s3-128x32" else 64
+image = Image.new("RGB", (width, 32), (0, 0, 0))
+```
+
 Pixora displays are tiny. Design for:
 
-- `64 x 32` pixels
+- `64 x 32` and `128 x 32` pixels
 - high contrast
 - short labels
 - simple shapes

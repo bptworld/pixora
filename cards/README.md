@@ -174,7 +174,7 @@ CARD_OPTIONS = [             # configurable options (can be empty list)
 ]
 
 def render(options=None):
-    # Return WebP bytes for a 64x32 card frame.
+    # Return WebP bytes for a 64x32 or 128x32 card frame.
     ...
 ```
 
