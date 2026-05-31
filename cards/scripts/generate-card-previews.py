@@ -518,7 +518,6 @@ CUSTOM = {
     "hubitat": _hubitat,
     "hubitat_multi": _hubitat_multi,
     "hubitat_safety": _safety,
-    "water_leak_alert": lambda: _safety("ALL DRY"),
     "flight_track": _flight,
     "airport_delays": _airport,
     "commute_time": _commute,

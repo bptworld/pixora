@@ -41,7 +41,6 @@ Add-on cards for the [Pixora](https://github.com/bptworld/pixora) display system
 | Hubitat Multi | Several Hubitat devices |
 | Hubitat Safety | All secure or open list |
 | SmartThings Entity | Live SmartThings state |
-| Water Leak Alert | Skips when all dry |
 
 ### Social
 
