@@ -256,17 +256,6 @@
       "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/smartthings_entity.webp"
     },
     {
-      "id": "water_leak_alert",
-      "name": "Water Leak Alert",
-      "category": "Smart Home",
-      "detail": "Skips when all dry",
-      "description": "Skips when all dry",
-      "author": "bptworld",
-      "version": "1.0",
-      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/addons/water_leak_alert.py",
-      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/water_leak_alert.webp"
-    },
-    {
       "id": "etsy_shop",
       "name": "Etsy Shop Pulse",
       "category": "Social",

@@ -98,7 +98,7 @@ def render(options=None):
     if is_wide:
         title_w = _tight_text_width("MARKET INDEXES", bold, spacing=0)
         _draw_tight_text(image, ((width - title_w) // 2, -3), "MARKET INDEXES", (100, 190, 255), bold, spacing=0)
-        rows = [9, 17, 25]
+        rows = [8, 15, 22]
         for y, q in zip(rows, quotes[:3]):
             symbol = q.get("symbol", "")
             price = q.get("price") or 0
