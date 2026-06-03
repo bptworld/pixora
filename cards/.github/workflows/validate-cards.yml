@@ -1,0 +1,39 @@
+name: Validate Cards
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install card dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install Pillow
+
+      - name: Compile card files
+        shell: pwsh
+        run: |
+          $cards = Get-ChildItem addons -Filter *.py -File
+          python -m py_compile card_utils.py event_sport_utils.py @($cards.FullName)
+          "Compiled $($cards.Count) cards plus shared utilities."
+
+      - name: Validate registry JSON
+        shell: pwsh
+        run: |
+          $registry = Get-Content registry.json -Raw | ConvertFrom-Json
+          if (!$registry.cards -or $registry.cards.Count -lt 1) {
+            throw "registry.json does not contain any cards."
+          }
+          "Registry contains $($registry.cards.Count) cards."

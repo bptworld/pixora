@@ -1,0 +1,47 @@
+dist/
+build/
+releases/*
+!releases/PixoraSetup-v1.3.62.exe
+data/
+tmp/
+__pycache__/
+*.pyc
+Pixora.spec
+.asset-tools/
+.publish-pixora/
+.publish-pixora-cards/
+.tmp-glance/
+.vscode/
+Card-Creation/
+Pixora-Codex-Card-Brief.md
+firmware/pixora-firmware/build/
+firmware/pixora-firmware/managed_components/
+firmware/pixora-firmware/sdkconfig
+firmware/pixora-firmware/sdkconfig.old
+firmware/pixora-firmware/secrets.cmake
+firmware/pixora-firmware/secrets.json
+firmware/pixora-firmware/main/setup_pages.h
+firmware/pixora-firmware/
+.esp-idf/
+
+# Local Pixora runtime/source files. The public repo exposes cards and official
+# release downloads only.
+/addons/
+/assets/
+/docs/
+/esphome-hubitat-bridge/
+/scripts/
+/tools/
+/card_utils.py
+/event_sport_utils.py
+/index.html
+/how-it-works.html
+/pixora_server.py
+/registry.json
+/requirements.txt
+/setup-success.html
+/setup.html
+/Start Pixora.bat
+/Start-Pixora.ps1
+/virtual-display.html
+
