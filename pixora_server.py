@@ -202,6 +202,7 @@ OTA_PENDING = {}   # {device_id: {"url": ota_url, "version": firmware_version}} 
 QH_PENDING  = {}   # {device_id: "en,start_hour,end_hour,utc_offset,start_min,end_min,brightness"}
 SWAP_PENDING = {}  # {device_id: "0"|"1"} - sent as Pixora-Swap-Colors on next poll
 SETTINGS_FILE = DATA_DIR / "settings.json"
+OTA_PENDING_FILE = OTA_DIR / "pending.json"
 FLASH_JOB = {"running": False, "done": True, "ok": None, "lines": [], "device": None}
 LOG_BUFFER = deque(maxlen=200)
 MDNS_HOSTNAME = "pixora.local."
@@ -2082,6 +2083,81 @@ def device_for_id(device_id):
     return next((item for item in read_devices() if item.get("id") == device_id), None)
 
 
+def safe_ota_device_id(device_id):
+    return re.sub(r"[^A-Za-z0-9_.-]+", "-", str(device_id or "")).strip("-") or "device"
+
+
+def ota_firmware_path_for(device_id):
+    return OTA_DIR / safe_ota_device_id(device_id) / "firmware.bin"
+
+
+def ota_url_for_device(device):
+    device_id = (device or {}).get("id", "")
+    base_url = ota_server_base(
+        (device or {}).get("endpoint") or (device or {}).get("server") or "",
+        (device or {}).get("lastIp") or "",
+    )
+    return f"{base_url}/data/ota/{urllib.parse.quote(safe_ota_device_id(device_id))}/firmware.bin"
+
+
+def save_pending_ota_jobs():
+    try:
+        OTA_DIR.mkdir(parents=True, exist_ok=True)
+        records = []
+        for device_id, info in OTA_PENDING.items():
+            if isinstance(info, str):
+                info = {"url": info, "version": ""}
+            records.append({
+                "deviceId": device_id,
+                "version": str((info or {}).get("version") or ""),
+                "queuedAt": str((info or {}).get("queuedAt") or datetime.now(timezone.utc).isoformat()),
+                "sentAt": str((info or {}).get("sentAt") or ""),
+                "sentFirmware": str((info or {}).get("sentFirmware") or ""),
+                "sentUptime": (info or {}).get("sentUptime"),
+                "sentCount": int((info or {}).get("sentCount") or 0),
+            })
+        if records:
+            OTA_PENDING_FILE.write_text(json.dumps(records, indent=2), encoding="utf-8")
+        elif OTA_PENDING_FILE.exists():
+            OTA_PENDING_FILE.unlink()
+    except Exception as error:
+        log(f"[ota] Failed to save pending OTA jobs: {error}")
+
+
+def load_pending_ota_jobs():
+    try:
+        if not OTA_PENDING_FILE.exists():
+            return
+        raw = json.loads(OTA_PENDING_FILE.read_text(encoding="utf-8"))
+        records = raw if isinstance(raw, list) else raw.get("jobs", [])
+        restored = 0
+        for record in records:
+            device_id = str((record or {}).get("deviceId") or "").strip()
+            if not device_id:
+                continue
+            device = device_for_id(device_id)
+            firmware_path = ota_firmware_path_for(device_id)
+            if not device or not firmware_path.is_file():
+                continue
+            version = str((record or {}).get("version") or "").strip() or firmware_image_version(firmware_path)
+            OTA_PENDING[device_id] = {
+                "url": ota_url_for_device(device),
+                "version": version,
+                "queuedAt": str((record or {}).get("queuedAt") or datetime.now(timezone.utc).isoformat()),
+                "sentAt": str((record or {}).get("sentAt") or ""),
+                "sentFirmware": str((record or {}).get("sentFirmware") or ""),
+                "sentUptime": (record or {}).get("sentUptime"),
+                "sentCount": int((record or {}).get("sentCount") or 0),
+            }
+            restored += 1
+        if restored:
+            log(f"[ota] restored {restored} pending OTA job(s)")
+        else:
+            save_pending_ota_jobs()
+    except Exception as error:
+        log(f"[ota] Failed to load pending OTA jobs: {error}")
+
+
 def group_for_id(group_id):
     group_id = str(group_id or "").strip()
     if not group_id:
@@ -2879,15 +2955,19 @@ def _run_wifi_ota_job(payload):
         if len(firmware) < 500_000 or len(firmware) > 8_000_000:
             raise ValueError("The selected firmware file size does not look valid.")
 
-        safe_id = re.sub(r"[^A-Za-z0-9_.-]+", "-", device_id).strip("-") or "device"
+        safe_id = safe_ota_device_id(device_id)
         ota_dir = OTA_DIR / safe_id
         ota_dir.mkdir(parents=True, exist_ok=True)
         firmware_path = ota_dir / "firmware.bin"
         firmware_path.write_bytes(firmware)
         version = firmware_image_version(firmware_path)
-        base_url = ota_server_base(device.get("endpoint") or device.get("server") or "", device.get("lastIp") or "")
-        ota_url = f"{base_url}/data/ota/{urllib.parse.quote(safe_id)}/firmware.bin"
-        OTA_PENDING[device_id] = {"url": ota_url, "version": version}
+        ota_url = ota_url_for_device(device)
+        OTA_PENDING[device_id] = {
+            "url": ota_url,
+            "version": version,
+            "queuedAt": datetime.now(timezone.utc).isoformat(),
+        }
+        save_pending_ota_jobs()
         FLASH_JOB["lines"].append(f"Queued OTA for {device_id}: {firmware_name} ({version})")
         FLASH_JOB["lines"].append("The display will update on its next poll, then reboot.")
         log(f"[ota] queued {device_id} target={target} version={version} url={ota_url}")
@@ -2974,8 +3054,14 @@ class PixoraHandler(SimpleHTTPRequestHandler):
 
     def _send_firmware_file(self, path):
         try:
-            file_path = (ROOT / path.lstrip("/")).resolve()
-            if not str(file_path).startswith(str(ROOT.resolve())):
+            if path.startswith("/data/ota/"):
+                relative = path.removeprefix("/data/")
+                base_dir = DATA_DIR
+                file_path = (base_dir / relative).resolve()
+            else:
+                base_dir = ROOT
+                file_path = (base_dir / path.lstrip("/")).resolve()
+            if not str(file_path).startswith(str(base_dir.resolve())):
                 self.send_error(403)
                 return
             if not file_path.is_file():
@@ -3563,10 +3649,29 @@ class PixoraHandler(SimpleHTTPRequestHandler):
                 else:
                     ota_url = ota_info.get("url", "")
                     ota_version = ota_info.get("version", "")
-                if ota_version and fw_ver == ota_version:
+                sent_at = "" if isinstance(ota_info, str) else str(ota_info.get("sentAt") or "")
+                sent_fw = "" if isinstance(ota_info, str) else str(ota_info.get("sentFirmware") or "")
+                try:
+                    sent_uptime = None if isinstance(ota_info, str) else int(ota_info.get("sentUptime"))
+                except Exception:
+                    sent_uptime = None
+                rebooted_after_send = (
+                    sent_uptime is not None
+                    and uptime_s is not None
+                    and uptime_s + 10 < sent_uptime
+                )
+                version_changed_after_send = bool(sent_fw and fw_ver and sent_fw != fw_ver)
+                if ota_version and fw_ver == ota_version and sent_at and (version_changed_after_send or rebooted_after_send):
                     OTA_PENDING.pop(device_id, None)
+                    save_pending_ota_jobs()
                     log(f"[ota] Cleared OTA for {device_id}; device reports {fw_ver}")
                 elif ota_url:
+                    if not isinstance(ota_info, str):
+                        ota_info["sentAt"] = datetime.now(timezone.utc).isoformat()
+                        ota_info["sentFirmware"] = fw_ver
+                        ota_info["sentUptime"] = uptime_s
+                        ota_info["sentCount"] = int(ota_info.get("sentCount") or 0) + 1
+                        save_pending_ota_jobs()
                     self.send_header("Pixora-OTA-URL", ota_url)
                     log(f"[ota] Sent OTA URL to {device_id}: {ota_url} (waiting for {ota_version or 'new firmware'})")
             if device_id in QH_PENDING:
@@ -4930,6 +5035,7 @@ def main():
 
     ensure_user_dirs()
     load_cards()
+    load_pending_ota_jobs()
     queue_startup_device_syncs()
     args = [arg for arg in sys.argv[1:] if arg]
     open_browser = "--no-browser" not in args
