@@ -105,8 +105,12 @@ def _settings_value(key, default=""):
     if os.environ.get(env_key):
         return os.environ.get(env_key)
     try:
-        root = Path(__file__).resolve().parent
-        settings_path = root / "data" / "settings.json"
+        data_dir = os.environ.get("PIXORA_DATA_DIR")
+        if data_dir:
+            settings_path = Path(data_dir) / "settings.json"
+        else:
+            root = Path(__file__).resolve().parent
+            settings_path = root.parent / "data" / "settings.json"
         if settings_path.exists():
             settings = json.loads(settings_path.read_text(encoding="utf-8"))
             return settings.get(key, default)

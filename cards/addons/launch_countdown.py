@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
 import json
+import os
 from pathlib import Path
 import urllib.parse
 
@@ -55,7 +56,8 @@ CARD_OPTIONS = [
 
 _URL = "https://ll.thespacedevs.com/2.0.0/launch/upcoming/"
 _FALLBACK_URL = "https://fdo.rocketlaunch.live/json/launches/next/5"
-_CACHE_PATH = Path(__file__).resolve().parents[1] / "data" / "launch_countdown_cache.json"
+_DATA_DIR = Path(os.environ.get("PIXORA_DATA_DIR") or Path(__file__).resolve().parents[2] / "data")
+_CACHE_PATH = _DATA_DIR / "launch_countdown_cache.json"
 _CACHE_SECONDS = 6 * 60 * 60
 _LAUNCH_WALL_STATE = {}
 _LAUNCH_ANIMATION_STATE = {}
