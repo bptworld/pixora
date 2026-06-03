@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How It Works</title>
+  <style>
+    :root {
+      --ink: #061016;
+      --paper: #f7fbff;
+      --muted: #59707d;
+      --line: rgba(6, 16, 22, 0.14);
+      --mint: #10d6a3;
+      --cyan: #18a8ff;
+      --coral: #ff6b6b;
+      --violet: #755cff;
+      --gold: #ffca3a;
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background: var(--paper);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    .hero {
+      position: relative;
+      min-height: 92vh;
+      display: grid;
+      align-items: end;
+      overflow: hidden;
+      background: #051018;
+      color: #fff;
+      isolation: isolate;
+    }
+
+    .hero canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -2;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      background:
+        linear-gradient(90deg, rgba(5, 16, 24, 0.94) 0%, rgba(5, 16, 24, 0.72) 44%, rgba(5, 16, 24, 0.16) 100%),
+        linear-gradient(0deg, rgba(5, 16, 24, 0.96) 0%, rgba(5, 16, 24, 0.08) 44%, rgba(5, 16, 24, 0.34) 100%);
+      pointer-events: none;
+    }
+
+    .nav {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 22px 0;
+    }
+
+    .mark {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+
+    .mark-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 4px;
+      background: conic-gradient(from 180deg, var(--mint), var(--cyan), var(--coral), var(--gold), var(--mint));
+      box-shadow: 0 0 24px rgba(24, 168, 255, 0.7);
+    }
+
+    .nav a {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 40px;
+      padding: 0 14px;
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: 800;
+      color: #fff;
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(12px);
+    }
+
+    .hero-inner {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 130px 0 84px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0 0 18px;
+      color: #b8fff0;
+      font-size: 13px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .pulse {
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: var(--mint);
+      box-shadow: 0 0 0 8px rgba(16, 214, 163, 0.16), 0 0 22px rgba(16, 214, 163, 0.8);
+    }
+
+    h1 {
+      max-width: 760px;
+      margin: 0;
+      font-size: clamp(48px, 8vw, 112px);
+      line-height: 0.9;
+      letter-spacing: 0;
+    }
+
+    .hero-copy {
+      max-width: 650px;
+      margin: 24px 0 0;
+      color: rgba(255, 255, 255, 0.78);
+      font-size: clamp(18px, 2.2vw, 25px);
+      line-height: 1.35;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 34px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      padding: 0 18px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: 900;
+    }
+
+    .button-primary {
+      color: #03110e;
+      background: linear-gradient(135deg, var(--mint), var(--cyan));
+      box-shadow: 0 16px 34px rgba(24, 168, 255, 0.22);
+    }
+
+    .button-secondary {
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .signal-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 1px;
+      background: var(--line);
+    }
+
+    .signal {
+      min-height: 132px;
+      padding: 22px;
+      background: #ffffff;
+    }
+
+    .signal strong {
+      display: block;
+      font-size: 30px;
+      line-height: 1;
+    }
+
+    .signal span {
+      display: block;
+      margin-top: 10px;
+      color: var(--muted);
+      font-weight: 750;
+    }
+
+    .section {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 86px 0;
+    }
+
+    .section-heading {
+      max-width: 760px;
+      margin-bottom: 36px;
+    }
+
+    .section-heading p {
+      margin: 14px 0 0;
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1.55;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: clamp(34px, 5vw, 64px);
+      line-height: 0.98;
+      letter-spacing: 0;
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .step {
+      position: relative;
+      min-height: 320px;
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      overflow: hidden;
+    }
+
+    .step::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      height: 6px;
+      background: var(--accent);
+    }
+
+    .step:nth-child(1) {
+      --accent: var(--cyan);
+    }
+
+    .step:nth-child(2) {
+      --accent: var(--mint);
+    }
+
+    .step:nth-child(3) {
+      --accent: var(--gold);
+    }
+
+    .step:nth-child(4) {
+      --accent: var(--coral);
+    }
+
+    .step-number {
+      display: inline-grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      border-radius: 8px;
+      color: #fff;
+      background: var(--accent);
+      font-weight: 900;
+    }
+
+    .step h3 {
+      margin: 24px 0 10px;
+      font-size: 24px;
+      line-height: 1.05;
+    }
+
+    .step p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.55;
+      font-weight: 650;
+    }
+
+    .mini-flow {
+      display: grid;
+      gap: 7px;
+      margin-top: 26px;
+    }
+
+    .mini-flow span {
+      display: block;
+      height: 10px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--accent) 76%, white);
+    }
+
+    .mini-flow span:nth-child(2) {
+      width: 74%;
+      opacity: 0.7;
+    }
+
+    .mini-flow span:nth-child(3) {
+      width: 52%;
+      opacity: 0.45;
+    }
+
+    .showcase {
+      display: grid;
+      grid-template-columns: 0.9fr 1.1fr;
+      gap: 34px;
+      align-items: center;
+      padding: 34px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background:
+        linear-gradient(135deg, rgba(24, 168, 255, 0.12), rgba(16, 214, 163, 0.12)),
+        #fff;
+    }
+
+    .showcase h2 {
+      font-size: clamp(32px, 4.5vw, 56px);
+    }
+
+    .showcase p {
+      margin: 16px 0 0;
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1.55;
+      font-weight: 650;
+    }
+
+    .machine {
+      position: relative;
+      min-height: 420px;
+      border-radius: 8px;
+      background: #07121a;
+      overflow: hidden;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+    }
+
+    .rail {
+      position: absolute;
+      left: 8%;
+      right: 8%;
+      height: 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.18);
+    }
+
+    .rail-one {
+      top: 28%;
+    }
+
+    .rail-two {
+      top: 58%;
+    }
+
+    .node {
+      position: absolute;
+      width: 96px;
+      height: 96px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      color: #041017;
+      font-weight: 950;
+      box-shadow: 0 22px 44px rgba(0, 0, 0, 0.34);
+      animation: drift 7s ease-in-out infinite;
+    }
+
+    .node-a {
+      left: 10%;
+      top: 12%;
+      background: var(--cyan);
+    }
+
+    .node-b {
+      right: 12%;
+      top: 32%;
+      background: var(--mint);
+      animation-delay: -1.4s;
+    }
+
+    .node-c {
+      left: 35%;
+      bottom: 12%;
+      background: var(--gold);
+      animation-delay: -2.6s;
+    }
+
+    .spark {
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      background: #fff;
+      box-shadow: 0 0 24px #fff;
+      animation: zip 3.4s linear infinite;
+    }
+
+    .spark:nth-child(6) {
+      top: 27%;
+      animation-delay: -0.4s;
+    }
+
+    .spark:nth-child(7) {
+      top: 57%;
+      animation-delay: -1.8s;
+    }
+
+    @keyframes drift {
+      0%, 100% {
+        transform: translateY(0) rotate(0deg);
+      }
+
+      50% {
+        transform: translateY(-16px) rotate(2deg);
+      }
+    }
+
+    @keyframes zip {
+      from {
+        left: -20px;
+      }
+
+      to {
+        left: calc(100% + 20px);
+      }
+    }
+
+    .proof {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .proof-item {
+      padding: 26px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .proof-item h3 {
+      margin: 0 0 10px;
+      font-size: 23px;
+    }
+
+    .proof-item p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.55;
+      font-weight: 650;
+    }
+
+    .cta {
+      margin-top: 0;
+      padding: 74px 0;
+      background: #061016;
+      color: #fff;
+    }
+
+    .cta-inner {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 24px;
+      align-items: center;
+    }
+
+    .cta h2 {
+      max-width: 760px;
+    }
+
+    .cta p {
+      max-width: 680px;
+      margin: 16px 0 0;
+      color: rgba(255, 255, 255, 0.72);
+      font-size: 18px;
+      line-height: 1.55;
+    }
+
+    @media (max-width: 900px) {
+      .signal-strip,
+      .steps,
+      .proof,
+      .showcase,
+      .cta-inner {
+        grid-template-columns: 1fr;
+      }
+
+      .nav {
+        align-items: flex-start;
+      }
+
+      .hero {
+        min-height: 860px;
+      }
+
+      .hero-inner {
+        padding-top: 140px;
+      }
+
+      .step {
+        min-height: 0;
+      }
+
+      .machine {
+        min-height: 340px;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .nav {
+        width: min(100% - 24px, 1180px);
+      }
+
+      .nav a {
+        min-height: 36px;
+        padding: 0 10px;
+        font-size: 13px;
+      }
+
+      .hero-inner,
+      .section,
+      .cta-inner {
+        width: min(100% - 24px, 1180px);
+      }
+
+      .hero-actions {
+        display: grid;
+      }
+
+      .button {
+        width: 100%;
+      }
+
+      .showcase {
+        padding: 18px;
+      }
+
+      .node {
+        width: 76px;
+        height: 76px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <canvas id="heroCanvas" aria-hidden="true"></canvas>
+    <nav class="nav" aria-label="Page navigation">
+      <div class="mark"><span class="mark-dot"></span><span>How It Works</span></div>
+      <a href="#steps">See the steps</a>
+    </nav>
+
+    <div class="hero-inner">
+      <p class="eyebrow"><span class="pulse"></span> From spark to launch</p>
+      <h1>How it Works</h1>
+      <p class="hero-copy">The server runs on your own system. Your displays pull cards from your network, not ours. In fact we don't even have any servers.</p>
+      <div class="hero-actions">
+        <a class="button button-primary" href="#steps">Start the walkthrough</a>
+        <a class="button button-secondary" href="#showcase">Watch the engine</a>
+      </div>
+    </div>
+  </header>
+
+  <section class="signal-strip" aria-label="Highlights">
+    <div class="signal"><strong>01</strong><span>The server runs on your computer.</span></div>
+    <div class="signal"><strong>02</strong><span>Displays connect over your network.</span></div>
+    <div class="signal"><strong>03</strong><span>Cards render locally and keep rotating.</span></div>
+  </section>
+
+  <main>
+    <section id="steps" class="section">
+      <div class="section-heading">
+        <h2>It works because you own the engine.</h2>
+        <p>The server, card schedule, settings, and display content run from your own system. Cloud services can add convenience, but they are not the foundation holding the whole thing up.</p>
+      </div>
+
+      <div class="steps">
+        <article class="step">
+          <span class="step-number">1</span>
+          <h3>Start the local server</h3>
+          <p>The control center runs on your computer. It stores your settings, card queue, device list, and the content each display should show.</p>
+          <div class="mini-flow" aria-hidden="true"><span></span><span></span><span></span></div>
+        </article>
+
+        <article class="step">
+          <span class="step-number">2</span>
+          <h3>Connect your displays</h3>
+          <p>Each display joins your Wi-Fi and checks in with the server on your local network. Your setup stays inside your home or workspace.</p>
+          <div class="mini-flow" aria-hidden="true"><span></span><span></span><span></span></div>
+        </article>
+
+        <article class="step">
+          <span class="step-number">3</span>
+          <h3>Cards keep running</h3>
+          <p>The server renders and schedules the cards, then the displays pull what they need. Weather, clocks, dashboards, scores, and custom cards stay in motion.</p>
+          <div class="mini-flow" aria-hidden="true"><span></span><span></span><span></span></div>
+        </article>
+
+        <article class="step">
+          <span class="step-number">4</span>
+          <h3>You stay in control</h3>
+          <p>If an outside service changes, slows down, or disappears, your local setup still has the core pieces it needs to keep showing cards.</p>
+          <div class="mini-flow" aria-hidden="true"><span></span><span></span><span></span></div>
+        </article>
+      </div>
+    </section>
+
+    <section id="showcase" class="section">
+      <div class="showcase">
+        <div>
+          <h2>Other services rent you the lights. This keeps the switch in your hand.</h2>
+          <p>Many connected displays depend on a company server to decide what appears next. Here, your own machine is the source of truth, so your cards are not stranded if a cloud dashboard goes away.</p>
+        </div>
+        <div class="machine" aria-label="Animated process diagram">
+          <div class="rail rail-one"></div>
+          <div class="rail rail-two"></div>
+          <div class="node node-a">Server</div>
+          <div class="node node-b">Cards</div>
+          <div class="node node-c">Display</div>
+          <div class="spark"></div>
+          <div class="spark"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-heading">
+        <h2>Why local-first matters</h2>
+        <p>The difference is not just technical. It is the difference between owning a working system and depending on someone else's server to keep your display alive.</p>
+      </div>
+      <div class="proof">
+        <article class="proof-item">
+          <h3>No shutdown cliff</h3>
+          <p>If the company behind the product changes direction, the core card rotation can keep running because it is served from your system.</p>
+        </article>
+        <article class="proof-item">
+          <h3>Your data stays close</h3>
+          <p>Settings, devices, schedules, and card content are managed locally, reducing the need to send everything through a remote service.</p>
+        </article>
+        <article class="proof-item">
+          <h3>Cloud when useful</h3>
+          <p>Online APIs can still feed individual cards, but the display system itself is not locked behind a mandatory cloud account.</p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <section class="cta">
+    <div class="cta-inner">
+      <div>
+        <h2>Built to keep glowing.</h2>
+        <p>A local server means the experience belongs to you: your cards, your displays, your schedule, running from your own machine.</p>
+      </div>
+      <a class="button button-primary" href="#steps">Replay the flow</a>
+    </div>
+  </section>
+
+  <script>
+    const canvas = document.getElementById("heroCanvas");
+    const ctx = canvas.getContext("2d");
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let width = 0;
+    let height = 0;
+    let particles = [];
+    let frame = 0;
+
+    function resize() {
+      const ratio = Math.min(window.devicePixelRatio || 1, 2);
+      width = canvas.clientWidth;
+      height = canvas.clientHeight;
+      canvas.width = Math.floor(width * ratio);
+      canvas.height = Math.floor(height * ratio);
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      particles = Array.from({ length: Math.max(42, Math.floor(width / 22)) }, (_, index) => ({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        r: 1.4 + Math.random() * 3.8,
+        vx: 0.18 + Math.random() * 0.55,
+        wave: Math.random() * Math.PI * 2,
+        hue: [164, 201, 7, 44][index % 4]
+      }));
+    }
+
+    function drawGrid() {
+      ctx.strokeStyle = "rgba(255,255,255,0.075)";
+      ctx.lineWidth = 1;
+      const size = 58;
+      for (let x = -size; x < width + size; x += size) {
+        ctx.beginPath();
+        ctx.moveTo(x + (frame % size), 0);
+        ctx.lineTo(x + (frame % size) - height * 0.22, height);
+        ctx.stroke();
+      }
+      for (let y = 0; y < height; y += size) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y + width * 0.04);
+        ctx.stroke();
+      }
+    }
+
+    function draw() {
+      frame += prefersReducedMotion ? 0 : 0.6;
+      ctx.clearRect(0, 0, width, height);
+      const gradient = ctx.createLinearGradient(0, 0, width, height);
+      gradient.addColorStop(0, "#07131d");
+      gradient.addColorStop(0.48, "#0e2330");
+      gradient.addColorStop(1, "#172027");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, width, height);
+      drawGrid();
+
+      for (const particle of particles) {
+        if (!prefersReducedMotion) {
+          particle.x += particle.vx;
+          particle.y += Math.sin(frame * 0.02 + particle.wave) * 0.18;
+          if (particle.x > width + 20) particle.x = -20;
+        }
+        ctx.beginPath();
+        ctx.fillStyle = `hsla(${particle.hue}, 95%, 62%, 0.76)`;
+        ctx.shadowColor = `hsla(${particle.hue}, 95%, 62%, 0.85)`;
+        ctx.shadowBlur = 18;
+        ctx.arc(particle.x, particle.y, particle.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.shadowBlur = 0;
+      requestAnimationFrame(draw);
+    }
+
+    window.addEventListener("resize", resize);
+    resize();
+    draw();
+  </script>
+</body>
+</html>

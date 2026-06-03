@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pixora Virtual Matrix</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #06080c;
+      --panel: #10161d;
+      --line: #2b3845;
+      --text: #f0f7ff;
+      --muted: #93a7b8;
+      --accent: #22d9f2;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      background:
+        radial-gradient(circle at 20% 0%, rgba(34, 217, 242, 0.13), transparent 30rem),
+        radial-gradient(circle at 90% 20%, rgba(255, 45, 65, 0.12), transparent 28rem),
+        var(--bg);
+      color: var(--text);
+      font: 13px/1.35 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(7, 10, 14, 0.82);
+      backdrop-filter: blur(12px);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 15px;
+      letter-spacing: 0;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px 12px;
+      color: var(--muted);
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #35d07f;
+      box-shadow: 0 0 12px #35d07f;
+    }
+
+    main {
+      display: grid;
+      place-items: center;
+      min-width: 0;
+      padding: clamp(12px, 2vw, 28px);
+    }
+
+    .cabinet {
+      position: relative;
+      width: min(96vw, 1480px);
+      padding: clamp(10px, 1.6vw, 22px);
+      border: 1px solid #252c34;
+      border-radius: 8px;
+      background:
+        linear-gradient(180deg, #20242a 0, #07090c 7%, #030407 50%, #07090c 93%, #1a1f25 100%);
+      box-shadow:
+        0 34px 90px rgba(0, 0, 0, 0.58),
+        inset 0 0 0 5px #05070a,
+        inset 0 0 0 7px #222a33,
+        inset 0 10px 18px rgba(255, 255, 255, 0.05);
+    }
+
+    body.target-128 .cabinet {
+      width: 90vw;
+    }
+
+    body.target-64 .cabinet {
+      width: 45vw;
+    }
+
+    .cabinet::before {
+      content: "";
+      position: absolute;
+      inset: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 5px;
+      pointer-events: none;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      aspect-ratio: 4 / 1;
+      border-radius: 3px;
+      background: #010309;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    button,
+    select,
+    input {
+      min-height: 30px;
+      border: 1px solid #344556;
+      border-radius: 6px;
+      background: #101923;
+      color: var(--text);
+      font: inherit;
+      padding: 4px 8px;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    button:hover {
+      border-color: #5c748c;
+      background: #182535;
+    }
+
+    label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1 id="title">Virtual Matrix</h1>
+      <div class="meta">
+        <span class="dot" id="statusDot"></span>
+        <span id="status">Starting</span>
+        <span id="cardName"></span>
+        <span id="dwell"></span>
+      </div>
+    </div>
+    <div class="controls">
+      <label>Render
+        <select id="realism">
+          <option value="rgbme" selected>RGBME Real</option>
+          <option value="raw">Raw Pixels</option>
+        </select>
+      </label>
+      <label>Intensity
+        <input id="intensity" type="range" min="0" max="100" step="1" value="100">
+        <span id="intensityValue">100%</span>
+      </label>
+      <label>Glow
+        <input id="glow" type="range" min="0" max="24" step="1" value="10">
+        <span id="glowValue">10</span>
+      </label>
+      <label>Dot
+        <input id="dotSize" type="range" min="50" max="100" step="1" value="100">
+        <span id="dotSizeValue">100%</span>
+      </label>
+      <button id="pollNow" type="button">Refresh</button>
+      <button id="fullScreen" type="button">Fullscreen</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="cabinet">
+      <canvas id="matrix" width="1920" height="480"></canvas>
+    </div>
+  </main>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const deviceId = params.get("device") || "virtual-matrix";
+    const canvas = document.getElementById("matrix");
+    const ctx = canvas.getContext("2d", { alpha: false });
+    const sample = document.createElement("canvas");
+    const sampleCtx = sample.getContext("2d", { willReadFrequently: true });
+    const cardImage = new Image();
+    const storagePrefix = "pixora.virtualDisplay." + deviceId + ".";
+    const persistedControls = ["realism", "intensity", "glow", "dotSize"];
+    const state = {
+      objectUrl: "",
+      nextPollAt: 0,
+      pollTimer: 0,
+      dwellSecs: 10,
+      card: "",
+      ok: false,
+      imageReady: false,
+      animationFrames: [],
+      animationStartedAt: 0,
+      animationDurationMs: 0,
+      spriteFrames: null,
+      targetCols: 128,
+      targetRows: 32,
+    };
+
+    document.getElementById("title").textContent = "Virtual Matrix: " + deviceId;
+
+    function loadPersistedControls() {
+      persistedControls.forEach((id) => {
+        const element = document.getElementById(id);
+        const saved = localStorage.getItem(storagePrefix + id);
+        if (element && saved !== null) element.value = saved;
+      });
+    }
+
+    function saveControl(id) {
+      const element = document.getElementById(id);
+      if (element) localStorage.setItem(storagePrefix + id, element.value);
+    }
+
+    function setStatus(text, ok) {
+      state.ok = ok;
+      document.getElementById("status").textContent = text;
+      const dot = document.getElementById("statusDot");
+      dot.style.background = ok ? "#35d07f" : "#ff5768";
+      dot.style.boxShadow = ok ? "0 0 12px #35d07f" : "0 0 12px #ff5768";
+    }
+
+    function closeAnimationFrames() {
+      for (const frame of state.animationFrames) {
+        try {
+          frame.source.close?.();
+        } catch (error) {}
+      }
+      state.animationFrames = [];
+      state.animationStartedAt = 0;
+      state.animationDurationMs = 0;
+      state.spriteFrames = null;
+    }
+
+    function targetFromSource(source) {
+      const w = source?.displayWidth || source?.naturalWidth || source?.width || 128;
+      const h = source?.displayHeight || source?.naturalHeight || source?.height || 32;
+      state.targetCols = Math.max(16, Math.min(384, w));
+      state.targetRows = Math.max(8, Math.min(128, h));
+      canvas.width = Math.max(960, state.targetCols * 15);
+      canvas.height = Math.max(320, state.targetRows * 15);
+      canvas.style.aspectRatio = state.targetCols + " / " + state.targetRows;
+      document.body.classList.toggle("target-128", state.targetCols >= 128);
+      document.body.classList.toggle("target-64", state.targetCols < 128);
+    }
+
+    async function decodeAnimationFrames(blob) {
+      if (!("ImageDecoder" in window)) return [];
+      let decoder;
+      try {
+        decoder = new ImageDecoder({ data: blob, type: blob.type || "image/webp" });
+        await decoder.tracks.ready;
+        const frameCount = decoder.tracks.selectedTrack?.frameCount || 1;
+        if (frameCount <= 1) {
+          decoder.close?.();
+          return [];
+        }
+        const frames = [];
+        const maxFrames = Math.min(frameCount, 240);
+        for (let index = 0; index < maxFrames; index++) {
+          const decoded = await decoder.decode({ frameIndex: index });
+          const bitmap = await createImageBitmap(decoded.image);
+          const duration = Math.max(20, Math.round((decoded.image.duration || 100000) / 1000));
+          decoded.image.close?.();
+          frames.push({ source: bitmap, duration });
+        }
+        decoder.close?.();
+        return frames;
+      } catch (error) {
+        try {
+          decoder?.close?.();
+        } catch (closeError) {}
+        console.warn("Animated WebP decode failed; falling back to browser image playback.", error);
+        return [];
+      }
+    }
+
+    function currentSource() {
+      if (state.spriteFrames?.count > 1) {
+        const sprite = state.spriteFrames;
+        let elapsed = (performance.now() - state.animationStartedAt) % Math.max(1, sprite.durationMs);
+        let index = 0;
+        for (; index < sprite.durations.length; index++) {
+          if (elapsed < sprite.durations[index]) break;
+          elapsed -= sprite.durations[index];
+        }
+        index = Math.min(sprite.count - 1, index);
+        return {
+          source: cardImage,
+          sx: 0,
+          sy: index * sprite.height,
+          sw: sprite.width,
+          sh: sprite.height,
+        };
+      }
+      const frames = state.animationFrames;
+      if (!frames.length) return { source: cardImage };
+      const duration = state.animationDurationMs || frames.reduce((sum, frame) => sum + frame.duration, 0);
+      let elapsed = (performance.now() - state.animationStartedAt) % Math.max(1, duration);
+      for (const frame of frames) {
+        if (elapsed < frame.duration) return { source: frame.source };
+        elapsed -= frame.duration;
+      }
+      return { source: frames[frames.length - 1].source };
+    }
+
+    async function pollNext() {
+      clearTimeout(state.pollTimer);
+      try {
+        setStatus("Polling", true);
+        const response = await fetch("/" + encodeURIComponent(deviceId) + "/next?virtual=1&t=" + Date.now(), {
+          cache: "no-store",
+          headers: {
+            "X-Firmware-Version": "virtual-matrix",
+            "X-Pixora-Uptime": String(Math.floor(performance.now() / 1000)),
+          },
+        });
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        state.dwellSecs = Math.max(1, Number(response.headers.get("Pixora-Dwell-Secs")) || 10);
+        state.card = response.headers.get("Pixora-Card") || "";
+        const spriteCount = Math.max(0, Number(response.headers.get("Pixora-Virtual-Frame-Count")) || 0);
+        const spriteWidth = Math.max(0, Number(response.headers.get("Pixora-Virtual-Frame-Width")) || 0);
+        const spriteHeight = Math.max(0, Number(response.headers.get("Pixora-Virtual-Frame-Height")) || 0);
+        const spriteDurations = (response.headers.get("Pixora-Virtual-Frame-Durations") || "")
+          .split(",")
+          .map((value) => Math.max(20, Number(value) || 0))
+          .filter(Boolean);
+        const blob = await response.blob();
+        closeAnimationFrames();
+        if (spriteCount > 1 && spriteWidth > 0 && spriteHeight > 0 && spriteDurations.length) {
+          state.spriteFrames = {
+            count: Math.min(spriteCount, spriteDurations.length),
+            width: spriteWidth,
+            height: spriteHeight,
+            durations: spriteDurations,
+            durationMs: spriteDurations.reduce((sum, duration) => sum + duration, 0),
+          };
+        } else {
+          state.animationFrames = await decodeAnimationFrames(blob);
+        }
+        state.animationDurationMs = state.animationFrames.reduce((sum, frame) => sum + frame.duration, 0);
+        state.animationStartedAt = performance.now();
+        if (state.objectUrl) URL.revokeObjectURL(state.objectUrl);
+        state.objectUrl = URL.createObjectURL(blob);
+        cardImage.onload = () => {
+          state.imageReady = true;
+          targetFromSource(state.spriteFrames || state.animationFrames[0]?.source || cardImage);
+          setStatus("Live", true);
+          document.getElementById("cardName").textContent = state.card ? "Card: " + state.card : "";
+          document.getElementById("dwell").textContent = "Dwell: " + state.dwellSecs + "s";
+        };
+        cardImage.src = state.objectUrl;
+      } catch (error) {
+        setStatus("Offline: " + error.message, false);
+      } finally {
+        state.nextPollAt = Date.now() + state.dwellSecs * 1000;
+        state.pollTimer = setTimeout(pollNext, state.dwellSecs * 1000);
+      }
+    }
+
+    function drawRawPixels(width, height, frame) {
+      ctx.imageSmoothingEnabled = false;
+      const source = frame.source;
+      if (frame.sw && frame.sh) {
+        ctx.drawImage(source, frame.sx, frame.sy, frame.sw, frame.sh, 0, 0, width, height);
+      } else {
+        ctx.drawImage(source, 0, 0, width, height);
+      }
+    }
+
+    function renderLedMatrix(width, height, realism, frame) {
+      const cols = state.targetCols;
+      const rows = state.targetRows;
+      const source = frame.source;
+      sample.width = cols;
+      sample.height = rows;
+      sampleCtx.imageSmoothingEnabled = false;
+      sampleCtx.clearRect(0, 0, cols, rows);
+      if (frame.sw && frame.sh) {
+        sampleCtx.drawImage(source, frame.sx, frame.sy, frame.sw, frame.sh, 0, 0, cols, rows);
+      } else {
+        sampleCtx.drawImage(source, 0, 0, cols, rows);
+      }
+
+      const data = sampleCtx.getImageData(0, 0, cols, rows).data;
+      const cellW = width / cols;
+      const cellH = height / rows;
+      const dotSizePct = Math.max(50, Math.min(100, Number(document.getElementById("dotSize").value) || 100));
+      const pixelSize = Math.min(cellW, cellH) * (dotSizePct / 100);
+      const intensityPct = Math.max(0, Math.min(100, Number(document.getElementById("intensity").value) || 0));
+      const intensity = intensityPct / 100;
+      const pixelGlow = Math.max(0, Math.min(24, Number(document.getElementById("glow").value) || 0));
+      const colorText = (red, green, blue, alpha = 1) => {
+        return `rgba(${Math.round(red)},${Math.round(green)},${Math.round(blue)},${alpha})`;
+      };
+
+      ctx.fillStyle = "#01030a";
+      ctx.fillRect(0, 0, width, height);
+
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          const i = (y * cols + x) * 4;
+          let r = data[i];
+          let g = data[i + 1];
+          let b = data[i + 2];
+          const maxChannel = Math.max(r, g, b);
+          const isLit = maxChannel >= 3;
+          if (!isLit) continue;
+          r = Math.min(255, r * intensity);
+          g = Math.min(255, g * intensity);
+          b = Math.min(255, b * intensity);
+          if (Math.max(r, g, b) <= 0) continue;
+
+          const cx = x * cellW + cellW / 2;
+          const cy = y * cellH + cellH / 2;
+          const radius = pixelSize / 2;
+          const glowSize = pixelGlow * (pixelSize / 16);
+          if (glowSize > 0) {
+            ctx.save();
+            ctx.globalCompositeOperation = "screen";
+            ctx.shadowColor = colorText(r, g, b, 1);
+            ctx.shadowBlur = glowSize * 2.4;
+            ctx.fillStyle = colorText(r, g, b, 0.38);
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius * 0.86, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            const outerRadius = radius + glowSize * 1.15;
+            const halo = ctx.createRadialGradient(cx, cy, radius * 0.25, cx, cy, outerRadius);
+            halo.addColorStop(0, colorText(r, g, b, 0.42));
+            halo.addColorStop(Math.max(0.01, radius / outerRadius), colorText(r, g, b, 0.2));
+            halo.addColorStop(1, colorText(r, g, b, 0));
+            ctx.fillStyle = halo;
+            ctx.beginPath();
+            ctx.arc(cx, cy, outerRadius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          }
+
+          const lensShell = ctx.createRadialGradient(cx - radius * 0.2, cy - radius * 0.24, 0, cx, cy, radius);
+          lensShell.addColorStop(0, colorText(Math.min(255, r * 1.16), Math.min(255, g * 1.16), Math.min(255, b * 1.16), 1));
+          lensShell.addColorStop(0.48, colorText(r, g, b, 1));
+          lensShell.addColorStop(0.82, colorText(r * 0.62, g * 0.62, b * 0.62, 1));
+          lensShell.addColorStop(1, "rgba(4,7,10,0.95)");
+          ctx.fillStyle = lensShell;
+          ctx.beginPath();
+          ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.save();
+          ctx.globalCompositeOperation = "screen";
+          const emitterRadius = radius * 0.68;
+          const emitter = ctx.createRadialGradient(cx, cy, 0, cx, cy, emitterRadius);
+          emitter.addColorStop(0, colorText(255, 255, 255, 0.1));
+          emitter.addColorStop(0.18, colorText(Math.min(255, r * 1.45), Math.min(255, g * 1.45), Math.min(255, b * 1.45), 0.95));
+          emitter.addColorStop(0.74, colorText(r, g, b, 0.62));
+          emitter.addColorStop(1, colorText(r, g, b, 0));
+          ctx.fillStyle = emitter;
+          ctx.beginPath();
+          ctx.arc(cx, cy, emitterRadius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+
+          ctx.save();
+          ctx.globalCompositeOperation = "screen";
+          ctx.fillStyle = colorText(255, 255, 255, 0.22 * Math.max(r, g, b) / 255);
+          ctx.beginPath();
+          ctx.arc(cx - radius * 0.3, cy - radius * 0.34, Math.max(0.8, radius * 0.16), 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+    }
+
+    function render() {
+      const width = canvas.width;
+      const height = canvas.height;
+      if (!state.imageReady) {
+        ctx.fillStyle = "#01030a";
+        ctx.fillRect(0, 0, width, height);
+        ctx.fillStyle = "#22d9f2";
+        ctx.font = "700 38px system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("WAITING FOR PIXORA", width / 2, height / 2);
+      } else {
+        const realism = document.getElementById("realism").value;
+        const frame = currentSource();
+        if (realism === "raw") drawRawPixels(width, height, frame);
+        else renderLedMatrix(width, height, realism, frame);
+      }
+      requestAnimationFrame(render);
+    }
+
+    document.getElementById("pollNow").addEventListener("click", pollNext);
+    document.getElementById("fullScreen").addEventListener("click", () => {
+      const target = document.querySelector(".cabinet");
+      if (document.fullscreenElement) document.exitFullscreen();
+      else target.requestFullscreen?.();
+    });
+
+    function updateSliderReadouts() {
+      const intensity = Number(document.getElementById("intensity").value) || 0;
+      const glow = Number(document.getElementById("glow").value) || 0;
+      const dotSize = Number(document.getElementById("dotSize").value) || 0;
+      document.getElementById("intensityValue").textContent = Math.round(intensity) + "%";
+      document.getElementById("glowValue").textContent = Math.round(glow);
+      document.getElementById("dotSizeValue").textContent = Math.round(dotSize) + "%";
+    }
+
+    document.getElementById("intensity").addEventListener("input", updateSliderReadouts);
+    document.getElementById("glow").addEventListener("input", updateSliderReadouts);
+    document.getElementById("dotSize").addEventListener("input", updateSliderReadouts);
+    persistedControls.forEach((id) => {
+      const element = document.getElementById(id);
+      if (!element) return;
+      element.addEventListener("input", () => {
+        saveControl(id);
+        updateSliderReadouts();
+      });
+      element.addEventListener("change", () => {
+        saveControl(id);
+        updateSliderReadouts();
+      });
+    });
+
+    loadPersistedControls();
+    updateSliderReadouts();
+    pollNext();
+    render();
+  </script>
+</body>
+</html>
