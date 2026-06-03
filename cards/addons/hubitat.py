@@ -11,9 +11,7 @@ CARD_OPTIONS = [
     {"key": "hubIp",    "label": "Hub IP",         "type": "text",   "default": "192.168.1.100"},
     {"key": "appId",    "label": "Maker API App #", "type": "text",   "default": ""},
     {"key": "token",    "label": "Access Token",    "type": "text",   "default": ""},
-    {"key": "deviceId", "label": "Device ID",       "type": "text",   "default": ""},
-    {"key": "attribute","label": "Attribute",       "type": "text",   "default": "temperature"},
-    {"key": "label",    "label": "Display Label",   "type": "text",   "default": ""},
+    {"key": "deviceId", "label": "Device",          "type": "hubitatDevices", "default": "", "multiple": False, "perDeviceAttributes": True},
 ]
 
 _CACHE = {}
@@ -38,6 +36,21 @@ def _get_attr(device_data, attr_name):
         if attr.get("name", "").lower() == attr_name.lower():
             return attr.get("currentValue")
     return None
+
+
+def _parse_device_selection(value):
+    raw = (value or "").strip()
+    if not raw:
+        return "", "", ""
+    first = raw.split(",", 1)[0].strip()
+    pieces = first.split(":")
+    if len(pieces) >= 4:
+        return pieces[-3].strip(), pieces[-2].strip(), pieces[-1].strip()
+    if len(pieces) >= 3:
+        return pieces[-2].strip(), pieces[-1].strip(), ""
+    if len(pieces) >= 2:
+        return pieces[-1].strip(), "", ""
+    return first, "", ""
 
 
 def _fmt(attr_name, value):
@@ -101,8 +114,8 @@ def render(options=None):
     hub_ip    = (opts.get("hubIp")    or "").strip()
     app_id    = (opts.get("appId")    or "").strip()
     token     = (opts.get("token")    or "").strip()
-    device_id = (opts.get("deviceId") or "").strip()
-    attribute = (opts.get("attribute") or "temperature").strip()
+    device_id, selected_attribute, alias = _parse_device_selection(opts.get("deviceId"))
+    attribute = (selected_attribute or opts.get("attribute") or "temperature").strip()
     label     = (opts.get("label")    or "").strip()
 
     if not all([hub_ip, app_id, token, device_id]):
@@ -113,7 +126,7 @@ def render(options=None):
     except Exception as e:
         return render_text_webp("HUB ERR", (238, 80, 80))
 
-    device_label = label or device.get("label") or device.get("name") or device_id
+    device_label = label or alias or device.get("label") or device.get("name") or device_id
     value        = _get_attr(device, attribute)
     val_str, val_color = _fmt(attribute, value)
 
@@ -141,7 +154,7 @@ def render(options=None):
             draw_sharp_text(image, ((128 - vw) // 2, 10), val_str, val_color, bold)
         attr_lbl = attribute[:18].upper()
         aw = draw.textbbox((0, 0), attr_lbl, font=font)[2]
-        draw_sharp_text(image, ((128 - aw) // 2, 24), attr_lbl, (70, 90, 115), font)
+        draw_sharp_text(image, ((128 - aw) // 2, 22), attr_lbl, (70, 90, 115), font)
         out = BytesIO()
         image.save(out, "WEBP", lossless=True, quality=100)
         return out.getvalue()
@@ -168,4 +181,3 @@ def render(options=None):
     out = BytesIO()
     image.save(out, "WEBP", lossless=True, quality=100)
     return out.getvalue()
-

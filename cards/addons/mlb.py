@@ -14,6 +14,9 @@ from card_utils import (
     warm_priority_graphic,
 )
 
+from _sports_breaking import SCORE_ANIMATION_TEAMS_OPTION, animation_competitors, final_win_alert
+from _sports_wall import render_wall_score_frames
+
 CARD_ID = "mlb"
 CARD_NAME = "MLB Scores"
 CARD_DETAIL = "Live ESPN scoreboard"
@@ -67,6 +70,7 @@ CARD_OPTIONS = [
         ],
     }
 ]
+CARD_OPTIONS.append(dict(SCORE_ANIMATION_TEAMS_OPTION))
 
 _URL = "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard"
 _CACHE = {"expires": datetime.min.replace(tzinfo=timezone.utc), "body": b""}
@@ -181,6 +185,7 @@ def _render_run_animation_frames(team, kind="run"):
     except Exception:
         width = 64
     width = max(64, min(512, width))
+    return render_wall_score_frames(team, kind, sport="baseball", default_label="MLB")
     frames = []
     durations = []
     try:
@@ -374,56 +379,66 @@ def _maybe_run_animation(options):
 
     competition = event.get("competitions", [{}])[0]
     state = competition.get("status", {}).get("type", {}).get("state")
-    competitor = _selected_competitor(event, favorite)
-    if not competitor:
+    competitors = animation_competitors(event, favorite, options)
+    if not competitors:
         return None
 
-    team = competitor.get("team", {})
     game_id = str(event.get("id") or competition.get("id") or datetime.now().strftime("%Y%m%d"))
     device_id = (options or {}).get("_device_id", "local")
-    team_key = (team.get("abbreviation") or favorite or "MLB").upper()
-    key = f"{device_id}:{game_id}:{team_key}"
-    try:
-        score = int(competitor.get("score", 0) or 0)
-    except Exception:
-        score = 0
+    for competitor in competitors:
+        team = competitor.get("team", {})
+        team_key = (team.get("abbreviation") or team.get("shortDisplayName") or favorite or "MLB").upper()
+        key = f"{device_id}:{game_id}:{team_key}"
+        try:
+            score = int(competitor.get("score", 0) or 0)
+        except Exception:
+            score = 0
 
-    animation_team = dict(team)
-    animation_team["_width"] = _run_animation_width(options)
-    cache_key = priority_graphic_key(CARD_ID, animation_team, "run", animation_team["_width"])
+        animation_team = dict(team)
+        animation_team["_width"] = _run_animation_width(options)
+        cache_key = priority_graphic_key(CARD_ID, animation_team, "run", animation_team["_width"])
 
-    previous = _RUN_STATE.get(key)
-    if state != "in":
-        _RUN_STATE[key] = {"score": score, "animated": score, "seen": datetime.now(timezone.utc)}
-        return None
-    if previous is None:
-        _RUN_STATE[key] = {"score": score, "animated": score, "seen": datetime.now(timezone.utc)}
-        warm_priority_graphic(cache_key, lambda: _render_run_animation(animation_team))
-        return None
+        previous = _RUN_STATE.get(key)
+        if state != "in":
+            if str(state or "").lower() == "post":
+                win = final_win_alert(
+                    CARD_ID, _RUN_STATE, key, competition, competitor, animation_team,
+                    sport="baseball", render=_render_run_animation,
+                    target=(options or {}).get("runAnimationTarget") or "device", dwell_secs=7,
+                    renderer_name="_render_run_animation_frames",
+                )
+                if win and previous is not None:
+                    return win
+            _RUN_STATE[key] = {**(_RUN_STATE.get(key) or {}), "score": score, "animated": score, "seen": datetime.now(timezone.utc)}
+            continue
+        if previous is None:
+            _RUN_STATE[key] = {"score": score, "animated": score, "seen": datetime.now(timezone.utc)}
+            warm_priority_graphic(cache_key, lambda animation_team=animation_team: _render_run_animation(animation_team))
+            continue
 
-    last_score = int(previous.get("score", score) or 0)
-    animated = int(previous.get("animated", last_score) or 0)
-    _RUN_STATE[key] = {"score": score, "animated": animated, "seen": datetime.now(timezone.utc)}
-    warm_priority_graphic(cache_key, lambda: _render_run_animation(animation_team))
-    if score > last_score and score > animated:
-        _RUN_STATE[key]["animated"] = score
-        kind = _classify_latest_run(event, competitor, last_score, score)
-        target = str((options or {}).get("runAnimationTarget") or "device").strip().lower()
-        wall = target in ("group", "group_wall", "wall")
-        cache_key = priority_graphic_key(CARD_ID, animation_team, kind, animation_team["_width"])
-        return {
-            "body": cached_priority_graphic(cache_key, lambda: _render_run_animation(animation_team, kind)),
-            "dwell_secs": 5 if kind in ("home_run", "grand_slam") else 4,
-            "_stay": False,
-            "_no_replay": True,
-            "_group_wall": {
-                "type": kind,
-                "renderer": "_render_run_animation_frames",
-                "team": animation_team,
-                "kind": kind,
-                "dwell_secs": 7 if kind == "grand_slam" else 6,
-            } if wall else None,
-        }
+        last_score = int(previous.get("score", score) or 0)
+        animated = int(previous.get("animated", last_score) or 0)
+        _RUN_STATE[key] = {"score": score, "animated": animated, "seen": datetime.now(timezone.utc)}
+        warm_priority_graphic(cache_key, lambda animation_team=animation_team: _render_run_animation(animation_team))
+        if score > last_score and score > animated:
+            _RUN_STATE[key]["animated"] = score
+            kind = _classify_latest_run(event, competitor, last_score, score)
+            target = str((options or {}).get("runAnimationTarget") or "device").strip().lower()
+            wall = target in ("group", "group_wall", "wall")
+            cache_key = priority_graphic_key(CARD_ID, animation_team, kind, animation_team["_width"])
+            return {
+                "body": cached_priority_graphic(cache_key, lambda animation_team=animation_team, kind=kind: _render_run_animation(animation_team, kind)),
+                "dwell_secs": 5 if kind in ("home_run", "grand_slam") else 4,
+                "_stay": False,
+                "_no_replay": True,
+                "_group_wall": {
+                    "type": kind,
+                    "renderer": "_render_run_animation_frames",
+                    "team": animation_team,
+                    "kind": kind,
+                    "dwell_secs": 7 if kind == "grand_slam" else 6,
+                } if wall else None,
+            }
     return None
 
 

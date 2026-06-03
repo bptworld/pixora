@@ -11,7 +11,7 @@ CARD_OPTIONS = [
     {"key": "hubIp", "label": "Hub IP", "type": "text", "default": "192.168.1.100"},
     {"key": "appId", "label": "Maker API App #", "type": "text", "default": ""},
     {"key": "token", "label": "Access Token", "type": "text", "default": ""},
-    {"key": "devices", "label": "Devices", "type": "hubitatDevices", "default": "", "maxlength": 220, "perDeviceAttributes": True},
+    {"key": "devices", "label": "Devices", "type": "hubitatDevices", "default": "", "maxlength": 320, "perDeviceAttributes": True},
 ]
 
 _CACHE = {}
@@ -24,20 +24,26 @@ def _parse_devices(value):
         if not part:
             continue
         pieces = part.split(":")
-        if len(pieces) >= 3:
+        if len(pieces) >= 4:
+            label = ":".join(pieces[:-3])
+            device_id = pieces[-3]
+            attribute = pieces[-2]
+            alias = pieces[-1]
+        elif len(pieces) >= 3:
             label = ":".join(pieces[:-2])
             device_id = pieces[-2]
             attribute = pieces[-1]
+            alias = ""
         elif len(pieces) == 2:
             label, device_id = pieces
-            attribute = ""
+            attribute = alias = ""
         else:
-            label, device_id, attribute = part, part, ""
-        label = label.strip()[:10]
+            label, device_id, attribute, alias = part, part, "", ""
+        display = alias.strip() or label.strip() or device_id.strip()
         device_id = device_id.strip()
         attribute = attribute.strip()
         if device_id:
-            devices.append((label or device_id, device_id, attribute))
+            devices.append((display, device_id, attribute))
     return devices[:4]
 
 

@@ -4,7 +4,7 @@ from io import BytesIO
 import re
 import urllib.request
 
-from card_utils import draw_sharp_text, format_short_date, render_text_webp
+from card_utils import draw_pixora_bold_number, draw_sharp_text, format_short_date, pixora_bold_number_size, render_text_webp
 
 CARD_ID = "mega_millions"
 CARD_NAME = "Mega Millions"
@@ -98,6 +98,14 @@ def _center(image, text, y, color, font, x1=0, x2=63):
     draw_sharp_text(image, (x1 + ((x2 - x1 + 1) - width) // 2, y), str(text), color, font)
 
 
+def _center_numbers(image, text, y, color, x1=0, x2=63):
+    from PIL import ImageDraw
+
+    draw = ImageDraw.Draw(image)
+    width = pixora_bold_number_size(text)[0]
+    draw_pixora_bold_number(draw, (x1 + ((x2 - x1 + 1) - width) // 2, y), text, color)
+
+
 def _draw(data, width=64):
     from PIL import Image, ImageDraw, ImageFont
 
@@ -113,13 +121,13 @@ def _draw(data, width=64):
     _center(image, "MEGA MILLIONS" if width == 128 else "MEGA MILL", -3, (255, 215, 70), bold, x2=width - 1)
     nums = data["numbers"]
     if width == 128:
-        _center(image, " ".join(nums[:5]) + f"  MB {data['special']}", 8, (245, 250, 255), bold, x2=width - 1)
+        _center_numbers(image, " ".join(nums[:5]) + f" +{data['special']}", 9, (245, 250, 255), x2=width - 1)
         _center(image, data.get("next") or "", 15, (120, 230, 255), font, x2=width - 1)
         bottom = (data.get("jackpot") or data.get("date") or "")[:26].upper()
         _center(image, bottom, 23, (175, 150, 205), font, x2=width - 1)
     else:
-        _center(image, " ".join(nums[:3]), 7, (245, 250, 255), bold)
-        _center(image, f"{nums[3]} {nums[4]} +{data['special']}", 15, (255, 220, 80), bold)
+        _center_numbers(image, " ".join(nums[:3]), 8, (245, 250, 255))
+        _center_numbers(image, f"{nums[3]} {nums[4]} +{data['special']}", 16, (255, 220, 80))
         bottom = (data.get("jackpot") or data.get("date") or "")[:12].upper()
         _center(image, bottom, 23, (175, 150, 205), font)
 
@@ -135,4 +143,3 @@ def render(options=None):
         return _draw(_latest(), width)
     except Exception:
         return render_text_webp("MEGA ERR", (255, 210, 80))
-

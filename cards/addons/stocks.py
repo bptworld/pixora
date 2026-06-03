@@ -320,7 +320,7 @@ def _draw_ticker_frame(x, items, widths, font, bold, panel_width=64):
     return image
 
 
-def _render_ticker(symbols, dwell, scrolls=1, panel_width=64):
+def _render_ticker(symbols, dwell, scrolls=1, panel_width=64, smooth=False):
     from PIL import Image, ImageDraw, ImageFont
 
     try:
@@ -334,11 +334,12 @@ def _render_ticker(symbols, dwell, scrolls=1, panel_width=64):
     widths = [_panel_width(measure, item, font, bold) for item in items]
     total_width = sum(widths)
     total = panel_width + total_width + 16
-    step = 2
+    step = 1 if smooth else 2
     one_pass_frames = max(20, math.ceil(total / step))
     scrolls = max(1, min(20, int(scrolls or 1)))
     frame_count = one_pass_frames * scrolls
-    frame_ms = max(25, min(80, int((max(4, dwell) * 1000) / frame_count)))
+    max_frame_ms = 40 if smooth else 80
+    frame_ms = max(25, min(max_frame_ms, int((max(4, dwell) * 1000) / frame_count)))
 
     frames = []
     for index in range(frame_count):
@@ -366,8 +367,9 @@ def render(options=None):
     dwell = max(4, int(opts.get("_dwell", 30) or 30))
     scrolls = opts.get("scrolls") or 1
     panel_width = 128 if opts.get("_target") == "matrixportal-s3-128x32" else 64
+    smooth = opts.get("_firmware_version") == "virtual-matrix"
     try:
-        body = _render_ticker(symbols, dwell, scrolls, panel_width=panel_width)
+        body = _render_ticker(symbols, dwell, scrolls, panel_width=panel_width, smooth=smooth)
     except Exception as err:
         return render_text_webp(str(err)[:12] or "QUOTE ERR", (238, 80, 80))
     return {
@@ -375,4 +377,3 @@ def render(options=None):
         "dwell_secs": 1,
         "_stay": False,
     }
-

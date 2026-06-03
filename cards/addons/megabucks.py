@@ -4,7 +4,7 @@ from io import BytesIO
 import re
 import urllib.request
 
-from card_utils import draw_sharp_text, render_text_webp
+from card_utils import draw_pixora_bold_number, draw_sharp_text, pixora_bold_number_size, render_text_webp
 
 CARD_ID = "megabucks"
 CARD_NAME = "Megabucks"
@@ -55,6 +55,14 @@ def _center(image, text, y, color, font, x1=0, x2=63):
     draw_sharp_text(image, (x1 + ((x2 - x1 + 1) - width) // 2, y), str(text), color, font)
 
 
+def _center_numbers(image, text, y, color, x1=0, x2=63):
+    from PIL import ImageDraw
+
+    draw = ImageDraw.Draw(image)
+    width = pixora_bold_number_size(text)[0]
+    draw_pixora_bold_number(draw, (x1 + ((x2 - x1 + 1) - width) // 2, y), text, color)
+
+
 def _draw(data, width=64):
     from PIL import Image, ImageDraw, ImageFont
 
@@ -70,11 +78,11 @@ def _draw(data, width=64):
     _center(image, "MEGABUCKS", -3, (70, 230, 170), bold, x2=width - 1)
     nums = data["numbers"]
     if width == 128:
-        _center(image, " ".join(nums[:6]), 8, (245, 250, 255), bold, x2=width - 1)
+        _center_numbers(image, " ".join(nums[:6]), 10, (245, 250, 255), x2=width - 1)
         _center(image, (data.get("date") or "")[:26].upper(), 21, (120, 190, 170), font, x2=width - 1)
     else:
-        _center(image, " ".join(nums[:3]), 7, (245, 250, 255), bold)
-        _center(image, " ".join(nums[3:6]), 15, (245, 250, 255), bold)
+        _center_numbers(image, " ".join(nums[:3]), 8, (245, 250, 255))
+        _center_numbers(image, " ".join(nums[3:6]), 16, (245, 250, 255))
         _center(image, (data.get("date") or "")[:13].upper(), 23, (120, 190, 170), font)
 
     out = BytesIO()
@@ -89,4 +97,3 @@ def render(options=None):
         return _draw(_latest(), width)
     except Exception:
         return render_text_webp("BUCKS ERR", (70, 230, 170))
-

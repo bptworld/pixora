@@ -10,6 +10,8 @@ from card_utils import (
     warm_priority_graphic,
 )
 
+from _sports_wall import render_wall_score_frames
+
 
 SCORE_ANIMATION_OPTION = {
     "key": "scoreAnimationTarget",
@@ -22,11 +24,24 @@ SCORE_ANIMATION_OPTION = {
     ],
 }
 
+SCORE_ANIMATION_TEAMS_OPTION = {
+    "key": "scoreAnimationTeams",
+    "label": "Show Special Graphic For",
+    "type": "select",
+    "default": "favorite",
+    "choices": [
+        {"value": "favorite", "label": "Favorite Team"},
+        {"value": "both", "label": "Both Teams"},
+    ],
+}
+
 
 def with_score_animation_option(options):
     options = list(options or [])
     if not any(isinstance(option, dict) and option.get("key") == "scoreAnimationTarget" for option in options):
         options.append(dict(SCORE_ANIMATION_OPTION))
+    if not any(isinstance(option, dict) and option.get("key") == "scoreAnimationTeams" for option in options):
+        options.append(dict(SCORE_ANIMATION_TEAMS_OPTION))
     return options
 
 
@@ -69,6 +84,17 @@ def selected_competitor(event, favorite):
     return None
 
 
+def animation_competitors(event, favorite, options):
+    scope = str((options or {}).get("scoreAnimationTeams") or "favorite").strip().lower()
+    if scope in ("both", "all", "game"):
+        competition = event.get("competitions", [{}])[0]
+        competitors = [item for item in competition.get("competitors", []) if item.get("team")]
+        if competitors:
+            return competitors
+    competitor = selected_competitor(event, favorite)
+    return [competitor] if competitor else []
+
+
 def _score_kind(delta, sport="score"):
     sport = str(sport or "score").lower()
     try:
@@ -96,6 +122,51 @@ def _score_kind(delta, sport="score"):
     return "score"
 
 
+def competitor_won(competition, competitor):
+    if not competitor:
+        return False
+    if competitor.get("winner") is True:
+        return True
+    try:
+        score = int(competitor.get("score", 0) or 0)
+    except Exception:
+        return False
+    others = [item for item in (competition or {}).get("competitors", []) if item is not competitor]
+    other_scores = []
+    for other in others:
+        try:
+            other_scores.append(int(other.get("score", 0) or 0))
+        except Exception:
+            pass
+    return bool(other_scores) and score > max(other_scores)
+
+
+def final_win_alert(card_id, state, key, competition, competitor, animation_team, sport="score", render=None, target="device", dwell_secs=7, renderer_name="_render_score_alert_frames"):
+    previous = state.get(key) or {}
+    if previous.get("win_animated"):
+        return None
+    if not competitor_won(competition, competitor):
+        return None
+    state[key] = {**previous, "win_animated": True, "seen": datetime.now(timezone.utc)}
+    width = animation_team.get("_width") or 64
+    cache_key = priority_graphic_key(card_id, animation_team, "win", width)
+    render = render or render_score_alert
+    wall = str(target or "device").strip().lower() in ("group", "group_wall", "wall")
+    return {
+        "body": cached_priority_graphic(cache_key, lambda animation_team=animation_team: render(animation_team, "win")),
+        "dwell_secs": dwell_secs,
+        "_stay": True,
+        "_no_replay": True,
+        "_group_wall": {
+            "type": "win",
+            "renderer": renderer_name,
+            "team": dict(animation_team),
+            "kind": "win",
+            "dwell_secs": max(dwell_secs, 7),
+        } if wall else None,
+    }
+
+
 def _kind_lines(kind):
     kind = str(kind or "score").lower()
     if kind == "touchdown":
@@ -114,11 +185,16 @@ def _kind_lines(kind):
         return "GOAL", ""
     if kind == "point":
         return "POINT", ""
+    if kind in ("win", "wins", "winner", "final_win"):
+        return "WINS", ""
     return "SCORE", ""
 
 
 def render_score_alert_frames(team, kind="score"):
     from PIL import Image, ImageDraw, ImageFont
+
+    if (team or {}).get("_wall") or (team or {}).get("_sport"):
+        return render_wall_score_frames(team, kind, sport=(team or {}).get("_sport") or "score")
 
     try:
         width = int((team or {}).get("_width") or 64)
@@ -181,51 +257,65 @@ def maybe_score_alert(options, card_id, url, cache, state, sport="score", defaul
 
     competition = event.get("competitions", [{}])[0]
     game_state = competition.get("status", {}).get("type", {}).get("state")
-    competitor = selected_competitor(event, favorite)
-    if not competitor:
+    competitors = animation_competitors(event, favorite, options)
+    if not competitors:
         return None
 
-    team = competitor.get("team", {})
     game_id = str(event.get("id") or competition.get("id") or datetime.now().strftime("%Y%m%d"))
     device_id = (options or {}).get("_device_id", "local")
-    team_key = (team.get("abbreviation") or favorite or default_label).upper()
-    key = f"{card_id}:{device_id}:{game_id}:{team_key}"
-    try:
-        score = int(competitor.get("score", 0) or 0)
-    except Exception:
-        score = 0
+    for competitor in competitors:
+        team = competitor.get("team", {})
+        team_key = (team.get("abbreviation") or team.get("shortDisplayName") or favorite or default_label).upper()
+        key = f"{card_id}:{device_id}:{game_id}:{team_key}"
+        try:
+            score = int(competitor.get("score", 0) or 0)
+        except Exception:
+            score = 0
 
-    animation_team = {**team, "_width": _animation_width(options)}
-    warm_key = priority_graphic_key(card_id, animation_team, "score", animation_team["_width"])
-    previous = state.get(key)
-    if game_state != "in":
-        state[key] = {"score": score, "animated": score, "seen": datetime.now(timezone.utc)}
-        return None
-    if previous is None:
-        state[key] = {"score": score, "animated": score, "seen": datetime.now(timezone.utc)}
-        warm_priority_graphic(warm_key, lambda: render_score_alert(animation_team, "score"))
-        return None
+        animation_team = {**team, "_width": _animation_width(options), "_sport": sport}
+        warm_key = priority_graphic_key(card_id, animation_team, "score", animation_team["_width"])
+        previous = state.get(key)
+        if game_state != "in":
+            if str(game_state or "").lower() == "post":
+                win = final_win_alert(
+                    card_id,
+                    state,
+                    key,
+                    competition,
+                    competitor,
+                    animation_team,
+                    sport=sport,
+                    target=(options or {}).get("scoreAnimationTarget") or "device",
+                )
+                if win and previous is not None:
+                    return win
+            state[key] = {**(state.get(key) or {}), "score": score, "animated": score, "seen": datetime.now(timezone.utc)}
+            continue
+        if previous is None:
+            state[key] = {"score": score, "animated": score, "seen": datetime.now(timezone.utc)}
+            warm_priority_graphic(warm_key, lambda animation_team=animation_team: render_score_alert(animation_team, "score"))
+            continue
 
-    last_score = int(previous.get("score", score) or 0)
-    animated = int(previous.get("animated", last_score) or 0)
-    state[key] = {"score": score, "animated": animated, "seen": datetime.now(timezone.utc)}
-    if score > last_score and score > animated:
-        state[key]["animated"] = score
-        kind = _score_kind(score - last_score, sport=sport)
-        target = str((options or {}).get("scoreAnimationTarget") or "device").strip().lower()
-        wall = target in ("group", "group_wall", "wall")
-        cache_key = priority_graphic_key(card_id, animation_team, kind, animation_team["_width"])
-        return {
-            "body": cached_priority_graphic(cache_key, lambda: render_score_alert(animation_team, kind)),
-            "dwell_secs": 5,
-            "_stay": True,
-            "_no_replay": True,
-            "_group_wall": {
-                "type": kind,
-                "renderer": "_render_score_alert_frames",
-                "team": dict(animation_team),
-                "kind": kind,
-                "dwell_secs": 6,
-            } if wall else None,
-        }
+        last_score = int(previous.get("score", score) or 0)
+        animated = int(previous.get("animated", last_score) or 0)
+        state[key] = {"score": score, "animated": animated, "seen": datetime.now(timezone.utc)}
+        if score > last_score and score > animated:
+            state[key]["animated"] = score
+            kind = _score_kind(score - last_score, sport=sport)
+            target = str((options or {}).get("scoreAnimationTarget") or "device").strip().lower()
+            wall = target in ("group", "group_wall", "wall")
+            cache_key = priority_graphic_key(card_id, animation_team, kind, animation_team["_width"])
+            return {
+                "body": cached_priority_graphic(cache_key, lambda animation_team=animation_team, kind=kind: render_score_alert(animation_team, kind)),
+                "dwell_secs": 5,
+                "_stay": True,
+                "_no_replay": True,
+                "_group_wall": {
+                    "type": kind,
+                    "renderer": "_render_score_alert_frames",
+                    "team": dict(animation_team),
+                    "kind": kind,
+                    "dwell_secs": 6,
+                } if wall else None,
+            }
     return None

@@ -88,7 +88,7 @@ def render(options=None):
         rows = [("RISE", sunrise, (255, 210, 80)), ("SET", sunset, (255, 125, 80))]
 
     x = 54 if width == 128 else 27
-    y = -2 if len(rows) == 2 else 2
+    y = -4 if width == 128 and len(rows) == 2 else (-2 if len(rows) == 2 else 2)
     for label, value, color in rows:
         draw_sharp_text(image, (x, y), label, color, font)
         draw_sharp_text(image, (x, y + 8), value, (235, 245, 255), bold)
@@ -97,4 +97,3 @@ def render(options=None):
     out = BytesIO()
     image.save(out, "WEBP", lossless=True, quality=100)
     return out.getvalue()
-
