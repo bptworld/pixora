@@ -1145,10 +1145,11 @@ def render_sport_card(options, url, cache, status_color, fallback_text):
 
     is_baseball = str(fallback_text or "").upper() == "NO MLB"
     outs = baseball_outs(competition) if is_baseball and state == "in" else None
+    batting_side = baseball_batting_side(status) if is_baseball and state == "in" else None
 
     if (options or {}).get("_target") == "matrixportal-s3-128x32":
         return _render_sport_card_128(
-            away, home, away_team, home_team, status, score, status_color, competition.get("series"), outs
+            away, home, away_team, home_team, status, score, status_color, competition.get("series"), outs, batting_side
         )
 
     image = Image.new("RGB", (64, 32), (5, 7, 10))
@@ -1182,7 +1183,7 @@ def render_sport_card(options, url, cache, status_color, fallback_text):
     else:
         draw_sharp_text(image, (32 - sw // 2, 4 + pad), score, (247, 251, 255), score_font)
     if outs is not None:
-        draw_baseball_out_dots(draw, (bx1 + bx2) // 2, min(30, by2 + 3), outs, size=1)
+        draw_baseball_out_dots(draw, (bx1 + bx2) // 2, min(30, by2 + 5), outs, size=2)
 
     away_abbrev = away_team.get("abbreviation", "AWY")[:3]
     home_abbrev = home_team.get("abbreviation", "HME")[:3]
@@ -1204,6 +1205,8 @@ def render_sport_card(options, url, cache, status_color, fallback_text):
         image.paste(away_logo, (2, 7), away_logo)
     if home_logo:
         image.paste(home_logo, (52, 7), home_logo)
+    if batting_side:
+        draw_baseball_at_bat_marker(draw, batting_side, 64)
 
     out = BytesIO()
     image.save(out, "WEBP", lossless=True, quality=100)
@@ -1223,6 +1226,15 @@ def baseball_outs(competition):
         return None
 
 
+def baseball_batting_side(status):
+    text = str(status or "").strip().lower()
+    if text.startswith(("top", "t ")):
+        return "away"
+    if text.startswith(("bot", "bottom", "b ")):
+        return "home"
+    return None
+
+
 def draw_baseball_out_dots(draw, cx, cy, outs, size=1):
     try:
         outs = max(0, min(3, int(outs)))
@@ -1235,12 +1247,35 @@ def draw_baseball_out_dots(draw, cx, cy, outs, size=1):
         x = start + index * spacing
         box = (x - size, y - size, x + size, y + size)
         if index < outs:
-            draw.ellipse(box, fill=(246, 214, 91))
+            draw.ellipse(box, fill=(232, 54, 62))
         else:
             draw.ellipse(box, outline=(92, 111, 130))
 
 
-def _render_sport_card_128(away, home, away_team, home_team, status, score, status_color, series=None, outs=None):
+def draw_baseball_at_bat_marker(draw, side, width):
+    fill = (76, 225, 214)
+    outline = (7, 18, 28)
+    if int(width or 64) >= 128:
+        if side == "away":
+            points = [(31, 17), (36, 13), (36, 21)]
+        else:
+            points = [(96, 17), (91, 13), (91, 21)]
+    else:
+        if side == "away":
+            points = [(0, 16), (5, 12), (5, 20)]
+        else:
+            points = [(63, 16), (58, 12), (58, 20)]
+    draw.polygon(points, fill=outline)
+    inner = []
+    for x, y in points:
+        if int(width or 64) >= 128:
+            inner.append((x - 1 if side == "away" else x + 1, y))
+        else:
+            inner.append((x + 1 if side == "away" else x - 1, y))
+    draw.polygon(inner, fill=fill)
+
+
+def _render_sport_card_128(away, home, away_team, home_team, status, score, status_color, series=None, outs=None, batting_side=None):
     from PIL import Image, ImageDraw, ImageFont
 
     def text_ink_bbox(text, font):
@@ -1293,6 +1328,8 @@ def _render_sport_card_128(away, home, away_team, home_team, status, score, stat
         image.paste(home_logo, (100, 3), home_logo)
     else:
         draw.ellipse((99, 4, 127, 31), outline=home_color, width=2)
+    if batting_side:
+        draw_baseball_at_bat_marker(draw, batting_side, 128)
 
     use_segment_score = any(ch.isdigit() for ch in score) and _BOLD_NUMERIC_RE.match(score)
     if use_segment_score:
@@ -1313,7 +1350,7 @@ def _render_sport_card_128(away, home, away_team, home_team, status, score, stat
         text_y = int(round(((by1 + by2) / 2) - ((sb[1] + sb[3]) / 2)))
         draw_sharp_text(image, (text_x, text_y), score, (247, 251, 255), score_font)
     if outs is not None:
-        draw_baseball_out_dots(draw, (bx1 + bx2) // 2, 27, outs, size=1)
+        draw_baseball_out_dots(draw, (bx1 + bx2) // 2, 29, outs, size=2)
 
     away_rec = get_team_record(away, series)[:8]
     home_rec = get_team_record(home, series)[:8]
