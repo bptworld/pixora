@@ -1143,9 +1143,12 @@ def render_sport_card(options, url, cache, status_color, fallback_text):
         except Exception:
             pass
 
+    is_baseball = str(fallback_text or "").upper() == "NO MLB"
+    outs = baseball_outs(competition) if is_baseball and state == "in" else None
+
     if (options or {}).get("_target") == "matrixportal-s3-128x32":
         return _render_sport_card_128(
-            away, home, away_team, home_team, status, score, status_color, competition.get("series")
+            away, home, away_team, home_team, status, score, status_color, competition.get("series"), outs
         )
 
     image = Image.new("RGB", (64, 32), (5, 7, 10))
@@ -1178,6 +1181,8 @@ def render_sport_card(options, url, cache, status_color, fallback_text):
         draw_sport_score_number(image, (bx1, by1, bx2, by2), score, (247, 251, 255), score_h)
     else:
         draw_sharp_text(image, (32 - sw // 2, 4 + pad), score, (247, 251, 255), score_font)
+    if outs is not None:
+        draw_baseball_out_dots(draw, (bx1 + bx2) // 2, min(30, by2 + 3), outs, size=1)
 
     away_abbrev = away_team.get("abbreviation", "AWY")[:3]
     home_abbrev = home_team.get("abbreviation", "HME")[:3]
@@ -1205,7 +1210,37 @@ def render_sport_card(options, url, cache, status_color, fallback_text):
     return out.getvalue()
 
 
-def _render_sport_card_128(away, home, away_team, home_team, status, score, status_color, series=None):
+def baseball_outs(competition):
+    try:
+        situation = (competition or {}).get("situation") or {}
+        raw = situation.get("outs")
+        if raw is None:
+            raw = situation.get("out")
+        if raw is None:
+            return None
+        return max(0, min(3, int(raw)))
+    except Exception:
+        return None
+
+
+def draw_baseball_out_dots(draw, cx, cy, outs, size=1):
+    try:
+        outs = max(0, min(3, int(outs)))
+    except Exception:
+        return
+    spacing = 5 if size <= 1 else 6
+    start = int(cx) - spacing
+    y = int(cy)
+    for index in range(3):
+        x = start + index * spacing
+        box = (x - size, y - size, x + size, y + size)
+        if index < outs:
+            draw.ellipse(box, fill=(246, 214, 91))
+        else:
+            draw.ellipse(box, outline=(92, 111, 130))
+
+
+def _render_sport_card_128(away, home, away_team, home_team, status, score, status_color, series=None, outs=None):
     from PIL import Image, ImageDraw, ImageFont
 
     def text_ink_bbox(text, font):
@@ -1277,6 +1312,8 @@ def _render_sport_card_128(away, home, away_team, home_team, status, score, stat
         text_x = int(round(64 - (sb[0] + sb[2]) / 2))
         text_y = int(round(((by1 + by2) / 2) - ((sb[1] + sb[3]) / 2)))
         draw_sharp_text(image, (text_x, text_y), score, (247, 251, 255), score_font)
+    if outs is not None:
+        draw_baseball_out_dots(draw, (bx1 + bx2) // 2, 27, outs, size=1)
 
     away_rec = get_team_record(away, series)[:8]
     home_rec = get_team_record(home, series)[:8]
