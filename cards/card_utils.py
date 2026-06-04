@@ -1188,8 +1188,11 @@ def render_sport_card(options, url, cache, status_color, fallback_text):
     away_abbrev = away_team.get("abbreviation", "AWY")[:3]
     home_abbrev = home_team.get("abbreviation", "HME")[:3]
     habb_w = draw.textbbox((0, 0), home_abbrev, font=small)[2]
+    away_abb_w = draw.textbbox((0, 0), away_abbrev, font=small)[2]
+    away_abb_x = 2
+    home_abb_x = 63 - habb_w
     draw_sharp_text(image, (2, 15), away_abbrev, (255, 255, 255), small)
-    draw_sharp_text(image, (63 - habb_w, 15), home_abbrev, (255, 255, 255), small)
+    draw_sharp_text(image, (home_abb_x, 15), home_abbrev, (255, 255, 255), small)
 
     series = competition.get("series")
     away_rec = get_team_record(away, series)[:7]
@@ -1205,8 +1208,10 @@ def render_sport_card(options, url, cache, status_color, fallback_text):
         image.paste(away_logo, (2, 7), away_logo)
     if home_logo:
         image.paste(home_logo, (52, 7), home_logo)
-    if batting_side:
-        draw_baseball_at_bat_marker(draw, batting_side, 64)
+    if batting_side == "away":
+        draw_baseball_bat_marker(draw, away_abb_x + away_abb_w // 2, 12, "away")
+    elif batting_side == "home":
+        draw_baseball_bat_marker(draw, home_abb_x + habb_w // 2, 12, "home")
 
     out = BytesIO()
     image.save(out, "WEBP", lossless=True, quality=100)
@@ -1252,27 +1257,38 @@ def draw_baseball_out_dots(draw, cx, cy, outs, size=1):
             draw.ellipse(box, outline=(92, 111, 130))
 
 
-def draw_baseball_at_bat_marker(draw, side, width):
-    fill = (76, 225, 214)
-    outline = (7, 18, 28)
-    if int(width or 64) >= 128:
-        if side == "away":
-            points = [(31, 17), (36, 13), (36, 21)]
-        else:
-            points = [(96, 17), (91, 13), (91, 21)]
+def draw_baseball_bat_marker(draw, cx, y, side):
+    cx = int(cx)
+    y = int(y)
+    barrel = (196, 126, 56)
+    highlight = (238, 184, 94)
+    edge = (78, 43, 22)
+    grip = (128, 74, 36)
+    knob = (236, 202, 124)
+    if side == "away":
+        knob_x = cx - 8
+        step = 1
     else:
-        if side == "away":
-            points = [(0, 16), (5, 12), (5, 20)]
-        else:
-            points = [(63, 16), (58, 12), (58, 20)]
-    draw.polygon(points, fill=outline)
-    inner = []
-    for x, y in points:
-        if int(width or 64) >= 128:
-            inner.append((x - 1 if side == "away" else x + 1, y))
-        else:
-            inner.append((x + 1 if side == "away" else x - 1, y))
-    draw.polygon(inner, fill=fill)
+        knob_x = cx + 8
+        step = -1
+
+    def x(offset):
+        return knob_x + step * offset
+
+    # Flat horizontal pixel bat: knob, thin handle, constant-thickness barrel.
+    draw.rectangle((knob_x - 1, y - 1, knob_x + 1, y + 1), fill=edge)
+    draw.point((knob_x, y), fill=knob)
+
+    draw.line((x(1), y, x(5), y), fill=grip)
+    draw.point((x(2), y - 1), fill=edge)
+    draw.point((x(4), y + 1), fill=edge)
+
+    b1 = x(6)
+    b2 = x(16)
+    left, right = sorted((b1, b2))
+    draw.rectangle((left, y - 2, right, y + 2), fill=edge)
+    draw.rectangle((left + 1, y - 1, right - 1, y + 1), fill=barrel)
+    draw.line((left + 2, y - 1, right - 2, y - 1), fill=highlight)
 
 
 def _render_sport_card_128(away, home, away_team, home_team, status, score, status_color, series=None, outs=None, batting_side=None):
@@ -1328,8 +1344,6 @@ def _render_sport_card_128(away, home, away_team, home_team, status, score, stat
         image.paste(home_logo, (100, 3), home_logo)
     else:
         draw.ellipse((99, 4, 127, 31), outline=home_color, width=2)
-    if batting_side:
-        draw_baseball_at_bat_marker(draw, batting_side, 128)
 
     use_segment_score = any(ch.isdigit() for ch in score) and _BOLD_NUMERIC_RE.match(score)
     if use_segment_score:
@@ -1368,6 +1382,10 @@ def _render_sport_card_128(away, home, away_team, home_team, status, score, stat
     home_x = bx2 + 3 - home_ink[0]
     draw_compact_text(away_abbrev, away_x, 12, (255, 255, 255), small)
     draw_compact_text(home_abbrev, home_x, 12, (255, 255, 255), small)
+    if batting_side == "away":
+        draw_baseball_bat_marker(draw, away_x + away_w // 2, 10, "away")
+    elif batting_side == "home":
+        draw_baseball_bat_marker(draw, home_x + compact_text_width(home_abbrev, small) // 2, 10, "home")
 
     out = BytesIO()
     image.save(out, "WEBP", lossless=True, quality=100)
