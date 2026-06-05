@@ -7,6 +7,11 @@ CARD_DETAIL = "Skips when clear"
 CARD_OPTIONS = [
     {"key": "zipCode", "label": "ZIP Code", "type": "text", "default": "10001", "maxlength": 5, "inputmode": "numeric"},
 ]
+CARD_RULE_FIELDS = [
+    {"id": "alert_count", "label": "Alert Count"},
+    {"id": "event", "label": "Event"},
+    {"id": "severity", "label": "Severity"},
+]
 
 
 def _zip_latlon(zip_code):
@@ -46,14 +51,7 @@ def _fit(draw, text, font, max_width):
     return text
 
 
-def render(options=None):
-    from PIL import Image, ImageDraw, ImageFont
-
-    opts = options or {}
-    zip_code = (opts.get("zipCode") or "").strip() or _default_zip()
-    if len(zip_code) != 5:
-        return render_text_webp("SET ZIP", (100, 180, 255))
-
+def _alerts_for_zip(zip_code):
     alerts = None
     try:
         alerts = openweather_alerts_for_zip(zip_code)
@@ -66,6 +64,35 @@ def render(options=None):
             alerts = data.get("features") or []
         except Exception:
             alerts = []
+    return alerts or []
+
+
+def rule_value(options=None, field=""):
+    opts = options or {}
+    zip_code = (opts.get("zipCode") or "").strip() or _default_zip()
+    if len(zip_code) != 5:
+        return ""
+    alerts = _alerts_for_zip(zip_code)
+    key = str(field or "alert_count").strip()
+    if key == "alert_count":
+        return len(alerts)
+    props = (alerts[0].get("properties") or {}) if alerts else {}
+    if key == "event":
+        return props.get("event", "")
+    if key == "severity":
+        return props.get("severity", "")
+    return ""
+
+
+def render(options=None):
+    from PIL import Image, ImageDraw, ImageFont
+
+    opts = options or {}
+    zip_code = (opts.get("zipCode") or "").strip() or _default_zip()
+    if len(zip_code) != 5:
+        return render_text_webp("SET ZIP", (100, 180, 255))
+
+    alerts = _alerts_for_zip(zip_code)
 
     if not alerts:
         return None
@@ -104,4 +131,3 @@ def render(options=None):
     out = BytesIO()
     image.save(out, "WEBP", lossless=True, quality=100)
     return out.getvalue()
-

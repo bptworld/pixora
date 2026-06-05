@@ -12,6 +12,11 @@ CARD_OPTIONS = [
     {"key": "entityId", "label": "Entity ID", "type": "text", "default": "sensor.outdoor_temperature", "maxlength": 80},
     {"key": "label", "label": "Display Label", "type": "text", "default": "", "maxlength": 12},
 ]
+CARD_RULE_FIELDS = [
+    {"id": "state", "label": "State"},
+    {"id": "unit", "label": "Unit"},
+    {"id": "friendly_name", "label": "Friendly Name"},
+]
 
 
 def _state(host, token, entity_id):
@@ -26,6 +31,25 @@ def _fmt_state(data):
     friendly = (data.get("attributes") or {}).get("friendly_name") or data.get("entity_id") or "HA"
     value = (state + unit)[:10]
     return friendly, value
+
+
+def rule_value(options=None, field=""):
+    opts = options or {}
+    host = (opts.get("host") or "").strip()
+    token = (opts.get("token") or "").strip()
+    entity_id = (opts.get("entityId") or "").strip()
+    if not host or not token or not entity_id:
+        return ""
+    data = _state(host, token, entity_id)
+    attrs = data.get("attributes") or {}
+    key = str(field or "state").strip()
+    if key == "state":
+        return data.get("state", "")
+    if key == "unit":
+        return attrs.get("unit_of_measurement", "")
+    if key == "friendly_name":
+        return attrs.get("friendly_name", "")
+    return attrs.get(key, "")
 
 
 def render(options=None):
@@ -89,4 +113,3 @@ def render(options=None):
     out = BytesIO()
     image.save(out, "WEBP", lossless=True, quality=100)
     return out.getvalue()
-

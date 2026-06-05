@@ -12,6 +12,11 @@ CARD_OPTIONS = [
     {"key": "url", "label": "URL", "type": "text", "default": "https://github.com", "maxlength": 160},
     {"key": "label", "label": "Label", "type": "text", "default": "SITE", "maxlength": 10},
 ]
+CARD_RULE_FIELDS = [
+    {"id": "ok", "label": "Is Up"},
+    {"id": "status", "label": "HTTP Status"},
+    {"id": "ms", "label": "Response Time ms"},
+]
 
 _CACHE = {}
 
@@ -41,6 +46,17 @@ def _check(url):
     data = {"ok": ok, "status": status, "ms": ms}
     _CACHE[url] = {"data": data, "expires": now + timedelta(seconds=60)}
     return data
+
+
+def rule_value(options=None, field=""):
+    url = ((options or {}).get("url") or "").strip()
+    if not url:
+        return ""
+    data = _check(url)
+    key = str(field or "ok").strip()
+    if key == "ok":
+        return "true" if data.get("ok") else "false"
+    return data.get(key, "")
 
 
 def render(options=None):
@@ -73,4 +89,3 @@ def render(options=None):
     out = BytesIO()
     image.save(out, "WEBP", lossless=True, quality=100)
     return out.getvalue()
-

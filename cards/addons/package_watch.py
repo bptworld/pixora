@@ -19,6 +19,29 @@ CARD_OPTIONS = [
         ],
     },
 ]
+CARD_RULE_FIELDS = [
+    {"id": "carrier", "label": "Carrier"},
+    {"id": "status", "label": "Status"},
+    {"id": "is_out_for_delivery", "label": "Out For Delivery"},
+    {"id": "is_delivered", "label": "Delivered"},
+]
+
+
+def rule_value(options=None, field=""):
+    opts = options or {}
+    carrier = (opts.get("carrier") or "UPS").strip().upper()
+    status = (opts.get("status") or "Out for delivery").strip()
+    status_lower = status.lower()
+    key = str(field or "status").strip()
+    if key == "carrier":
+        return carrier
+    if key == "status":
+        return status
+    if key == "is_out_for_delivery":
+        return "true" if "out for delivery" in status_lower else "false"
+    if key == "is_delivered":
+        return "true" if "delivered" in status_lower else "false"
+    return ""
 
 
 def render(options=None):
@@ -51,4 +74,3 @@ def render(options=None):
     out = BytesIO()
     image.save(out, "WEBP", lossless=True, quality=100)
     return out.getvalue()
-

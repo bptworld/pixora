@@ -14,6 +14,11 @@ CARD_OPTIONS = [
     {"key": "component", "label": "Component", "type": "text", "default": "main", "maxlength": 40},
     {"key": "label", "label": "Display Label", "type": "text", "default": "", "maxlength": 12},
 ]
+CARD_RULE_FIELDS = [
+    {"id": "value", "label": "Value"},
+    {"id": "unit", "label": "Unit"},
+    {"id": "device_label", "label": "Device Label"},
+]
 
 API_ROOT = "https://api.smartthings.com/v1"
 
@@ -86,6 +91,28 @@ def _fmt_value(capability, attribute, value, unit):
         locked = raw.lower() == "locked"
         return ("LOCKED" if locked else "UNLOCK"), (80, 220, 120) if locked else (238, 80, 80)
     return raw.upper()[:10], (245, 250, 255)
+
+
+def rule_value(options=None, field=""):
+    opts = options or {}
+    token = str(opts.get("token") or "").strip()
+    device_id = _device_id(opts.get("deviceId"))
+    capability = str(opts.get("capability") or "temperatureMeasurement").strip()
+    attribute = str(opts.get("attribute") or "temperature").strip()
+    component = str(opts.get("component") or "main").strip()
+    if not token or not device_id or not capability or not attribute:
+        return ""
+    key = str(field or "value").strip()
+    device = _device(token, device_id)
+    status = _status(token, device_id)
+    value, unit = _status_value(status, component, capability, attribute)
+    if key == "value":
+        return "" if value is None else value
+    if key == "unit":
+        return unit or ""
+    if key == "device_label":
+        return device.get("label") or device.get("name") or device_id
+    return ""
 
 
 def render(options=None):

@@ -27,6 +27,12 @@ CARD_OPTIONS = [
         "inputmode": "numeric",
     },
 ]
+CARD_RULE_FIELDS = [
+    {"id": "first_price", "label": "First Symbol Price"},
+    {"id": "first_change_pct", "label": "First Symbol Change %"},
+    {"id": "first_symbol", "label": "First Symbol"},
+    {"id": "any_down", "label": "Any Symbol Down"},
+]
 
 _CACHE = {}
 _LOGO_CACHE = {}
@@ -180,6 +186,23 @@ def _quote_item(symbol):
             "change_pct": 0,
             "ok": False,
         }
+
+
+def rule_value(options=None, field=""):
+    opts = options or {}
+    symbols = _symbols(opts.get("symbols"))
+    quotes = [_quote_item(symbol) for symbol in symbols]
+    first = quotes[0] if quotes else {}
+    key = str(field or "first_price").strip()
+    if key == "first_price":
+        return first.get("price", "")
+    if key == "first_change_pct":
+        return float(first.get("change_pct") or 0) * 100
+    if key == "first_symbol":
+        return first.get("symbol") or ""
+    if key == "any_down":
+        return "true" if any(float(q.get("change_pct") or 0) < 0 for q in quotes) else "false"
+    return ""
 
 
 def _text_width(draw, text, font):

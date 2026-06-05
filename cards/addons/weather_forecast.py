@@ -9,6 +9,12 @@ CARD_OPTIONS = [
     {"key": "zipCode", "label": "ZIP Code", "type": "text", "default": "10001",
      "maxlength": 5, "inputmode": "numeric"},
 ]
+CARD_RULE_FIELDS = [
+    {"id": "current_temp", "label": "Current Temperature"},
+    {"id": "current_condition", "label": "Current Condition"},
+    {"id": "today_high", "label": "Today High"},
+    {"id": "today_low", "label": "Today Low"},
+]
 
 
 def _zip_forecast(zip_code):
@@ -24,6 +30,28 @@ def _zip_forecast(zip_code):
     pt = fetch_json_request(f"https://api.weather.gov/points/{lat:.4f},{lon:.4f}", seconds=86400)
     fc = fetch_json_request(pt["properties"]["forecast"], seconds=3600)
     return fc["properties"]["periods"]
+
+
+def rule_value(options=None, field=""):
+    opts = options or {}
+    zip_code = (opts.get("zipCode") or "").strip() or "10001"
+    key = str(field or "current_temp").strip()
+    try:
+        current = weather_for_zip(zip_code)
+    except Exception:
+        current = {}
+    if key == "current_temp":
+        return current.get("temperature", "")
+    if key == "current_condition":
+        return current.get("shortForecast") or current.get("condition") or ""
+    forecast = _zip_forecast(zip_code)
+    day = next((item for item in forecast if item.get("isDaytime", True)), forecast[0] if forecast else {})
+    night = next((item for item in forecast if not item.get("isDaytime", True)), {})
+    if key == "today_high":
+        return day.get("temperature", "")
+    if key == "today_low":
+        return day.get("low", night.get("temperature", ""))
+    return ""
 
 
 def _day_label(name):
@@ -165,4 +193,3 @@ def render(options=None):
     out = BytesIO()
     image.save(out, "WEBP", lossless=True, quality=100)
     return out.getvalue()
-

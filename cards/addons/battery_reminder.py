@@ -16,11 +16,31 @@ CARD_OPTIONS = [
     },
     {"key": "daysPerItem", "label": "Days Per Item", "type": "number", "default": "7", "min": 1, "max": 60},
 ]
+CARD_RULE_FIELDS = [
+    {"id": "current_item", "label": "Current Item"},
+    {"id": "item_index", "label": "Item Index"},
+]
 
 
 def _items(text):
     values = [part.strip() for part in str(text or "").replace(",", ";").split(";") if part.strip()]
     return values or ["Smoke detectors"]
+
+
+def rule_value(options=None, field=""):
+    opts = options or {}
+    items = _items(opts.get("items"))
+    try:
+        days = max(1, int(opts.get("daysPerItem", 7)))
+    except Exception:
+        days = 7
+    index = (date.today().toordinal() // days) % len(items)
+    key = str(field or "current_item").strip()
+    if key == "current_item":
+        return items[index]
+    if key == "item_index":
+        return index
+    return ""
 
 
 def render(options=None):
@@ -56,4 +76,3 @@ def render(options=None):
     out = BytesIO()
     image.save(out, "WEBP", lossless=True, quality=100)
     return out.getvalue()
-

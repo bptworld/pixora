@@ -10,6 +10,12 @@ CARD_DETAIL = "BTC, ETH, and more"
 CARD_OPTIONS = [
     {"key": "symbols", "label": "Coins", "type": "text", "default": "BTC-USD,ETH-USD,SOL-USD", "maxlength": 40},
 ]
+CARD_RULE_FIELDS = [
+    {"id": "first_price", "label": "First Coin Price"},
+    {"id": "first_change_pct", "label": "First Coin Change %"},
+    {"id": "first_symbol", "label": "First Coin"},
+    {"id": "any_down", "label": "Any Coin Down"},
+]
 
 _CACHE = {}
 
@@ -48,6 +54,22 @@ def _price(value):
     if value >= 1:
         return f"{value:.2f}"
     return f"{value:.4f}"
+
+
+def rule_value(options=None, field=""):
+    symbols = ((options or {}).get("symbols") or "BTC-USD,ETH-USD,SOL-USD").split(",")[:3]
+    quotes = _fetch(symbols)
+    first = quotes[0] if quotes else {}
+    key = str(field or "first_price").strip()
+    if key == "first_price":
+        return first.get("price", "")
+    if key == "first_change_pct":
+        return first.get("pct", "")
+    if key == "first_symbol":
+        return first.get("symbol", "")
+    if key == "any_down":
+        return "true" if any(float(q.get("pct") or 0) < 0 for q in quotes) else "false"
+    return ""
 
 
 def _text_width(draw, text, font):
