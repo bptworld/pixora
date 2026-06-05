@@ -1,0 +1,96 @@
+{
+  "registry": "pixora-graphics",
+  "version": "1",
+  "graphics": [
+    {
+      "id": "arrow-shot",
+      "name": "Arrow Shot",
+      "category": "Animated",
+      "description": "Arrow with moving glint for wall alerts.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/arrow-shot.webp",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/arrow-shot.webp"
+    },
+    {
+      "id": "bullet-smoke",
+      "name": "Bullet + Smoke",
+      "category": "Animated",
+      "description": "Bullet trail with drifting smoke pixels.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/bullet-smoke.webp",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/bullet-smoke.webp"
+    },
+    {
+      "id": "delorean",
+      "name": "DeLorean",
+      "category": "Animated",
+      "description": "Silver DeLorean with animated exhaust drift.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/delorean.webp",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/delorean.webp"
+    },
+    {
+      "id": "spinning-baseball",
+      "name": "Spinning Baseball",
+      "category": "Animated",
+      "description": "Baseball with animated seam movement.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/spinning-baseball.webp",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/spinning-baseball.webp"
+    },
+    {
+      "id": "clothes-dryer",
+      "name": "Clothes Dryer",
+      "category": "Static",
+      "description": "Matching pixel-style clothes dryer for laundry alerts.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/clothes-dryer.png",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/clothes-dryer.png"
+    },
+    {
+      "id": "dishwasher",
+      "name": "Dishwasher",
+      "category": "Static",
+      "description": "Pixel-style dishwasher for kitchen and cycle-complete alerts.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/dishwasher.png",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/dishwasher.png"
+    },
+    {
+      "id": "fridge",
+      "name": "Fridge",
+      "category": "Static",
+      "description": "Pixel-style refrigerator for kitchen and door alerts.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/fridge.png",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/fridge.png"
+    },
+    {
+      "id": "logo-pixora-tp-5b05e7",
+      "name": "logo-pixora-tp",
+      "category": "Static",
+      "description": "logo-pixora-tp graphic for Pixora alerts.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/logo-pixora-tp-5b05e7.png",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/logo-pixora-tp-5b05e7.png"
+    },
+    {
+      "id": "washer-machine",
+      "name": "Washer Machine",
+      "category": "Static",
+      "description": "Pixel-style washing machine for laundry alerts.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/washer-machine.png",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/washer-machine.png"
+    }
+  ]
+}
