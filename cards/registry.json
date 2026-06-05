@@ -267,6 +267,17 @@
       "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/etsy_shop.webp"
     },
     {
+      "id": "shopify_orders",
+      "name": "Shopify Orders",
+      "category": "Social",
+      "detail": "Orders this week and all time",
+      "description": "Shows Shopify order counts for this week and all time using the Shopify Admin GraphQL API.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/addons/shopify_orders.py",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/shopify_orders.webp"
+    },
+    {
       "id": "facebook_followers",
       "name": "Facebook Followers",
       "category": "Social",

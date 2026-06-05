@@ -2,7 +2,7 @@
 
 Add-on cards for the [Pixora](https://github.com/bptworld/pixora) display system.
 
-## Available Cards - 112
+## Available Cards - 113
 
 ### Finance
 
@@ -51,6 +51,7 @@ Add-on cards for the [Pixora](https://github.com/bptworld/pixora) display system
 | Instagram Followers | Follower count via Instagram Graph |
 | Last.fm Now Playing | Current or recent track |
 | Music Assistant Now Playing | Direct Music Assistant player |
+| Shopify Orders | Orders this week and all time |
 | X / Twitter Followers | Follower count via X API |
 | YouTube Subscribers | Channel subscriber count |
 

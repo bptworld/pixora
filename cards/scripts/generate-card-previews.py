@@ -363,6 +363,15 @@ def _home_assistant():
     return _webp(image)
 
 
+def _shopify_orders():
+    image, draw = _simple_header("SHOPIFY", (70, 220, 140))
+    draw_sharp_text(image, (2, 8), "WK", (150, 170, 185), FONT)
+    draw_sharp_text(image, (45, 7), "12", (245, 250, 255), BOLD)
+    draw_sharp_text(image, (2, 20), "ALL", (150, 170, 185), FONT)
+    draw_sharp_text(image, (38, 19), "1.2K", (245, 250, 255), BOLD)
+    return _webp(image)
+
+
 def _trash():
     image, draw = _simple_header("TRASH", (70, 210, 120))
     _center(image, "TOMORROW", 9, (245, 250, 255), BOLD, 15, 63)
@@ -532,6 +541,7 @@ CUSTOM = {
     "lastfm_now_playing": _lastfm,
     "music_assistant_now_playing": _music_assistant,
     "home_assistant_entity": _home_assistant,
+    "shopify_orders": _shopify_orders,
     "trash_recycling": _trash,
     "sunrise_sunset": _sunrise,
     "word_of_day": _word_day,
