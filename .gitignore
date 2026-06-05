@@ -1,7 +1,7 @@
 dist/
 build/
 releases/*
-!releases/PixoraSetup-v1.3.64.exe
+!releases/PixoraSetup-v1.3.65.exe
 data/
 tmp/
 output/
