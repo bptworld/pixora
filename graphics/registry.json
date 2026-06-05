@@ -43,6 +43,26 @@
       "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/spinning-baseball.webp"
     },
     {
+      "id": "cat",
+      "name": "Cat",
+      "category": "Static",
+      "description": "Pixel-style cat graphic for pet, door, motion, and reminder alerts.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/cat.png",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/cat.png"
+    },
+    {
+      "id": "chicken",
+      "name": "Chicken",
+      "category": "Static",
+      "description": "Pixel-style chicken graphic for coop, farm, pet, and reminder alerts.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/chicken.png",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/chicken.png"
+    },
+    {
       "id": "clothes-dryer",
       "name": "Clothes Dryer",
       "category": "Static",
@@ -71,6 +91,16 @@
       "version": "1.0",
       "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/dishwasher.png",
       "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/dishwasher.png"
+    },
+    {
+      "id": "dog",
+      "name": "Dog",
+      "category": "Static",
+      "description": "Pixel-style dog graphic for pet, door, motion, and reminder alerts.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/dog.png",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/dog.png"
     },
     {
       "id": "filter-change",
@@ -121,6 +151,16 @@
       "version": "1.0",
       "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/garage-door-open.png",
       "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/garage-door-open.png"
+    },
+    {
+      "id": "goat",
+      "name": "Goat",
+      "category": "Static",
+      "description": "Pixel-style goat graphic for farm, pet, motion, and reminder alerts.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/goat.png",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/goat.png"
     },
     {
       "id": "heat-warning",
