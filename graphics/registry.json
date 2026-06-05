@@ -73,6 +73,36 @@
       "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/fridge.png"
     },
     {
+      "id": "hot-water-tank-leaking",
+      "name": "Hot Water Tank Leaking",
+      "category": "Static",
+      "description": "Pixel-style leaking hot water tank for utility and water alerts.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/hot-water-tank-leaking.png",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/hot-water-tank-leaking.png"
+    },
+    {
+      "id": "open-door",
+      "name": "Open Door",
+      "category": "Static",
+      "description": "Pixel-style open door for entry and contact sensor alerts.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/open-door.png",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/open-door.png"
+    },
+    {
+      "id": "open-window",
+      "name": "Open Window",
+      "category": "Static",
+      "description": "Pixel-style open window for window and contact sensor alerts.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/open-window.png",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/open-window.png"
+    },
+    {
       "id": "logo-pixora-tp-5b05e7",
       "name": "logo-pixora-tp",
       "category": "Static",
