@@ -146,7 +146,7 @@ def _maybe_run_animation(options):
         if score > last_score and score > animated:
             _RUN_STATE[key]["animated"] = score
             target = str((options or {}).get("runAnimationTarget") or "device").strip().lower()
-            wall = target in ("group", "group_wall", "wall")
+            wall = target in ("group", "group_wall", "wall") or target.startswith("group:")
             return {
                 "body": cached_priority_graphic(cache_key, lambda animation_team=animation_team: _render_run_animation(animation_team)),
                 "dwell_secs": 4,

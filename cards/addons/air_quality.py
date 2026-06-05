@@ -8,6 +8,25 @@ CARD_DETAIL = "AQI, pollen, and UV by ZIP"
 CARD_OPTIONS = [
     {"key": "zipCode", "label": "ZIP Code", "type": "text", "default": "02134", "maxlength": 5, "inputmode": "numeric"},
 ]
+CARD_RULE_FIELDS = [
+    {"id": "aqi", "label": "AQI"},
+    {"id": "pollen", "label": "Pollen"},
+    {"id": "uv", "label": "UV Index"},
+]
+
+
+def rule_value(options=None, field=""):
+    opts = options or {}
+    zip_code = (opts.get("zipCode") or "").strip()
+    if not zip_code:
+        try:
+            from card_utils import _settings_value
+            zip_code = str(_settings_value("defaultZipCode", "") or "").strip()
+        except Exception:
+            zip_code = ""
+    zip_code = zip_code or "02134"
+    env = _environment(zip_code)
+    return env.get(str(field or "").strip())
 
 
 def _zip_latlon(zip_code):
@@ -46,8 +65,14 @@ def _environment(zip_code):
         f"?latitude={lat:.4f}&longitude={lon:.4f}"
         "&current=uv_index&timezone=auto"
     )
-    aq = fetch_json_request(aq_url, seconds=1800).get("current", {})
-    uv = fetch_json_request(uv_url, seconds=1800).get("current", {})
+    try:
+        aq = fetch_json_request(aq_url, seconds=1800).get("current", {})
+    except Exception:
+        aq = {}
+    try:
+        uv = fetch_json_request(uv_url, seconds=1800).get("current", {})
+    except Exception:
+        uv = {}
     pollen = None
     pollen_source = ""
     try:
@@ -165,4 +190,3 @@ def render(options=None):
     out = BytesIO()
     image.save(out, "WEBP", lossless=True, quality=100)
     return out.getvalue()
-

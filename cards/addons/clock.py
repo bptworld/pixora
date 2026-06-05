@@ -1,4 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
+import atexit
 from datetime import datetime, timedelta, timezone
 import re
 import threading
@@ -22,7 +23,7 @@ CARD_OPTIONS = [
     {"key": "showWeather", "label": "Show weather", "type": "checkbox", "default": True},
 ]
 
-_WEATHER_POOL = ThreadPoolExecutor(max_workers=1, thread_name_prefix="pixora-clock-weather")
+_WEATHER_POOL = None
 _WEATHER_CACHE = {}
 _WEATHER_PENDING = set()
 _WEATHER_LOCK = threading.Lock()
@@ -116,6 +117,21 @@ def _weather_worker(zip_code):
         _WEATHER_PENDING.discard(zip_code)
 
 
+def _weather_pool():
+    global _WEATHER_POOL
+    if _WEATHER_POOL is None:
+        _WEATHER_POOL = ThreadPoolExecutor(max_workers=1, thread_name_prefix="pixora-clock-weather")
+    return _WEATHER_POOL
+
+
+def _shutdown_weather_pool():
+    if _WEATHER_POOL is not None:
+        _WEATHER_POOL.shutdown(wait=False, cancel_futures=True)
+
+
+atexit.register(_shutdown_weather_pool)
+
+
 def _weather_now_or_queue(zip_code):
     zip_code = _normalize_zip(zip_code)
     if len(zip_code) != 5:
@@ -127,7 +143,7 @@ def _weather_now_or_queue(zip_code):
             return cached["weather"]
         if zip_code not in _WEATHER_PENDING and (not cached or cached.get("expires", now) <= now):
             _WEATHER_PENDING.add(zip_code)
-            _WEATHER_POOL.submit(_weather_worker, zip_code)
+            _weather_pool().submit(_weather_worker, zip_code)
     return cached.get("weather") if cached else None
 
 

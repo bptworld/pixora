@@ -424,7 +424,7 @@ def _maybe_run_animation(options):
             _RUN_STATE[key]["animated"] = score
             kind = _classify_latest_run(event, competitor, last_score, score)
             target = str((options or {}).get("runAnimationTarget") or "device").strip().lower()
-            wall = target in ("group", "group_wall", "wall")
+            wall = target in ("group", "group_wall", "wall") or target.startswith("group:")
             cache_key = priority_graphic_key(CARD_ID, animation_team, kind, animation_team["_width"])
             return {
                 "body": cached_priority_graphic(cache_key, lambda animation_team=animation_team, kind=kind: _render_run_animation(animation_team, kind)),

@@ -151,7 +151,8 @@ def final_win_alert(card_id, state, key, competition, competitor, animation_team
     width = animation_team.get("_width") or 64
     cache_key = priority_graphic_key(card_id, animation_team, "win", width)
     render = render or render_score_alert
-    wall = str(target or "device").strip().lower() in ("group", "group_wall", "wall")
+    target = str(target or "device").strip().lower()
+    wall = target in ("group", "group_wall", "wall") or target.startswith("group:")
     return {
         "body": cached_priority_graphic(cache_key, lambda animation_team=animation_team: render(animation_team, "win")),
         "dwell_secs": dwell_secs,
@@ -303,7 +304,7 @@ def maybe_score_alert(options, card_id, url, cache, state, sport="score", defaul
             state[key]["animated"] = score
             kind = _score_kind(score - last_score, sport=sport)
             target = str((options or {}).get("scoreAnimationTarget") or "device").strip().lower()
-            wall = target in ("group", "group_wall", "wall")
+            wall = target in ("group", "group_wall", "wall") or target.startswith("group:")
             cache_key = priority_graphic_key(card_id, animation_team, kind, animation_team["_width"])
             return {
                 "body": cached_priority_graphic(cache_key, lambda animation_team=animation_team, kind=kind: render_score_alert(animation_team, kind)),

@@ -475,8 +475,13 @@ def fetch_json_request(url, seconds=600):
         url,
         headers={"User-Agent": "Pixora/0.1", "Accept": "application/geo+json, application/json"},
     )
-    with urllib.request.urlopen(request, timeout=10) as response:
-        data = json.loads(response.read().decode("utf-8"))
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            data = json.loads(response.read().decode("utf-8"))
+    except Exception:
+        if cached and "data" in cached:
+            return cached["data"]
+        raise
     WEATHER_CACHE[url] = {"expires": now + timedelta(seconds=seconds), "data": data}
     return data
 

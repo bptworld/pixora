@@ -308,7 +308,7 @@ def _maybe_goal_animation(options):
         if score > last_score and score > animated:
             _GOAL_STATE[key]["animated"] = score
             target = str((options or {}).get("goalAnimationTarget") or "device").strip().lower()
-            wall = target in ("group", "group_wall", "wall")
+            wall = target in ("group", "group_wall", "wall") or target.startswith("group:")
             return {
                 "body": cached_priority_graphic(cache_key, lambda animation_team=animation_team: _render_goal_animation(animation_team)),
                 "dwell_secs": 4,

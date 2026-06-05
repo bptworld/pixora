@@ -599,7 +599,7 @@ def render(options=None):
                 lambda: _save_webp_animation(frames, duration=durations, loop=1),
             )
             target = str(opts.get("launchAnimationTarget") or "device").strip().lower()
-            if target in ("group", "group_wall", "wall") and _should_queue_launch_wall(launch):
+            if (target in ("group", "group_wall", "wall") or target.startswith("group:")) and _should_queue_launch_wall(launch):
                 return {
                     "body": body,
                     "dwell_secs": 4,
