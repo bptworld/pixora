@@ -53,6 +53,16 @@
       "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/clothes-dryer.png"
     },
     {
+      "id": "crypto-drop",
+      "name": "Crypto Drop",
+      "category": "Static",
+      "description": "Pixel-style crypto coin drop alert for crypto watch rules.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/crypto-drop.png",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/crypto-drop.png"
+    },
+    {
       "id": "dishwasher",
       "name": "Dishwasher",
       "category": "Static",
@@ -61,6 +71,26 @@
       "version": "1.0",
       "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/dishwasher.png",
       "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/dishwasher.png"
+    },
+    {
+      "id": "filter-change",
+      "name": "Filter Change",
+      "category": "Static",
+      "description": "Pixel-style filter change reminder for HVAC, air purifier, and maintenance alerts.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/filter-change.png",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/filter-change.png"
+    },
+    {
+      "id": "freeze-warning",
+      "name": "Freeze Warning",
+      "category": "Static",
+      "description": "Pixel-style freeze warning for temperature and weather alerts.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/freeze-warning.png",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/freeze-warning.png"
     },
     {
       "id": "fridge",
@@ -73,6 +103,46 @@
       "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/fridge.png"
     },
     {
+      "id": "game-start",
+      "name": "Game Start",
+      "category": "Static",
+      "description": "Pixel-style game start alert for sports cards and schedule rules.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/game-start.png",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/game-start.png"
+    },
+    {
+      "id": "garage-door-open",
+      "name": "Garage Door Open",
+      "category": "Static",
+      "description": "Pixel-style open garage door for contact sensor alerts.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/garage-door-open.png",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/garage-door-open.png"
+    },
+    {
+      "id": "heat-warning",
+      "name": "Heat Warning",
+      "category": "Static",
+      "description": "Pixel-style heat warning for temperature and weather alerts.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/heat-warning.png",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/heat-warning.png"
+    },
+    {
+      "id": "high-wind",
+      "name": "High Wind",
+      "category": "Static",
+      "description": "Pixel-style high wind alert for weather and outdoor safety rules.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/high-wind.png",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/high-wind.png"
+    },
+    {
       "id": "hot-water-tank-leaking",
       "name": "Hot Water Tank Leaking",
       "category": "Static",
@@ -81,6 +151,56 @@
       "version": "1.0",
       "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/hot-water-tank-leaking.png",
       "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/hot-water-tank-leaking.png"
+    },
+    {
+      "id": "lightning-nearby",
+      "name": "Lightning Nearby",
+      "category": "Static",
+      "description": "Pixel-style lightning nearby alert for storm and weather rules.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/lightning-nearby.png",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/lightning-nearby.png"
+    },
+    {
+      "id": "lock-unlocked",
+      "name": "Lock Unlocked",
+      "category": "Static",
+      "description": "Pixel-style unlocked lock for door lock and security alerts.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/lock-unlocked.png",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/lock-unlocked.png"
+    },
+    {
+      "id": "logo-pixora-tp-5b05e7",
+      "name": "logo-pixora-tp",
+      "category": "Static",
+      "description": "logo-pixora-tp graphic for Pixora alerts.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/logo-pixora-tp-5b05e7.png",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/logo-pixora-tp-5b05e7.png"
+    },
+    {
+      "id": "mailbox-open",
+      "name": "Mailbox Open",
+      "category": "Static",
+      "description": "Pixel-style open mailbox for mail delivery alerts.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/mailbox-open.png",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/mailbox-open.png"
+    },
+    {
+      "id": "motion-detected",
+      "name": "Motion Detected",
+      "category": "Static",
+      "description": "Pixel-style motion alert for occupancy and security rules.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/motion-detected.png",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/motion-detected.png"
     },
     {
       "id": "open-door",
@@ -103,14 +223,64 @@
       "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/open-window.png"
     },
     {
-      "id": "logo-pixora-tp-5b05e7",
-      "name": "logo-pixora-tp",
+      "id": "package-delivered",
+      "name": "Package Delivered",
       "category": "Static",
-      "description": "logo-pixora-tp graphic for Pixora alerts.",
+      "description": "Pixel-style delivered package for delivery and porch alerts.",
       "author": "bptworld",
       "version": "1.0",
-      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/logo-pixora-tp-5b05e7.png",
-      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/logo-pixora-tp-5b05e7.png"
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/package-delivered.png",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/package-delivered.png"
+    },
+    {
+      "id": "power-outage",
+      "name": "Power Outage",
+      "category": "Static",
+      "description": "Pixel-style power outage alert for utility and UPS rules.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/power-outage.png",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/power-outage.png"
+    },
+    {
+      "id": "severe-weather",
+      "name": "Severe Weather",
+      "category": "Static",
+      "description": "Pixel-style severe weather alert with storm cloud, rain, and warning marker.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/severe-weather.png",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/severe-weather.png"
+    },
+    {
+      "id": "smoke-co-alert",
+      "name": "Smoke / CO Alert",
+      "category": "Static",
+      "description": "Pixel-style smoke and carbon monoxide alert for safety sensors.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/smoke-co-alert.png",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/smoke-co-alert.png"
+    },
+    {
+      "id": "stock-alert-down",
+      "name": "Stock Alert Down",
+      "category": "Static",
+      "description": "Pixel-style falling stock chart for market and portfolio alerts.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/stock-alert-down.png",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/stock-alert-down.png"
+    },
+    {
+      "id": "stock-alert-up",
+      "name": "Stock Alert Up",
+      "category": "Static",
+      "description": "Pixel-style rising stock chart for market and portfolio alerts.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/stock-alert-up.png",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/stock-alert-up.png"
     },
     {
       "id": "washer-machine",
@@ -121,6 +291,16 @@
       "version": "1.0",
       "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/washer-machine.png",
       "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/washer-machine.png"
+    },
+    {
+      "id": "water-leak",
+      "name": "Water Leak",
+      "category": "Static",
+      "description": "Pixel-style water leak alert for leak sensors and plumbing rules.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/water-leak.png",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/water-leak.png"
     }
   ]
 }
