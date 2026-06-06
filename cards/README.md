@@ -167,7 +167,7 @@ Open Pixora, click **Browse Cards**, and click **Install** next to any card.
 
 ## Writing Your Own Card
 
-See the [Card Creation](../Card-Creation/) guide.
+See help section in app.
 
 ## Updating Cards
 
