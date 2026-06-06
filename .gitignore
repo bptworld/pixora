@@ -4,9 +4,8 @@ releases/*
 !releases/server/
 !releases/server/PixoraSetup-v1.3.66.exe
 !releases/firmware/
-!releases/firmware/Pixora-firmware-v1.3.62/
-!releases/firmware/Pixora-firmware-v1.3.62/**/
-!releases/firmware/Pixora-firmware-v1.3.62/**/*
+!releases/firmware/*.bin
+!releases/firmware/*.txt
 data/
 tmp/
 output/
