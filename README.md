@@ -1,4 +1,4 @@
-# Pixora
+# Pixora HQ
 
 Pixora is a Windows app and firmware package for running Pixora-compatible pixel displays on your local network.
 
