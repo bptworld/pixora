@@ -1259,6 +1259,17 @@
       "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/weather_forecast.webp"
     },
     {
+      "id": "weather_radar_loop",
+      "name": "Weather Radar Loop",
+      "category": "Weather",
+      "detail": "Animated rain and snow sweep",
+      "description": "Animated rain and snow sweep",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/addons/weather_radar_loop.py",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/weather_radar_loop.webp"
+    },
+    {
       "id": "weather_mood",
       "name": "Weather Mood",
       "category": "Weather",

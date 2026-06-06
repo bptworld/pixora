@@ -2,7 +2,7 @@
 
 Add-on cards for the [Pixora](https://github.com/bptworld/pixora) display system.
 
-## Available Cards - 116
+## Available Cards - 117
 
 ### Finance
 
@@ -158,6 +158,7 @@ Add-on cards for the [Pixora](https://github.com/bptworld/pixora) display system
 | Air Quality | AQI, pollen, and UV by ZIP |
 | Weather Alert | Skips when clear |
 | Weather Forecast | 4-day forecast with current weather |
+| Weather Radar Loop | Animated rain and snow sweep |
 | Weather Mood | Animated weather vibe |
 
 ## Installing a Card

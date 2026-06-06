@@ -178,6 +178,25 @@ def _weather_alert():
     return _webp(image)
 
 
+def _weather_radar_loop():
+    image = Image.new("RGB", (64, 32), (0, 4, 8))
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((0, 0, 63, 8), fill=(0, 8, 14))
+    draw_sharp_text(image, (1, -3), "RADAR RAIN", (118, 245, 210), FONT)
+    cx, cy = 20, 20
+    for r in (7, 13, 19):
+        draw.ellipse((cx - r, cy - r, cx + r, cy + r), outline=(8, 42, 48))
+    draw.line((cx - 18, cy, cx + 18, cy), fill=(5, 34, 40))
+    draw.line((cx, cy - 18, cx, cy + 11), fill=(5, 34, 40))
+    draw.line((cx, cy, 37, 11), fill=(42, 238, 190))
+    draw.rectangle((42, 12, 51, 16), fill=(42, 210, 98))
+    draw.rectangle((47, 18, 59, 21), fill=(255, 218, 70))
+    draw.rectangle((35, 23, 45, 26), fill=(42, 190, 92))
+    draw.rectangle((12, 14, 20, 17), fill=(42, 210, 98))
+    draw.rectangle((cx - 1, cy - 1, cx + 1, cy + 1), fill=(118, 245, 210))
+    return _webp(image)
+
+
 def _air_quality():
     image, draw = _simple_header("AIR", (125, 220, 255))
     for x in (21, 43):
@@ -559,6 +578,7 @@ CUSTOM = {
     "clock_week_strip": _clock_week_strip,
     "weather_forecast": _weather_forecast,
     "weather_alert": _weather_alert,
+    "weather_radar_loop": _weather_radar_loop,
     "air_quality": _air_quality,
     "mlb": lambda: _sport("TOP 7TH", "HOU", "BOS", "3-1", (245, 150, 65)),
     "nba": lambda: _sport("3RD 4:22", "BOS", "NYK", "82-79", (245, 150, 65)),
@@ -642,6 +662,7 @@ SAMPLE_OPTIONS = {
     "clock": {"zipCode": "02134"},
     "weather_forecast": {"zipCode": "02134"},
     "weather_alert": {"zipCode": "02134"},
+    "weather_radar_loop": {"zipCode": "02134"},
     "weather_mood": {"zipCode": "02134"},
     "air_quality": {"zipCode": "02134"},
 }
