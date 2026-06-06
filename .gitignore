@@ -1,10 +1,10 @@
 dist/
 build/
 releases/*
-!releases/server/
-!releases/server/PixoraSetup-v1.3.66.exe
 !releases/firmware/
 !releases/firmware/*-ota-firmware.bin
+!releases/server/
+!releases/server/PixoraSetup-v1.3.66.exe
 data/
 tmp/
 output/
