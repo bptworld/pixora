@@ -2,7 +2,7 @@
 
 Add-on cards for the [Pixora](https://github.com/bptworld/pixora) display system.
 
-## Available Cards - 117
+## Available Cards - 118
 
 ### Finance
 
@@ -73,6 +73,7 @@ Add-on cards for the [Pixora](https://github.com/bptworld/pixora) display system
 | Fantasy Lineup | Sleeper starter points |
 | Fantasy Matchup | Sleeper weekly matchup score |
 | Fantasy Standings | Sleeper league standings |
+| FIFA World Cup | Live and upcoming World Cup matches |
 | LPGA Golf | ESPN LPGA leaderboard |
 | Men's College Basketball | Live ESPN scoreboard |
 | Men's College Basketball Standings | Men's college basketball standings |

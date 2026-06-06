@@ -492,6 +492,17 @@
       "url": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/addons/fantasy_standings.py"
     },
     {
+      "id": "fifa_world_cup",
+      "name": "FIFA World Cup",
+      "category": "Sports",
+      "detail": "Live and upcoming World Cup matches",
+      "description": "Live and upcoming World Cup matches",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/addons/fifa_world_cup.py",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/fifa_world_cup.webp"
+    },
+    {
       "id": "lpga",
       "name": "LPGA Golf",
       "category": "Sports",

@@ -256,6 +256,20 @@ def _event_sport(title, icon="race"):
     return _webp(image)
 
 
+def _fifa_world_cup():
+    image = Image.new("RGB", (64, 32), (3, 8, 12))
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((0, 0, 63, 8), fill=(4, 24, 20))
+    draw_sharp_text(image, (1, -3), "WORLD CUP", (70, 220, 125), BOLD)
+    draw.ellipse((1, 10, 14, 23), outline=(70, 220, 125), width=2)
+    draw.ellipse((49, 10, 62, 23), outline=(90, 150, 255), width=2)
+    draw_sharp_text(image, (3, 13), "USA", (245, 250, 255), FONT)
+    draw_sharp_text(image, (50, 13), "PAR", (245, 250, 255), FONT)
+    _center(image, "VS", 11, (245, 250, 255), BOLD)
+    _center(image, "JUN 12", 22, (130, 160, 170), FONT)
+    return _webp(image)
+
+
 def _stock():
     image = Image.new("RGB", (64, 32), (0, 4, 8))
     draw = ImageDraw.Draw(image)
@@ -600,6 +614,7 @@ CUSTOM = {
     "nba_g_league": lambda: _sport("4TH 3:02", "MNE", "STO", "95-90", (85, 180, 255)),
     "soccer": lambda: _sport("78'", "BOS", "MIA", "2-1", (80, 220, 170)),
     "womens_college_volleyball": lambda: _sport("SET 3", "UK", "UCLA", "2-1", (255, 185, 85)),
+    "fifa_world_cup": _fifa_world_cup,
     "pga": lambda: _event_sport("PGA", "golf"),
     "lpga": lambda: _event_sport("LPGA", "golf"),
     "f1": lambda: _event_sport("F1", "race"),
