@@ -12,8 +12,10 @@ sys.path.insert(0, str(ROOT / "addons"))
 from PIL import Image, ImageDraw, ImageFont
 
 from card_utils import (
+    draw_pixora_bold_number,
     draw_mini_weather_icon,
     draw_sharp_text,
+    pixora_bold_number_size,
     render_counter_card,
 )
 
@@ -90,6 +92,66 @@ def _clock():
     _center(image, "04:56", -4, (20, 149, 255), BIG)
     draw_mini_weather_icon(draw, "cloud", 22, 17)
     draw_sharp_text(image, (36, 17), "68F", (235, 247, 255), FONT)
+    return _webp(image)
+
+
+def _clock_calendar():
+    image = Image.new("RGB", (64, 32), (0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    cell = 3
+    gap = 1
+    for row in range(7):
+        for col in range(7):
+            x = 1 + col * (cell + gap)
+            y = 4 + row * (cell + gap)
+            draw.rectangle((x, y, x + cell - 1, y + cell - 1), fill=(214, 0, 18) if row < 2 else (36, 38, 40))
+    for col, row in {
+        (1, 2), (2, 2), (3, 2), (4, 2), (5, 2),
+        (1, 3), (1, 4),
+        (1, 4), (2, 4), (3, 4), (4, 4), (5, 4),
+        (5, 5), (5, 6),
+        (1, 6), (2, 6), (3, 6), (4, 6), (5, 6),
+    }:
+        x = 1 + col * (cell + gap)
+        y = 4 + row * (cell + gap)
+        draw.rectangle((x, y, x + cell - 1, y + cell - 1), fill=(232, 236, 238))
+    _center(image, "12:00", 8, (232, 236, 238), BOLD, 30, 63)
+    x = 30
+    for idx in range(4):
+        draw.rectangle((x, 25, x + 4, 27), fill=(232, 236, 238) if idx == 3 else (24, 25, 26))
+        x += 8
+    return _webp(image)
+
+
+def _clock_day_progress():
+    image = Image.new("RGB", (64, 32), (0, 4, 8))
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((0, 0, 63, 7), fill=(5, 15, 22))
+    draw_sharp_text(image, (1, -4), "FRI", (150, 178, 196), FONT)
+    draw_sharp_text(image, (48, -4), "50%", (62, 224, 150), FONT)
+    time_text = "12:00"
+    tw, th = pixora_bold_number_size(time_text, scale=2, spacing=1)
+    draw_pixora_bold_number(draw, ((64 - tw) // 2, 10), time_text, (235, 247, 255), scale=2, spacing=1)
+    draw.rectangle((2, 28, 61, 31), outline=(40, 58, 70))
+    draw.rectangle((3, 29, 32, 30), fill=(62, 224, 150))
+    for x in (17, 32, 47):
+        draw.line((x, 29, x, 30), fill=(12, 20, 25))
+    return _webp(image)
+
+
+def _clock_week_strip():
+    image = Image.new("RGB", (64, 32), (0, 5, 12))
+    draw = ImageDraw.Draw(image)
+    days = "MTWTFSS"
+    for idx, label in enumerate(days):
+        x1 = 1 + idx * 9
+        x2 = x1 + 7
+        active = idx == 4
+        draw.rectangle((x1, 0, x2, 8), fill=(35, 118, 220) if active else (10, 18, 27), outline=(90, 170, 255) if active else (32, 48, 60))
+        if active:
+            _center(image, label, -3, (245, 250, 255), FONT, x1, x2)
+    _center(image, "12:00", 5, (235, 247, 255), BIG)
+    _center(image, "FRI 06/05", 24, (92, 185, 255), FONT)
     return _webp(image)
 
 
@@ -492,6 +554,9 @@ def _message(title, l1, l2="", color=(24, 210, 190)):
 
 CUSTOM = {
     "clock": _clock,
+    "clock_calendar": _clock_calendar,
+    "clock_day_progress": _clock_day_progress,
+    "clock_week_strip": _clock_week_strip,
     "weather_forecast": _weather_forecast,
     "weather_alert": _weather_alert,
     "air_quality": _air_quality,

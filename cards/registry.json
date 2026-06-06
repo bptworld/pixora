@@ -951,6 +951,39 @@
       "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/clock.webp"
     },
     {
+      "id": "clock_calendar",
+      "name": "Clock with Calendar",
+      "category": "Utility",
+      "detail": "Time and today's date",
+      "description": "Time and today's date",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/addons/clock_calendar.py",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/clock_calendar.webp"
+    },
+    {
+      "id": "clock_day_progress",
+      "name": "Clock Day Progress",
+      "category": "Utility",
+      "detail": "Time with day progress",
+      "description": "Time with day progress",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/addons/clock_day_progress.py",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/clock_day_progress.webp"
+    },
+    {
+      "id": "clock_week_strip",
+      "name": "Clock Week Strip",
+      "category": "Utility",
+      "detail": "Time with weekday strip",
+      "description": "Time with weekday strip",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/addons/clock_week_strip.py",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/clock_week_strip.webp"
+    },
+    {
       "id": "countdown",
       "name": "Countdown",
       "category": "Utility",

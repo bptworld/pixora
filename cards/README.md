@@ -125,6 +125,9 @@ Add-on cards for the [Pixora](https://github.com/bptworld/pixora) display system
 | Battery Reminder | Rotating battery checklist |
 | Cinemark Now Playing | Cinemark theatre showtimes |
 | Clock | Time plus local weather |
+| Clock Day Progress | Time with day progress |
+| Clock Week Strip | Time with weekday strip |
+| Clock with Calendar | Time and today's date |
 | Countdown | Days until any event |
 | Countdown Confetti | Event countdown with confetti |
 | Custom Text | Two-line custom message |
