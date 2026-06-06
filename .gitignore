@@ -1,10 +1,12 @@
 dist/
 build/
 releases/*
-!releases/PixoraSetup-v1.3.66.exe
-!releases/Pixora-firmware-v1.3.62/
-!releases/Pixora-firmware-v1.3.62/**/
-!releases/Pixora-firmware-v1.3.62/**/*
+!releases/server/
+!releases/server/PixoraSetup-v1.3.66.exe
+!releases/firmware/
+!releases/firmware/Pixora-firmware-v1.3.62/
+!releases/firmware/Pixora-firmware-v1.3.62/**/
+!releases/firmware/Pixora-firmware-v1.3.62/**/*
 data/
 tmp/
 output/
