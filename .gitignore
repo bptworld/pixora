@@ -4,8 +4,7 @@ releases/*
 !releases/server/
 !releases/server/PixoraSetup-v1.3.66.exe
 !releases/firmware/
-!releases/firmware/*.bin
-!releases/firmware/*.txt
+!releases/firmware/*-ota-firmware.bin
 data/
 tmp/
 output/
