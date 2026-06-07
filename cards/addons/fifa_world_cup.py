@@ -5,7 +5,8 @@ from card_utils import draw_sharp_text, fetch_json_request, fetch_logo, render_t
 
 CARD_ID = "fifa_world_cup"
 CARD_NAME = "FIFA World Cup"
-CARD_DETAIL = "Live and upcoming World Cup matches"
+CARD_CATEGORY = "Sports"
+CARD_DETAIL = "World Cup match days only"
 CARD_OPTIONS = [
     {
         "key": "favoriteTeam",
@@ -38,16 +39,11 @@ _CACHE_SECONDS = 300
 
 
 def _date_range():
-    now = datetime.now(timezone.utc)
-    start = now.date()
-    # The 2026 group stage starts June 11; before then, ask ESPN for the full
-    # published tournament range so favorites can show their next fixture.
-    if start < datetime(2026, 6, 11, tzinfo=timezone.utc).date():
-        start = datetime(2026, 6, 11, tzinfo=timezone.utc).date()
-    end = start + timedelta(days=45)
-    tournament_end = datetime(2026, 7, 19, tzinfo=timezone.utc).date()
-    if start <= tournament_end:
-        end = min(end, tournament_end)
+    today = datetime.now().astimezone().date()
+    # Query a small buffer around today because ESPN's event date can cross UTC
+    # boundaries for evening matches; the display filter below still uses local day.
+    start = today - timedelta(days=1)
+    end = today + timedelta(days=1)
     return start.strftime("%Y%m%d"), end.strftime("%Y%m%d")
 
 
@@ -84,6 +80,15 @@ def _event_has_favorite(event, favorite):
         if favorite in _team_values(competitor.get("team") or {}):
             return True
     return False
+
+
+def _events_for_today(events, favorite=""):
+    today = datetime.now().astimezone().date()
+    return [
+        event
+        for event in events
+        if _event_dt(event).astimezone().date() == today and _event_has_favorite(event, favorite)
+    ]
 
 
 def _pick_event(events, favorite=""):
@@ -193,9 +198,10 @@ def render(options=None):
     try:
         data = _scoreboard()
     except Exception:
-        return render_text_webp("WC ERR", (238, 80, 80))
-    event = _pick_event(data.get("events") or [], favorite)
+        return None
+    todays_events = _events_for_today(data.get("events") or [], favorite)
+    event = _pick_event(todays_events, favorite)
     if not event:
-        return render_text_webp("NO WC", _COLOR)
+        return None
     width = 128 if opts.get("_target") == "matrixportal-s3-128x32" else 64
     return _render_event(event, width)
