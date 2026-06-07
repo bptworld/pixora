@@ -984,16 +984,21 @@ def message_text_width(text):
     return draw.textbbox((0, 0), text, font=_msg_font())[2]
 
 
-def _wrap_frame(text, color_rgb):
+def _message_width(width=64):
+    return 128 if int(width or 64) >= 96 else 64
+
+
+def _wrap_frame(text, color_rgb, width=64):
     from PIL import Image, ImageDraw
-    image = Image.new("RGB", (64, 32), (0, 0, 0))
+    width = _message_width(width)
+    image = Image.new("RGB", (width, 32), (0, 0, 0))
     font = _msg_font()
     draw = ImageDraw.Draw(image)
     words = text.split()
     lines, current = [], ""
     for word in words:
         test = (current + " " + word).strip() if current else word
-        if draw.textbbox((0, 0), test, font=font)[2] <= 62:
+        if draw.textbbox((0, 0), test, font=font)[2] <= width - 2:
             current = test
         else:
             if current:
@@ -1006,21 +1011,22 @@ def _wrap_frame(text, color_rgb):
     y = (32 - len(lines) * line_h) // 2 - 3
     for line in lines:
         w = draw.textbbox((0, 0), line, font=font)[2]
-        draw_sharp_text(image, ((64 - w) // 2, y), line, color_rgb, font)
+        draw_sharp_text(image, ((width - w) // 2, y), line, color_rgb, font)
         y += line_h
     return image
 
 
-def render_message_wrap(text, color_rgb):
+def render_message_wrap(text, color_rgb, width=64):
     out = BytesIO()
-    _wrap_frame(text, color_rgb).save(out, "WEBP", lossless=True, quality=100)
+    _wrap_frame(text, color_rgb, width=width).save(out, "WEBP", lossless=True, quality=100)
     return out.getvalue()
 
 
-def render_message_flash(text, color_rgb):
+def render_message_flash(text, color_rgb, width=64):
     from PIL import Image
-    on_frame = _wrap_frame(text, color_rgb)
-    off_frame = Image.new("RGB", (64, 32), (0, 0, 0))
+    width = _message_width(width)
+    on_frame = _wrap_frame(text, color_rgb, width=width)
+    off_frame = Image.new("RGB", (width, 32), (0, 0, 0))
     out = BytesIO()
     on_frame.save(
         out, "WEBP", save_all=True,
@@ -1031,19 +1037,20 @@ def render_message_flash(text, color_rgb):
     return out.getvalue()
 
 
-def render_message_scroll(text, color_rgb):
+def render_message_scroll(text, color_rgb, width=64):
     from PIL import Image, ImageDraw
+    width = _message_width(width)
     font = _msg_font()
     draw_dummy = ImageDraw.Draw(Image.new("RGB", (1, 1)))
     text_w = draw_dummy.textbbox((0, 0), text, font=font)[2]
     px_per_frame = 2
     frame_ms = 33
-    total = 64 + text_w + 32
+    total = width + text_w + 32
     frames = []
     for i in range(0, total, px_per_frame):
-        img = Image.new("RGB", (64, 32), (0, 0, 0))
-        x = 64 - i
-        if x < 64:
+        img = Image.new("RGB", (width, 32), (0, 0, 0))
+        x = width - i
+        if x < width:
             draw_sharp_text(img, (x, 12), text, color_rgb, font)
         frames.append(img)
     out = BytesIO()
