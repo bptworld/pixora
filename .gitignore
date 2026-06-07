@@ -28,7 +28,7 @@ firmware/sdkconfig.old
 firmware/secrets.cmake
 firmware/secrets.json
 firmware/main/setup_pages.h
-firmware/
+/firmware/
 .esp-idf/
 
 # Local Pixora runtime/source files. The public repo exposes cards and official
