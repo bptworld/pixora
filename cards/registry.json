@@ -1273,8 +1273,12 @@
       "id": "weather_radar_loop",
       "name": "Weather Radar Loop",
       "category": "Weather",
-      "detail": "Animated rain and snow sweep",
-      "description": "Animated rain and snow sweep",
+      "detail": "Live RainViewer radar loop",
+      "description": "Live RainViewer radar loop",
+      "attribution": {
+        "label": "Radar data by RainViewer",
+        "url": "https://www.rainviewer.com/"
+      },
       "author": "bptworld",
       "version": "1.0",
       "url": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/addons/weather_radar_loop.py",

@@ -9,6 +9,10 @@ from card_utils import _settings_value, draw_sharp_text, fetch_json_request, ren
 CARD_ID = "weather_radar_loop"
 CARD_NAME = "Weather Radar Loop"
 CARD_DETAIL = "Live RainViewer radar loop"
+CARD_ATTRIBUTION = {
+    "label": "Radar data by RainViewer",
+    "url": "https://www.rainviewer.com/",
+}
 CARD_OPTIONS = [
     {"key": "zipCode", "label": "ZIP Code", "type": "text", "default": "", "maxlength": 5, "inputmode": "numeric"},
 ]
