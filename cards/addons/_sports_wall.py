@@ -258,31 +258,45 @@ def _draw_light_tower(draw, x, y, mirror=False, phase=0):
 
 def _draw_stadium_bowl(draw, width, phase, color, alt):
     center = width // 2
-    crowd_a = (42, 48, 55, 255)
-    crowd_b = (72, 78, 84, 255)
-    rail = (212, 220, 218, 255)
+    crowd_a = (54, 62, 70, 255)
+    crowd_b = (96, 104, 112, 255)
+    crowd_c = (138, 146, 148, 255)
+    rail = (230, 236, 226, 255)
+    accent = dim(color, 0.72) + (255,)
     # Pixel rows for the inside of the stadium bowl.
-    for row, y in enumerate((14, 16, 18, 20)):
+    for row, y in enumerate((12, 14, 16, 18, 20)):
         spread = width * (0.28 + row * 0.10)
         arc_lift = 5 + row * 1.6
         x0 = max(0, int(center - spread))
         x1 = min(width - 1, int(center + spread))
-        step = 4 if width >= 128 else 5
+        step = 3 if width >= 128 else 4
         for x in range(x0, x1, step):
             normalized = abs((x - center) / max(1, spread))
             if normalized > 1:
                 continue
             y_arc = int(y + (normalized * normalized * arc_lift))
-            fill = crowd_b if ((x // step) + row + phase) % 3 else crowd_a
+            pattern = ((x // step) + row + phase) % 5
+            fill = crowd_c if pattern == 0 else crowd_b if pattern in (1, 3) else crowd_a
             if 0 <= y_arc < 31:
                 draw.point((x, y_arc), fill=fill)
-                if width >= 192 and ((x // step) + phase) % 6 == 0:
-                    draw.point((min(width - 1, x + 1), y_arc), fill=(132, 138, 142, 255))
+                if width >= 128 and ((x // step) + phase) % 6 == 0:
+                    draw.point((min(width - 1, x + 1), y_arc), fill=accent)
+
+    # A low center scoreboard/press-box glow keeps the 128-wide middle slice
+    # visibly alive before the run text starts revealing.
+    board_w = max(26, min(58, width // 4))
+    board_x0 = max(2, center - board_w // 2)
+    board_x1 = min(width - 3, center + board_w // 2)
+    draw.rectangle((board_x0, 4, board_x1, 8), fill=(12, 22, 28, 255), outline=dim(color, 0.55) + (255,))
+    for x in range(board_x0 + 3, board_x1 - 1, 5):
+        light = alt if ((x + phase) // 5) % 3 == 0 else dim(color, 0.62)
+        draw.point((x, 6), fill=light + (255,))
+        draw.point((x + 1, 6), fill=light + (255,))
 
     # Bright curved railing, like the sample's stadium interior sweep.
     for spread, y_base, lift, line_color in (
-        (0.48, 18, 8.5, rail),
-        (0.38, 21, 6.5, (152, 160, 154, 255)),
+        (0.50, 17, 8.0, rail),
+        (0.40, 20, 6.2, (178, 188, 178, 255)),
     ):
         prev = None
         for x in range(max(0, int(center - width * spread)), min(width, int(center + width * spread))):

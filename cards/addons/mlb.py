@@ -372,6 +372,7 @@ def _maybe_run_animation(options):
     favorite = (options or {}).get("favoriteTeam", "")
     if not str(favorite or "").strip():
         return None
+    log = (options or {}).get("_log")
     data = fetch_sport_scoreboard(_URL, _CACHE, favorite, seconds=15)
     event = pick_sport_event(data.get("events", []), favorite)
     if not event:
@@ -425,6 +426,11 @@ def _maybe_run_animation(options):
             kind = _classify_latest_run(event, competitor, last_score, score)
             target = str((options or {}).get("runAnimationTarget") or "device").strip().lower()
             wall = target in ("group", "group_wall", "wall") or target.startswith("group:")
+            if callable(log):
+                try:
+                    log(f"[mlb] run detected {team_key} {last_score}->{score} kind={kind} target={target} wall={wall} device={device_id}")
+                except Exception:
+                    pass
             cache_key = priority_graphic_key(CARD_ID, animation_team, kind, animation_team["_width"])
             return {
                 "body": cached_priority_graphic(cache_key, lambda animation_team=animation_team, kind=kind: _render_run_animation(animation_team, kind)),
