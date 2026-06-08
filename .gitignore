@@ -10,6 +10,7 @@ releases/firmware/*
 data/
 tmp/
 output/
+captures/
 __pycache__/
 *.pyc
 Pixora.spec

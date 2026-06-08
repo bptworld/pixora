@@ -1,1317 +1,796 @@
-from datetime import datetime, timedelta, timezone
+import atexit
+from concurrent.futures import ThreadPoolExecutor
+import hashlib
 from io import BytesIO
 import json
+import re
+import time
+import threading
+import urllib.error
 import urllib.parse
 import urllib.request
+
 from card_utils import (
-    draw_sharp_text, fetch_airline_logo, format_speed_knots, format_time, iata_to_icao_prefix, lookup_airline,
-    render_text_webp,
+    compass_dir,
+    draw_sharp_text,
+    format_distance_miles,
+    format_speed_knots,
+    haversine_miles,
+    iata_to_icao_prefix,
+    lookup_airline,
 )
 
 try:
     from PIL import ImageFont
     FONT_7 = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
+    FONT_BOLD = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
 except Exception:
     from PIL import ImageFont
-    FONT_7 = ImageFont.load_default()
+    FONT_7 = FONT_BOLD = ImageFont.load_default()
 
 CARD_ID = "flight_track"
 CARD_NAME = "Flight Tracker"
-CARD_DETAIL = "Flightradar24 live and summary tracking"
-CARD_OPTIONS = [
-    {
-        "key": "airline",
-        "label": "Airline",
-        "type": "select",
-        "default": "WN",
-        "choices": [
-            {"value": "AA", "label": "American"},
-            {"value": "UA", "label": "United"},
-            {"value": "DL", "label": "Delta"},
-            {"value": "WN", "label": "Southwest"},
-            {"value": "AS", "label": "Alaska"},
-            {"value": "B6", "label": "JetBlue"},
-            {"value": "F9", "label": "Frontier"},
-            {"value": "NK", "label": "Spirit"},
-            {"value": "HA", "label": "Hawaiian"},
-            {"value": "BA", "label": "British Airways"},
-            {"value": "AF", "label": "Air France"},
-            {"value": "LH", "label": "Lufthansa"},
-            {"value": "EK", "label": "Emirates"},
-            {"value": "AC", "label": "Air Canada"},
-        ],
-    },
-    {"key": "flightNumber", "label": "Flight Number", "type": "text", "default": "3416", "maxlength": 6, "inputmode": "numeric"},
-    {"key": "origin", "label": "Origin", "type": "text", "default": "", "maxlength": 3},
-    {"key": "destination", "label": "Destination", "type": "text", "default": "", "maxlength": 3},
-    {"key": "repeatDaily", "label": "Repeat this flight every day", "type": "checkbox", "default": False},
-    {"key": "apiKey", "label": "Flightradar24 API Token", "type": "text", "default": ""},
+CARD_DETAIL = "Free live ADS-B flight tracking"
+_AIRLINE_CHOICES = [
+    {"value": "AA", "label": "American"},
+    {"value": "UA", "label": "United"},
+    {"value": "DL", "label": "Delta"},
+    {"value": "WN", "label": "Southwest"},
+    {"value": "AS", "label": "Alaska"},
+    {"value": "B6", "label": "JetBlue"},
+    {"value": "F9", "label": "Frontier"},
+    {"value": "NK", "label": "Spirit"},
+    {"value": "HA", "label": "Hawaiian"},
+    {"value": "BA", "label": "British Airways"},
+    {"value": "AF", "label": "Air France"},
+    {"value": "LH", "label": "Lufthansa"},
+    {"value": "EK", "label": "Emirates"},
+    {"value": "AC", "label": "Air Canada"},
 ]
 
-_CACHE = {}
-_CACHE_SECONDS = 300
-_GEO_CACHE = {}
-_GEO_DETAIL_CACHE = {}
-_GEO_CACHE_SECONDS = 30 * 60
-_TERMINAL_CACHE = {}
-_TERMINAL_CACHE_SECONDS = 18 * 60 * 60
-_FLIGHT_POLL_STATE = {}
-_DISABLE_POLLING_FOR_TEST = False
-_API_ROOT = "https://fr24api.flightradar24.com/api"
+CARD_OPTIONS = []
+for _idx in range(1, 5):
+    CARD_OPTIONS.extend([
+        {
+            "key": f"airline{_idx}",
+            "label": f"Airline {_idx}",
+            "type": "select",
+            "default": "WN" if _idx == 1 else "",
+            "choices": ([{"value": "", "label": "-"}] if _idx > 1 else []) + _AIRLINE_CHOICES,
+        },
+        {
+            "key": f"flightNumber{_idx}",
+            "label": f"Flight # {_idx}",
+            "type": "text",
+            "default": "3416" if _idx == 1 else "",
+            "maxlength": 6,
+            "inputmode": "numeric",
+        },
+        {"key": f"origin{_idx}", "label": f"Origin {_idx}", "type": "text", "default": "", "maxlength": 4},
+        {"key": f"destination{_idx}", "label": f"Destination {_idx}", "type": "text", "default": "", "maxlength": 4},
+    ])
+CARD_OPTIONS.extend([
+    {
+        "key": "source",
+        "label": "Live Source",
+        "type": "select",
+        "default": "auto",
+        "choices": [
+            {"value": "auto", "label": "Auto"},
+            {"value": "adsblol", "label": "ADSB.lol"},
+            {"value": "adsbfi", "label": "adsb.fi"},
+        ],
+    },
+    {"key": "homeZip", "label": "Home ZIP", "type": "text", "default": "", "maxlength": 5, "inputmode": "numeric"},
+    {"key": "repeatDaily", "label": "Track same flight number daily", "type": "checkbox", "default": True},
+])
+del _idx
+
 _AIRPORT_CITY = {
-    "MCO": "ORLANDO FL",
-    "MHT": "MANCHESTER NH",
-    "SFB": "ORLANDO FL",
-    "TPA": "TAMPA FL",
-    "BOS": "BOSTON MA",
-    "JFK": "NEW YORK NY",
-    "LGA": "NEW YORK NY",
-    "EWR": "NEWARK NJ",
-    "DCA": "WASHINGTON DC",
-    "IAD": "WASHINGTON DC",
-    "BWI": "BALTIMORE MD",
-    "ATL": "ATLANTA GA",
-    "ORD": "CHICAGO IL",
-    "MDW": "CHICAGO IL",
-    "DEN": "DENVER CO",
-    "DFW": "DALLAS TX",
-    "DAL": "DALLAS TX",
-    "LAX": "LOS ANGELES CA",
-    "LAS": "LAS VEGAS NV",
-    "PHX": "PHOENIX AZ",
-    "SEA": "SEATTLE WA",
-    "SFO": "SAN FRANCISCO CA",
+    "ATL": "ATLANTA", "BOS": "BOSTON", "BWI": "BALTIMORE", "DCA": "WASHINGTON",
+    "DEN": "DENVER", "DFW": "DALLAS", "EWR": "NEWARK", "IAD": "WASHINGTON",
+    "JFK": "NEW YORK", "LAS": "LAS VEGAS", "LAX": "LOS ANGELES", "LGA": "NEW YORK",
+    "MCO": "ORLANDO", "MHT": "MANCHESTER", "ORD": "CHICAGO", "PHX": "PHOENIX",
+    "SEA": "SEATTLE", "SFO": "SAN FRANCISCO", "TPA": "TAMPA",
 }
+_ICAO_TO_IATA = {
+    "AAL": "AA", "UAL": "UA", "DAL": "DL", "SWA": "WN", "ASA": "AS",
+    "JBU": "B6", "FFT": "F9", "NKS": "NK", "HAL": "HA", "BAW": "BA",
+    "AFR": "AF", "DLH": "LH", "UAE": "EK", "ACA": "AC",
+}
+_MARKETING_OPERATOR_PREFIXES = {
+    "AA": ["AAL", "ENY", "JIA", "PDT", "RPA", "SKW"],
+    "AC": ["ACA", "JZA"],
+    "AS": ["ASA", "QXE", "SKW"],
+    "B6": ["JBU"],
+    "DL": ["DAL", "EDV", "RPA", "SKW"],
+    "UA": ["UAL", "SKW", "RPA", "AWI", "GJS", "ASH"],
+}
+_STATE_ABBR = {
+    "ALABAMA": "AL", "ALASKA": "AK", "ARIZONA": "AZ", "ARKANSAS": "AR", "CALIFORNIA": "CA",
+    "COLORADO": "CO", "CONNECTICUT": "CT", "DELAWARE": "DE", "DISTRICT OF COLUMBIA": "DC",
+    "FLORIDA": "FL", "GEORGIA": "GA", "HAWAII": "HI", "IDAHO": "ID", "ILLINOIS": "IL",
+    "INDIANA": "IN", "IOWA": "IA", "KANSAS": "KS", "KENTUCKY": "KY", "LOUISIANA": "LA",
+    "MAINE": "ME", "MARYLAND": "MD", "MASSACHUSETTS": "MA", "MICHIGAN": "MI",
+    "MINNESOTA": "MN", "MISSISSIPPI": "MS", "MISSOURI": "MO", "MONTANA": "MT",
+    "NEBRASKA": "NE", "NEVADA": "NV", "NEW HAMPSHIRE": "NH", "NEW JERSEY": "NJ",
+    "NEW MEXICO": "NM", "NEW YORK": "NY", "NORTH CAROLINA": "NC", "NORTH DAKOTA": "ND",
+    "OHIO": "OH", "OKLAHOMA": "OK", "OREGON": "OR", "PENNSYLVANIA": "PA",
+    "RHODE ISLAND": "RI", "SOUTH CAROLINA": "SC", "SOUTH DAKOTA": "SD", "TENNESSEE": "TN",
+    "TEXAS": "TX", "UTAH": "UT", "VERMONT": "VT", "VIRGINIA": "VA", "WASHINGTON": "WA",
+    "WEST VIRGINIA": "WV", "WISCONSIN": "WI", "WYOMING": "WY",
+}
+_SOURCE_CACHE_SECONDS = 20
+_ENRICH_CACHE_SECONDS = 3600
+_SOURCE_HTTP_TIMEOUT = 1.2
+_ENRICH_HTTP_TIMEOUT = 0.7
+_REFRESH_BUDGET_SECONDS = 45.0
+_SNAPSHOT_TTL_SECONDS = 300
+_JSON_CACHE = {}
+_SNAPSHOT_CACHE = {}
+_SNAPSHOT_PENDING = set()
+_SNAPSHOT_LOCK = threading.Lock()
+_SNAPSHOT_POOL = None
+_SNAPSHOT_WATCHED = {}
+_SCHEDULER_THREAD = None
+_SCHEDULER_STOP = threading.Event()
 
 
-def _version_tuple(value):
-    parts = []
-    for part in str(value or "").split("."):
-        try:
-            parts.append(int("".join(ch for ch in part if ch.isdigit()) or "0"))
-        except Exception:
-            parts.append(0)
-    while len(parts) < 3:
-        parts.append(0)
-    return tuple(parts[:3])
+def _is_wide(options):
+    return (options or {}).get("_target") == "matrixportal-s3-128x32"
 
 
 def _clean(value):
     return "".join(ch for ch in str(value or "").upper() if ch.isalnum())
 
 
-def _ident_from_options(opts, use_icao=False):
-    number = "".join(ch for ch in str(opts.get("flightNumber") or "") if ch.isdigit())
-    airline = _clean(opts.get("airline") or "")
+def _time_left(deadline):
+    if deadline is None:
+        return 999.0
+    return max(0.0, deadline - time.monotonic())
+
+
+def _snapshot_pool():
+    global _SNAPSHOT_POOL
+    if _SNAPSHOT_POOL is None:
+        _SNAPSHOT_POOL = ThreadPoolExecutor(max_workers=1, thread_name_prefix="pixora-flight-track")
+    return _SNAPSHOT_POOL
+
+
+def _shutdown_snapshot_pool():
+    _SCHEDULER_STOP.set()
+    if _SNAPSHOT_POOL is not None:
+        _SNAPSHOT_POOL.shutdown(wait=False, cancel_futures=True)
+
+
+atexit.register(_shutdown_snapshot_pool)
+
+
+def _ensure_snapshot_scheduler():
+    global _SCHEDULER_THREAD
+    if _SCHEDULER_THREAD is not None and _SCHEDULER_THREAD.is_alive():
+        return
+    _SCHEDULER_STOP.clear()
+    _SCHEDULER_THREAD = threading.Thread(target=_snapshot_scheduler_loop, name="pixora-flight-track-scheduler", daemon=True)
+    _SCHEDULER_THREAD.start()
+
+
+def _snapshot_scheduler_loop():
+    while not _SCHEDULER_STOP.wait(10):
+        now = time.time()
+        due = []
+        with _SNAPSHOT_LOCK:
+            for key, opts in list(_SNAPSHOT_WATCHED.items()):
+                snapshot = _SNAPSHOT_CACHE.get(key)
+                if key not in _SNAPSHOT_PENDING and (not snapshot or snapshot.get("expires", 0) <= now):
+                    _SNAPSHOT_PENDING.add(key)
+                    due.append((key, dict(opts)))
+        for key, opts in due:
+            _snapshot_pool().submit(_refresh_snapshot, key, opts)
+
+
+def _fetch_json(url, seconds=600, timeout=2.0, deadline=None):
+    now = time.time()
+    cached = _JSON_CACHE.get(url)
+    if cached and cached["expires"] > now:
+        return cached["data"]
+    if _time_left(deadline) < 0.2:
+        if cached:
+            return cached["data"]
+        raise TimeoutError("flight render budget exhausted")
+    request = urllib.request.Request(
+        url,
+        headers={"User-Agent": "Pixora/0.1", "Accept": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=max(0.2, min(timeout, _time_left(deadline)))) as response:
+            data = json.loads(response.read().decode("utf-8"))
+    except Exception:
+        if cached and "data" in cached:
+            return cached["data"]
+        raise
+    _JSON_CACHE[url] = {"expires": now + seconds, "data": data}
+    return data
+
+
+def _slot_value(opts, key, slot):
+    value = opts.get(f"{key}{slot}")
+    if slot == 1 and value in (None, ""):
+        value = opts.get(key)
+    return value
+
+
+def _flight_ident(opts, use_icao=False, slot=1):
+    number = "".join(ch for ch in str(_slot_value(opts, "flightNumber", slot) or "") if ch.isdigit())
+    airline = _clean(_slot_value(opts, "airline", slot) or "")
+    if use_icao and len(airline) == 2:
+        airline = iata_to_icao_prefix(airline) or airline
     if airline and number:
-        if use_icao and len(airline) == 2:
-            airline = iata_to_icao_prefix(airline) or airline
         return airline + number
     return _clean(opts.get("callsign") or "")
 
 
-def _flight_number_from_options(opts):
-    return "".join(ch for ch in str(opts.get("flightNumber") or "") if ch.isdigit())
+def _candidate_callsigns(opts, slot=1):
+    number = "".join(ch for ch in str(_slot_value(opts, "flightNumber", slot) or "") if ch.isdigit())
+    airline = _clean(_slot_value(opts, "airline", slot) or "")
+    explicit = _clean(opts.get("callsign") or "")
+    candidates = []
+    if explicit:
+        candidates.append(explicit)
+    if airline and number:
+        primary = iata_to_icao_prefix(airline) if len(airline) == 2 else airline
+        operator_prefixes = list(_MARKETING_OPERATOR_PREFIXES.get(airline, []))
+        if primary and primary not in operator_prefixes:
+            operator_prefixes.insert(0, primary)
+        try:
+            flight_no = int(number)
+        except Exception:
+            flight_no = 0
+        if flight_no >= 3000:
+            regional = [prefix for prefix in operator_prefixes if prefix != primary]
+            ordered = regional + ([primary] if primary else [])
+        else:
+            ordered = ([primary] if primary else []) + [prefix for prefix in operator_prefixes if prefix != primary]
+        for prefix in ordered:
+            if prefix:
+                candidates.append(prefix + number)
+        candidates.append(airline + number)
+    unique = []
+    for candidate in candidates:
+        if candidate and candidate not in unique:
+            unique.append(candidate)
+    return unique
 
 
-def _airline_icao_from_options(opts):
-    airline = _clean(opts.get("airline") or "")
-    if len(airline) == 2:
-        return iata_to_icao_prefix(airline) or airline
-    return airline
-
-
-def _route_from_options(opts):
-    origin = _clean(opts.get("origin") or "")[:3]
-    destination = _clean(opts.get("destination") or "")[:3]
-    if origin and destination:
-        return f"{origin}-{destination}"
-    return ""
-
-
-def _truthy(value):
-    return str(value).strip().lower() in ("1", "true", "yes", "on")
-
-
-def _service_day_start_local(now_local=None):
-    now_local = now_local or datetime.now().astimezone()
-    six = now_local.replace(hour=6, minute=0, second=0, microsecond=0)
-    if now_local < six:
-        six = six - timedelta(days=1)
-    return six
-
-
-def _service_day_id(now_local=None):
-    return _service_day_start_local(now_local).strftime("%Y-%m-%d")
-
-
-def _terminal_key(iata_ident, icao_ident, route, repeat_daily=False):
-    service_day = _service_day_id() if repeat_daily else ""
-    return "|".join([iata_ident or "", icao_ident or "", route or "", service_day])
-
-
-def _today_6am_local():
-    now = datetime.now().astimezone()
-    return now.replace(hour=6, minute=0, second=0, microsecond=0)
-
-
-def _next_6am_local():
-    now = datetime.now().astimezone()
-    six = _today_6am_local()
-    if now >= six:
-        six = six + timedelta(days=1)
-    return six
-
-
-def _utc(dt):
-    return dt.astimezone(timezone.utc) if dt else None
-
-
-def _is_landed(flight):
-    return bool(flight and (flight.get("datetime_landed") or flight.get("flight_ended") is True))
-
-
-def _is_cancelled(flight):
-    if not flight:
-        return False
-    text_parts = []
-    for key in (
-        "status", "flight_status", "flight_state", "state", "status_text",
-        "status_detail", "status_message", "remarks", "message",
-        "cancelled", "canceled",
-    ):
-        value = flight.get(key)
-        if isinstance(value, dict):
-            value = " ".join(str(v) for v in value.values())
-        if value is not None:
-            text_parts.append(str(value))
-    text = " ".join(text_parts).lower()
-    return any(word in text for word in ("cancelled", "canceled", "cncl"))
-
-
-def _terminal_cached(key):
-    cached = _TERMINAL_CACHE.get(key)
-    if not cached:
-        return None
-    if cached["expires"] <= datetime.now(timezone.utc):
-        _TERMINAL_CACHE.pop(key, None)
-        return None
-    return cached["flight"]
-
-
-def _cache_terminal(key, flight):
-    if _is_landed(flight) or _is_cancelled(flight):
-        _TERMINAL_CACHE[key] = {
-            "flight": flight,
-            "expires": datetime.now(timezone.utc) + timedelta(seconds=_TERMINAL_CACHE_SECONDS),
-        }
-
-
-def _parse_time(value):
-    if not value:
-        return None
-    text = str(value).replace("Z", "+00:00")
-    try:
-        dt = datetime.fromisoformat(text)
-    except Exception:
-        return None
-    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
-
-
-def _fmt_time(value):
-    dt = _parse_time(value)
-    if not dt:
-        return "--:--"
-    return format_time(dt.astimezone())
+def _route_option(opts, slot=1):
+    origin = _clean(_slot_value(opts, "origin", slot) or "")[:4]
+    dest = _clean(_slot_value(opts, "destination", slot) or "")[:4]
+    if origin and dest:
+        return origin, dest, "USER"
+    return "", "", ""
 
 
 def _airport_code(value):
-    if isinstance(value, str) and value:
-        return value[:3].upper()
-    if not isinstance(value, dict):
-        return "---"
-    return value.get("code_iata") or value.get("code_lid") or value.get("code") or "---"
+    if isinstance(value, dict):
+        value = value.get("iata_code") or value.get("icao_code") or value.get("iata") or value.get("icao")
+    return _clean(value)[:4] or "---"
 
 
-def _flight_number(flight):
-    ident = flight.get("flight") or flight.get("ident_iata") or flight.get("ident") or flight.get("callsign") or ""
-    if ident:
-        return ident.replace(" ", "")[:8]
-    op = flight.get("operator_iata") or flight.get("operator") or ""
-    num = str(flight.get("flight_number") or "")
-    return (op + num)[:8]
+def _extract_aircraft(data):
+    if not isinstance(data, dict):
+        return []
+    rows = data.get("ac") or data.get("aircraft") or data.get("data") or []
+    return rows if isinstance(rows, list) else []
 
 
-def _aircraft_type(flight):
-    for key in ("type", "aircraft_type", "aircraft_code", "model_code", "model"):
-        value = flight.get(key)
-        if isinstance(value, dict):
-            value = value.get("code") or value.get("icao") or value.get("iata") or value.get("text")
-        text = str(value or "").strip().upper()
-        if text:
-            return text[:12]
-    aircraft = flight.get("aircraft")
-    if isinstance(aircraft, dict):
-        for key in ("type", "code", "model", "icao"):
-            text = str(aircraft.get(key) or "").strip().upper()
-            if text:
-                return text[:12]
-    return "AIRCRAFT"
-
-
-def _delay_minutes(flight):
-    return 0
-
-
-def _status(flight):
-    if _is_cancelled(flight):
-        return "CNCL", (238, 80, 80)
-    if flight.get("_summary"):
-        if flight.get("datetime_landed"):
-            return "LAND", (95, 230, 135)
-        if _airborne(flight):
-            return "ENRT", (100, 190, 255)
-        return "SCHED", (255, 220, 90)
+def _fetch_adsb_lol(callsign, deadline=None):
+    url = "https://api.adsb.lol/v2/callsign/" + urllib.parse.quote(callsign)
     try:
-        alt = int(float(flight.get("alt") or 0))
+        data = _fetch_json(url, seconds=_SOURCE_CACHE_SECONDS, timeout=_SOURCE_HTTP_TIMEOUT, deadline=deadline)
+    except urllib.error.HTTPError as err:
+        if err.code in (400, 404):
+            return [], "ADSB.LOL"
+        raise
+    rows = _extract_aircraft(data)
+    return rows, "ADSB.LOL"
+
+
+def _fetch_adsb_fi(callsign, deadline=None):
+    url = "https://opendata.adsb.fi/api/v3/callsign/" + urllib.parse.quote(callsign)
+    try:
+        data = _fetch_json(url, seconds=_SOURCE_CACHE_SECONDS, timeout=_SOURCE_HTTP_TIMEOUT, deadline=deadline)
+    except urllib.error.HTTPError as err:
+        if err.code in (400, 404):
+            return [], "ADSB.FI"
+        raise
+    rows = _extract_aircraft(data)
+    return rows, "ADSB.FI"
+
+
+def _fetch_adsbdb_aircraft(hex_id, registration, deadline=None):
+    key = _clean(hex_id or registration)
+    if not key or _time_left(deadline) < 0.4:
+        return {}
+    try:
+        url = "https://api.adsbdb.com/v0/aircraft/" + urllib.parse.quote(key)
+        data = _fetch_json(url, seconds=_ENRICH_CACHE_SECONDS, timeout=_ENRICH_HTTP_TIMEOUT, deadline=deadline)
+        return (data.get("response") or {}).get("aircraft") or data.get("aircraft") or {}
     except Exception:
-        alt = 0
+        return {}
+
+
+def _fetch_adsbdb_route(callsign, deadline=None):
+    callsign = _clean(callsign)
+    if not callsign or _time_left(deadline) < 0.4:
+        return {}
     try:
-        speed = int(float(flight.get("gspeed") or 0))
+        url = "https://api.adsbdb.com/v0/callsign/" + urllib.parse.quote(callsign)
+        data = _fetch_json(url, seconds=_ENRICH_CACHE_SECONDS, timeout=_ENRICH_HTTP_TIMEOUT, deadline=deadline)
+        response = data.get("response") or {}
+        return response.get("flightroute") or response
     except Exception:
-        speed = 0
-    source = str(flight.get("source") or "").upper()
-    if alt > 1000:
-        return "ENRT", (100, 190, 255)
-    if speed > 40:
-        return "TAXI", (255, 220, 90)
-    if source == "ESTIMATED":
-        return "EST", (255, 220, 90)
-    return "LIVE", (95, 230, 135)
+        return {}
 
 
-def _airborne(flight):
-    takeoff = _parse_time(flight.get("datetime_takeoff"))
-    if takeoff and takeoff <= datetime.now(timezone.utc):
-        return True
+def _home_latlon(zip_code):
+    zip_code = re.sub(r"\D", "", str(zip_code or ""))[:5]
+    if len(zip_code) != 5:
+        return None
     try:
-        alt = int(float(flight.get("alt") or 0))
+        loc = _fetch_json(f"https://api.zippopotam.us/us/{zip_code}", seconds=86400, timeout=1.0)
+        place = loc["places"][0]
+        return float(place["latitude"]), float(place["longitude"])
     except Exception:
-        alt = 0
+        return None
+
+
+def _city_state_from_latlon(lat, lon, deadline=None):
+    if lat is None or lon is None or _time_left(deadline) < 0.6:
+        return "", ""
     try:
-        speed = int(float(flight.get("gspeed") or 0))
-    except Exception:
-        speed = 0
-    return alt > 1000 or speed > 120
-
-
-def _departure_time(flight):
-    for key in (
-        "datetime_scheduled_departure", "scheduled_departure", "departure_scheduled",
-        "datetime_real_departure", "real_departure", "departure_time",
-        "datetime_takeoff", "first_seen",
-    ):
-        if flight.get(key):
-            return flight.get(key)
-    return None
-
-
-def _takeoff_time(flight):
-    for key in ("datetime_takeoff", "takeoff_time", "first_seen"):
-        if flight.get(key):
-            return flight.get(key)
-    return _departure_time(flight)
-
-
-def _event_time(flight):
-    if _is_cancelled(flight):
-        return "CANCELLED"
-    if _is_landed(flight):
-        return "LANDED " + _fmt_time(flight.get("datetime_landed"))
-    if flight.get("_summary"):
-        if _airborne(flight):
-            return "ETA " + _fmt_time(flight.get("eta")) if flight.get("eta") else "TAKEOFF: " + _fmt_time(_takeoff_time(flight))
-        departure = _departure_time(flight)
-        return "DEP " + _fmt_time(departure) if departure else "DEP --:--"
-    if flight.get("eta") and _airborne(flight):
-        return "ETA " + _fmt_time(flight.get("eta"))
-    if _airborne(flight):
-        return "TAKEOFF: " + _fmt_time(_takeoff_time(flight))
-    departure = _departure_time(flight)
-    if departure:
-        return "DEP " + _fmt_time(departure)
-    try:
-        speed = int(float(flight.get("gspeed") or 0))
-    except Exception:
-        speed = 0
-    return format_speed_knots(speed) if speed else "LIVE"
-
-
-def _gate_line(flight):
-    if flight.get("_summary"):
-        seconds = flight.get("flight_time")
-        try:
-            mins = int(seconds or 0) // 60
-        except Exception:
-            mins = 0
-        return f"{mins // 60}H{mins % 60:02d}" if mins else ""
-    try:
-        alt = int(float(flight.get("alt") or 0))
-    except Exception:
-        alt = 0
-    return f"{alt // 100}FL" if alt >= 10000 else ""
-
-
-def _alt_speed_line(flight):
-    try:
-        alt = int(float(flight.get("alt") or 0))
-    except Exception:
-        alt = 0
-    try:
-        speed = int(float(flight.get("gspeed") or 0))
-    except Exception:
-        speed = 0
-    parts = []
-    if alt >= 10000:
-        parts.append(f"{alt // 100}FL")
-    elif alt > 0:
-        parts.append(f"{alt}FT")
-    if speed > 0:
-        parts.append(format_speed_knots(speed))
-    return " ".join(parts)
-
-
-def _alt_line(flight):
-    try:
-        alt = int(float(flight.get("alt") or 0))
-    except Exception:
-        alt = 0
-    if alt >= 10000:
-        return f"ALT {alt // 100}FL"
-    if alt > 0:
-        return f"ALT {alt}FT"
-    return "ALT ---"
-
-
-def _speed_line(flight):
-    try:
-        speed = int(float(flight.get("gspeed") or 0))
-    except Exception:
-        speed = 0
-    return f"SPD {format_speed_knots(speed)}" if speed > 0 else "SPD ---"
-
-
-def _flight_lat_lon(flight):
-    lat = flight.get("lat") or flight.get("latitude")
-    lon = flight.get("lon") or flight.get("lng") or flight.get("longitude")
-    try:
-        lat = float(lat)
-        lon = float(lon)
-    except Exception:
-        return None, None
-    if not (-90 <= lat <= 90 and -180 <= lon <= 180):
-        return None, None
-    return lat, lon
-
-
-def _reverse_geocode(lat, lon):
-    detail = _reverse_geocode_detail(lat, lon)
-    place = detail.get("place", "")
-    region = detail.get("region", "")
-    if place and region and place.upper() != region.upper():
-        return f"{place} {region}"
-    return place or region
-
-
-def _reverse_geocode_detail(lat, lon):
-    now = datetime.now(timezone.utc)
-    key = f"{lat:.2f},{lon:.2f}"
-    cached = _GEO_DETAIL_CACHE.get(key)
-    if cached and cached["expires"] > now:
-        return cached["detail"]
-    url = (
-        "https://nominatim.openstreetmap.org/reverse?"
-        + urllib.parse.urlencode({
-            "format": "jsonv2",
-            "lat": f"{lat:.5f}",
-            "lon": f"{lon:.5f}",
-            "zoom": "10",
-            "addressdetails": "1",
-        })
-    )
-    detail = {"place": "", "region": ""}
-    try:
-        request = urllib.request.Request(url, headers={"User-Agent": "Pixora/0.1"})
-        with urllib.request.urlopen(request, timeout=5) as response:
-            data = json.loads(response.read().decode("utf-8"))
-        address = data.get("address") or {}
-        place = (
-            address.get("city") or address.get("town") or address.get("village")
-            or address.get("hamlet") or address.get("county") or address.get("state")
-            or address.get("country")
+        url = (
+            "https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=10&addressdetails=1"
+            f"&lat={float(lat):.5f}&lon={float(lon):.5f}"
         )
-        region = address.get("state_code") or address.get("state")
-        detail = {"place": place or "", "region": region or ""}
+        data = _fetch_json(url, seconds=86400, timeout=1.2, deadline=deadline)
+        address = data.get("address") or {}
+        city = (
+            address.get("city")
+            or address.get("town")
+            or address.get("village")
+            or address.get("municipality")
+            or address.get("county")
+            or ""
+        )
+        state = address.get("state") or ""
+        iso = address.get("ISO3166-2-lvl4") or ""
+        state = str(state).upper()
+        if iso.startswith("US-") and len(iso) == 5:
+            state = iso[-2:]
+        else:
+            state = _STATE_ABBR.get(state, state)
+        return str(city).upper(), state
     except Exception:
-        detail = {"place": "", "region": ""}
-    _GEO_DETAIL_CACHE[key] = {
-        "expires": now + timedelta(seconds=_GEO_CACHE_SECONDS),
-        "detail": detail,
+        return "", ""
+
+
+def _num(value, default=0.0):
+    try:
+        if value == "ground":
+            return 0.0
+        return float(value)
+    except Exception:
+        return default
+
+
+def _pick_aircraft(rows, callsign):
+    callsign = _clean(callsign)
+    usable = []
+    for row in rows:
+        row_callsign = _clean(row.get("flight") or row.get("callsign") or "")
+        if callsign and row_callsign and row_callsign != callsign:
+            continue
+        if row.get("lat") is None or row.get("lon") is None:
+            continue
+        usable.append(row)
+    if not usable:
+        usable = rows
+    if not usable:
+        return None
+    usable.sort(key=lambda row: (_num(row.get("seen_pos"), 999), _num(row.get("seen"), 999)))
+    return usable[0]
+
+
+def _load_live(opts, deadline=None):
+    callsigns = []
+    slot = int(opts.get("_slot") or 1)
+    for ident in _candidate_callsigns(opts, slot):
+        if ident and ident not in callsigns:
+            callsigns.append(ident)
+    if not callsigns:
+        return None, "SET FLT"
+
+    source = str(opts.get("source") or "auto").lower()
+    providers = []
+    if source in ("auto", "adsblol"):
+        providers.append(_fetch_adsb_lol)
+    if source in ("auto", "adsbfi"):
+        providers.append(_fetch_adsb_fi)
+
+    had_successful_lookup = False
+    last_error = None
+    for provider in providers:
+        if _time_left(deadline) < 0.4:
+            break
+        for callsign in callsigns:
+            if _time_left(deadline) < 0.4:
+                break
+            try:
+                rows, source_name = provider(callsign, deadline=deadline)
+                had_successful_lookup = True
+                row = _pick_aircraft(rows, callsign)
+                if row:
+                    return _build_flight(row, callsign, source_name, opts, deadline=deadline), None
+            except Exception:
+                last_error = "API ERR"
+    return None, "NO LIVE" if had_successful_lookup else (last_error or "NO LIVE")
+
+
+def _route_from_enrichment(callsign, opts, deadline=None):
+    user_origin, user_dest, source = _route_input(opts, int(opts.get("_slot") or 1))
+    route = _fetch_adsbdb_route(callsign, deadline=deadline)
+    origin = user_origin
+    dest = user_dest
+    if not origin:
+        origin = _airport_code(route.get("origin"))
+    if not dest:
+        dest = _airport_code(route.get("destination"))
+    if (origin and origin != "---") or (dest and dest != "---"):
+        return origin or "---", dest or "---", source or "ADSDB"
+    return "---", "---", ""
+
+
+def _route_input(opts, slot=1):
+    origin = _clean(_slot_value(opts, "origin", slot) or "")[:4]
+    dest = _clean(_slot_value(opts, "destination", slot) or "")[:4]
+    source = "USER" if origin or dest else ""
+    return origin, dest, source
+
+
+def _build_flight(row, query_callsign, source_name, opts, deadline=None):
+    callsign = _clean(row.get("flight") or row.get("callsign") or query_callsign)
+    marketing_ident = _flight_ident(opts, use_icao=False, slot=int(opts.get("_slot") or 1))
+    registration = _clean(row.get("r") or row.get("reg") or row.get("registration"))
+    hex_id = _clean(row.get("hex") or row.get("icao24"))
+    aircraft = _fetch_adsbdb_aircraft(hex_id, registration, deadline=deadline)
+    origin, dest, route_source = _route_from_enrichment(callsign, opts, deadline=deadline)
+    aircraft_type = _clean(row.get("t") or row.get("typeCode") or aircraft.get("icao_type") or aircraft.get("type"))[:10]
+    description = str(row.get("desc") or aircraft.get("type") or aircraft.get("manufacturer") or "").upper()
+    lat = _num(row.get("lat"), None)
+    lon = _num(row.get("lon"), None)
+    over_city, over_state = _city_state_from_latlon(lat, lon, deadline=deadline)
+    return {
+        "callsign": callsign,
+        "flight": marketing_ident or _display_ident(callsign),
+        "operating_callsign": callsign,
+        "hex": hex_id,
+        "registration": registration or _clean(aircraft.get("registration")),
+        "aircraft_type": aircraft_type or "AIRCRAFT",
+        "description": description,
+        "operator": str(row.get("ownOp") or aircraft.get("registered_owner") or "").upper(),
+        "origin": origin,
+        "destination": dest,
+        "route_source": route_source,
+        "source": source_name,
+        "lat": lat,
+        "lon": lon,
+        "over_city": over_city,
+        "over_state": over_state,
+        "alt_ft": int(_num(row.get("alt_baro") if row.get("alt_baro") != "ground" else 0)),
+        "speed_kt": int(_num(row.get("gs"))),
+        "track": _num(row.get("track") or row.get("true_heading") or row.get("mag_heading")),
+        "squawk": str(row.get("squawk") or "").strip(),
+        "emergency": str(row.get("emergency") or "none").lower(),
+        "seen": _num(row.get("seen"), 0),
+        "seen_pos": _num(row.get("seen_pos"), 0),
+        "on_ground": row.get("alt_baro") == "ground" or (_num(row.get("gs")) < 35 and _num(row.get("alt_baro")) < 200),
     }
-    _GEO_CACHE[key] = {
-        "expires": now + timedelta(seconds=_GEO_CACHE_SECONDS),
-        "label": (
-            f"{detail['place']} {detail['region']}".strip()
-            if detail.get("place") and detail.get("region") and detail["place"].upper() != detail["region"].upper()
-            else (detail.get("place") or detail.get("region") or "")
-        ),
-    }
-    return detail
 
 
-def _over_detail(flight):
-    if _is_landed(flight):
-        dest = _airport_code(flight.get("dest_iata") or flight.get("dest_icao"))
-        label = _AIRPORT_CITY.get(dest, dest)
-        parts = label.rsplit(" ", 1)
-        return {"region": parts[1] if len(parts) == 2 else "", "place": parts[0] if parts else label}
-    preset = str(flight.get("_over") or "").strip()
-    if preset:
-        parts = preset.rsplit(" ", 1)
-        return {"region": parts[1] if len(parts) == 2 and len(parts[1]) <= 3 else "", "place": preset}
-    lat, lon = _flight_lat_lon(flight)
-    if lat is not None:
-        detail = _reverse_geocode_detail(lat, lon)
-        if detail.get("place") or detail.get("region"):
-            return detail
-    dest = _airport_code(flight.get("dest_iata") or flight.get("dest_icao"))
-    label = _AIRPORT_CITY.get(dest, dest) if dest != "---" else "IN FLIGHT"
-    parts = label.rsplit(" ", 1)
-    return {"region": parts[1] if len(parts) == 2 else "", "place": parts[0] if parts else label}
-
-
-def _over_line(flight):
-    if _is_cancelled(flight):
-        return "NO FLIGHT"
-    if _is_landed(flight):
-        dest = _airport_code(flight.get("dest_iata") or flight.get("dest_icao"))
-        return _AIRPORT_CITY.get(dest, dest)
-    preset = str(flight.get("_over") or "").strip()
-    if preset:
-        return preset.upper()
-    lat, lon = _flight_lat_lon(flight)
-    if lat is None:
-        dest = _airport_code(flight.get("dest_iata") or flight.get("dest_icao"))
-        return _AIRPORT_CITY.get(dest, dest) if dest != "---" else "IN FLIGHT"
-    label = _reverse_geocode(lat, lon)
-    return (label or f"{lat:.1f},{lon:.1f}").upper()
-
-
-def _position_heading(flight):
-    if _is_cancelled(flight):
-        return "CANCELLED"
-    if _is_landed(flight):
-        return "LANDED AT"
-    lat, lon = _flight_lat_lon(flight)
-    return "FLYING OVER" if lat is not None else "ENROUTE TO"
+def _display_ident(callsign):
+    callsign = _clean(callsign)
+    airline = lookup_airline(callsign)
+    if airline and airline[1] and callsign[3:]:
+        return airline[1] + callsign[3:]
+    if len(callsign) > 3 and callsign[:3] in _ICAO_TO_IATA:
+        return _ICAO_TO_IATA[callsign[:3]] + callsign[3:]
+    return callsign or "FLIGHT"
 
 
 def _airline_iata(flight):
-    ident = str(flight.get("flight") or "").strip().upper()
-    if len(ident) >= 2:
-        return ident[:2]
-    airline = lookup_airline(flight.get("operating_as") or flight.get("callsign") or "")
+    airline = lookup_airline(flight.get("callsign") or "")
     if airline:
         return airline[1]
-    painted = str(flight.get("painted_as") or flight.get("operating_as") or "").upper()
-    reverse = {
-        "AAL": "AA", "UAL": "UA", "DAL": "DL", "SWA": "WN", "ASA": "AS",
-        "JBU": "B6", "FFT": "F9", "NKS": "NK", "HAL": "HA", "BAW": "BA",
-        "AFR": "AF", "DLH": "LH", "UAE": "EK", "ACA": "AC",
-    }
-    return reverse.get(painted)
+    callsign = _clean(flight.get("callsign") or "")
+    if len(callsign) > 3 and callsign[:3] in _ICAO_TO_IATA:
+        return _ICAO_TO_IATA[callsign[:3]]
+    ident = str(flight.get("flight") or "")
+    return ident[:2] if len(ident) >= 2 and ident[:2].isalpha() else None
 
 
-def _draw_southwest_heart(draw, x, y):
-    # 16x16 pixel version of the Southwest heart icon.
-    gray = (190, 194, 198)
-    red = (222, 20, 35)
-    blue = (25, 78, 170)
-    yellow = (255, 184, 32)
-    white = (245, 245, 245)
-
-    outline = [(4, 0), (6, 0), (8, 2), (10, 0), (12, 0), (14, 2), (15, 5),
-               (15, 7), (14, 10), (8, 16), (2, 10), (0, 7), (0, 4), (2, 1)]
-    draw.polygon([(x + px, y + py) for px, py in outline], fill=gray)
-    inner = [(4, 2), (6, 2), (8, 4), (10, 2), (12, 2), (13, 3), (14, 5),
-             (14, 7), (13, 9), (8, 14), (3, 9), (1, 7), (1, 5), (2, 3)]
-    draw.polygon([(x + px, y + py) for px, py in inner], fill=white)
-    draw.polygon([(x + 2, y + 5), (x + 7, y + 9), (x + 12, y + 13),
-                  (x + 8, y + 14), (x + 3, y + 9), (x + 1, y + 7)],
-                 fill=blue)
-    draw.polygon([(x + 3, y + 3), (x + 6, y + 3), (x + 8, y + 5),
-                  (x + 13, y + 9), (x + 12, y + 13), (x + 2, y + 5)],
-                 fill=red)
-    draw.polygon([(x + 9, y + 4), (x + 10, y + 2), (x + 12, y + 3),
-                  (x + 14, y + 5), (x + 14, y + 7), (x + 13, y + 9)],
-                 fill=yellow)
-    draw.line((x + 2, y + 5, x + 12, y + 13), fill=white)
-    draw.line((x + 8, y + 4, x + 13, y + 9), fill=white)
-    draw.line((x + 8, y + 14, x + 12, y + 13), fill=white)
+def _status(flight):
+    if flight.get("emergency") and flight["emergency"] != "none":
+        return "EMERG", (255, 70, 70)
+    if flight.get("on_ground"):
+        return "GROUND", (255, 220, 90)
+    if flight.get("alt_ft", 0) > 0:
+        return "LIVE", (95, 230, 135)
+    return "TRACK", (100, 190, 255)
 
 
-def _draw_delta_widget(draw, x, y):
-    # Compact 12x12 Delta widget mark for the 64x32 matrix.
-    red = (224, 25, 45)
-    dark_red = (142, 18, 34)
-    shadow = (86, 10, 22)
-
-    draw.polygon(
-        [(x + 6, y), (x + 12, y + 12), (x, y + 12)],
-        fill=red,
-    )
-    draw.polygon(
-        [(x + 6, y + 5), (x + 12, y + 12), (x + 8, y + 12)],
-        fill=dark_red,
-    )
-    draw.polygon(
-        [(x + 6, y + 5), (x + 4, y + 12), (x, y + 12)],
-        fill=shadow,
-    )
-    draw.polygon(
-        [(x + 6, y + 5), (x + 8, y + 12), (x + 4, y + 12)],
-        fill=(190, 20, 40),
-    )
+def _route_label(flight):
+    origin = flight.get("origin") or "---"
+    dest = flight.get("destination") or "---"
+    if origin != "---" or dest != "---":
+        suffix = "" if flight.get("route_source") == "USER" else "?"
+        return f"{origin}>{dest}{suffix}"
+    return "ROUTE BEST EFFORT"
 
 
-def _fit_text(draw, text, font, max_width):
+def _location_line(flight, opts):
+    city = str(flight.get("over_city") or "").strip()
+    if city:
+        return city
+    home = opts.get("_home_latlon")
+    lat = flight.get("lat")
+    lon = flight.get("lon")
+    if home and lat is not None and lon is not None:
+        miles = haversine_miles(home[0], home[1], lat, lon)
+        direction = compass_dir(home[0], home[1], lat, lon)
+        return f"{format_distance_miles(miles, 0)} {direction}"
+    if lat is not None and lon is not None:
+        return f"{lat:.1f},{lon:.1f}"
+    destination = flight.get("destination")
+    if destination and destination != "---":
+        return _AIRPORT_CITY.get(destination[:3], destination)
+    return "POSITION LIVE"
+
+
+def _fit(draw, text, font, max_width):
     text = str(text or "")
     while text and draw.textbbox((0, 0), text, font=font)[2] > max_width:
         text = text[:-1]
     return text
 
 
-_PIXEL_FONT_5X7 = {
-    " ": ("00000", "00000", "00000", "00000", "00000", "00000", "00000"),
-    "-": ("00000", "00000", "00000", "11110", "00000", "00000", "00000"),
-    ">": ("10000", "01000", "00100", "00010", "00100", "01000", "10000"),
-    ":": ("00000", "00100", "00100", "00000", "00100", "00100", "00000"),
-    ".": ("00000", "00000", "00000", "00000", "00000", "00100", "00100"),
-    "0": ("01110", "10001", "10011", "10101", "11001", "10001", "01110"),
-    "1": ("00100", "01100", "00100", "00100", "00100", "00100", "01110"),
-    "2": ("01110", "10001", "00001", "00010", "00100", "01000", "11111"),
-    "3": ("11110", "00001", "00001", "01110", "00001", "00001", "11110"),
-    "4": ("00010", "00110", "01010", "10010", "11111", "00010", "00010"),
-    "5": ("11111", "10000", "10000", "11110", "00001", "00001", "11110"),
-    "6": ("00110", "01000", "10000", "11110", "10001", "10001", "01110"),
-    "7": ("11111", "00001", "00010", "00100", "01000", "01000", "01000"),
-    "8": ("01110", "10001", "10001", "01110", "10001", "10001", "01110"),
-    "9": ("01110", "10001", "10001", "01111", "00001", "00010", "11100"),
-    "A": ("01110", "10001", "10001", "11111", "10001", "10001", "10001"),
-    "B": ("11110", "10001", "10001", "11110", "10001", "10001", "11110"),
-    "C": ("01111", "10000", "10000", "10000", "10000", "10000", "01111"),
-    "D": ("11110", "10001", "10001", "10001", "10001", "10001", "11110"),
-    "E": ("11111", "10000", "10000", "11110", "10000", "10000", "11111"),
-    "F": ("11111", "10000", "10000", "11110", "10000", "10000", "10000"),
-    "G": ("01111", "10000", "10000", "10011", "10001", "10001", "01111"),
-    "H": ("10001", "10001", "10001", "11111", "10001", "10001", "10001"),
-    "I": ("01110", "00100", "00100", "00100", "00100", "00100", "01110"),
-    "J": ("00111", "00010", "00010", "00010", "00010", "10010", "01100"),
-    "K": ("10001", "10010", "10100", "11000", "10100", "10010", "10001"),
-    "L": ("10000", "10000", "10000", "10000", "10000", "10000", "11111"),
-    "M": ("10001", "11011", "10101", "10101", "10001", "10001", "10001"),
-    "N": ("10001", "11001", "10101", "10011", "10001", "10001", "10001"),
-    "O": ("01110", "10001", "10001", "10001", "10001", "10001", "01110"),
-    "P": ("11110", "10001", "10001", "11110", "10000", "10000", "10000"),
-    "Q": ("01110", "10001", "10001", "10001", "10101", "10010", "01101"),
-    "R": ("11110", "10001", "10001", "11110", "10100", "10010", "10001"),
-    "S": ("01111", "10000", "10000", "01110", "00001", "00001", "11110"),
-    "T": ("11111", "00100", "00100", "00100", "00100", "00100", "00100"),
-    "U": ("10001", "10001", "10001", "10001", "10001", "10001", "01110"),
-    "V": ("10001", "10001", "10001", "10001", "10001", "01010", "00100"),
-    "W": ("10001", "10001", "10001", "10101", "10101", "10101", "01010"),
-    "X": ("10001", "10001", "01010", "00100", "01010", "10001", "10001"),
-    "Y": ("10001", "10001", "01010", "00100", "00100", "00100", "00100"),
-    "Z": ("11111", "00001", "00010", "00100", "01000", "10000", "11111"),
-}
+def _draw_plane(draw, x, y, color=(120, 195, 255)):
+    draw.line((x, y + 7, x + 16, y + 2), fill=color, width=2)
+    draw.polygon([(x + 6, y + 5), (x + 1, y), (x + 10, y + 4)], fill=(180, 225, 255))
+    draw.polygon([(x + 8, y + 5), (x + 4, y + 13), (x + 13, y + 5)], fill=color)
+    draw.line((x + 13, y + 2, x + 17, y + 1), fill=(235, 250, 255))
 
 
-def _pixel_text_width(text, spacing=1):
-    text = str(text or "").upper()
-    return 0 if not text else len(text) * 5 + (len(text) - 1) * spacing
+def _logo_or_plane(image, draw, flight, x, y):
+    _draw_plane(draw, x, y + 2)
 
 
-def _fit_pixel_text(text, max_width, spacing=1):
-    text = str(text or "").upper()
-    while text and _pixel_text_width(text, spacing) > max_width:
-        text = text[:-1]
-    return text
-
-
-def _draw_pixel_text(draw, x, y, text, fill, spacing=1):
-    cursor = x
-    for ch in str(text or "").upper():
-        glyph = _PIXEL_FONT_5X7.get(ch, _PIXEL_FONT_5X7[" "])
-        for row, bits in enumerate(glyph):
-            for col, bit in enumerate(bits):
-                if bit == "1":
-                    draw.point((cursor + col, y + row), fill=fill)
-        cursor += 5 + spacing
-
-
-_MATRIX_FONT_4X6 = {
-    " ": ("0000", "0000", "0000", "0000", "0000", "0000"),
-    "-": ("0000", "0000", "1110", "0000", "0000", "0000"),
-    ">": ("1000", "0100", "0010", "0100", "1000", "0000"),
-    ":": ("0000", "0100", "0000", "0100", "0000", "0000"),
-    ".": ("0000", "0000", "0000", "0000", "0000", "0100"),
-    "0": ("1110", "1010", "1010", "1010", "1010", "1110"),
-    "1": ("0100", "1100", "0100", "0100", "0100", "1110"),
-    "2": ("1110", "0010", "0010", "1110", "1000", "1110"),
-    "3": ("1110", "0010", "0110", "0010", "0010", "1110"),
-    "4": ("1010", "1010", "1110", "0010", "0010", "0010"),
-    "5": ("1110", "1000", "1110", "0010", "0010", "1110"),
-    "6": ("1110", "1000", "1110", "1010", "1010", "1110"),
-    "7": ("1110", "0010", "0010", "0100", "0100", "0100"),
-    "8": ("1110", "1010", "1110", "1010", "1010", "1110"),
-    "9": ("1110", "1010", "1010", "1110", "0010", "1110"),
-    "A": ("1110", "1010", "1010", "1110", "1010", "1010"),
-    "B": ("1100", "1010", "1100", "1010", "1010", "1100"),
-    "C": ("1110", "1000", "1000", "1000", "1000", "1110"),
-    "D": ("1100", "1010", "1010", "1010", "1010", "1100"),
-    "E": ("1110", "1000", "1110", "1000", "1000", "1110"),
-    "F": ("1110", "1000", "1110", "1000", "1000", "1000"),
-    "G": ("1110", "1000", "1010", "1010", "1010", "1110"),
-    "H": ("1010", "1010", "1110", "1010", "1010", "1010"),
-    "I": ("1110", "0100", "0100", "0100", "0100", "1110"),
-    "J": ("0110", "0010", "0010", "0010", "1010", "1110"),
-    "K": ("1010", "1010", "1100", "1010", "1010", "1010"),
-    "L": ("1000", "1000", "1000", "1000", "1000", "1110"),
-    "M": ("1010", "1110", "1110", "1010", "1010", "1010"),
-    "N": ("1010", "1110", "1110", "1110", "1010", "1010"),
-    "O": ("1110", "1010", "1010", "1010", "1010", "1110"),
-    "P": ("1110", "1010", "1010", "1110", "1000", "1000"),
-    "Q": ("1110", "1010", "1010", "1010", "1110", "0010"),
-    "R": ("1110", "1010", "1010", "1100", "1010", "1010"),
-    "S": ("1110", "1000", "1110", "0010", "0010", "1110"),
-    "T": ("1110", "0100", "0100", "0100", "0100", "0100"),
-    "U": ("1010", "1010", "1010", "1010", "1010", "1110"),
-    "V": ("1010", "1010", "1010", "1010", "1010", "0100"),
-    "W": ("1010", "1010", "1010", "1110", "1110", "1010"),
-    "X": ("1010", "1010", "0100", "0100", "1010", "1010"),
-    "Y": ("1010", "1010", "1110", "0100", "0100", "0100"),
-    "Z": ("1110", "0010", "0100", "0100", "1000", "1110"),
-}
-
-
-def _matrix_text_width(text, spacing=1):
-    text = str(text or "").upper()
-    return 0 if not text else len(text) * 4 + (len(text) - 1) * spacing
-
-
-def _fit_matrix_text(text, max_width, spacing=1):
-    text = str(text or "").upper()
-    while text and _matrix_text_width(text, spacing) > max_width:
-        text = text[:-1]
-    return text
-
-
-def _draw_matrix_text(draw, x, y, text, fill, spacing=1):
-    cursor = x
-    for ch in str(text or "").upper():
-        glyph = _MATRIX_FONT_4X6.get(ch, _MATRIX_FONT_4X6[" "])
-        for row, bits in enumerate(glyph):
-            for col, bit in enumerate(bits):
-                if bit == "1":
-                    draw.point((cursor + col, y + row), fill=fill)
-        cursor += 4 + spacing
-
-
-def _draw_tight_text(image, text, x, y, fill, font, spacing=-1):
-    from PIL import Image, ImageDraw
-    cursor = x
-    for ch in str(text or ""):
-        mask = Image.new("1", image.size, 0)
-        draw = ImageDraw.Draw(mask)
-        draw.text((cursor, y), ch, fill=1, font=font)
-        image.paste(Image.new("RGB", image.size, fill), (0, 0), mask)
-        cursor += draw.textbbox((0, 0), ch, font=font)[2] + spacing
-    return cursor
-
-
-def _fetch(endpoint, params, api_key):
-    now = datetime.now(timezone.utc)
-    key = endpoint + "?" + urllib.parse.urlencode(sorted(params.items()))
-    cached = _CACHE.get(key)
-    if cached and cached["expires"] > now:
-        return cached["data"]
-    url = f"{_API_ROOT}{endpoint}?{urllib.parse.urlencode(params)}"
-    req = urllib.request.Request(url, headers={
-        "User-Agent": "Pixora/0.1",
-        "Authorization": "Bearer " + api_key,
-        "Accept": "application/json",
-        "Accept-Version": "v1",
-    })
-    with urllib.request.urlopen(req, timeout=15) as resp:
-        data = json.loads(resp.read().decode("utf-8"))
-    _CACHE[key] = {"data": data, "expires": now + timedelta(seconds=_CACHE_SECONDS)}
-    return data
-
-
-def _fetch_uncached(endpoint, params, api_key):
-    url = f"{_API_ROOT}{endpoint}?{urllib.parse.urlencode(params)}"
-    req = urllib.request.Request(url, headers={
-        "User-Agent": "Pixora/0.1",
-        "Authorization": "Bearer " + api_key,
-        "Accept": "application/json",
-        "Accept-Version": "v1",
-    })
-    with urllib.request.urlopen(req, timeout=15) as resp:
-        return json.loads(resp.read().decode("utf-8"))
-
-
-def _data_rows(data):
-    if isinstance(data, dict):
-        rows = data.get("data")
-        return rows if isinstance(rows, list) else []
-    return data if isinstance(data, list) else []
-
-
-def _pick_flight(flights):
-    if not flights:
-        return None
-    now = datetime.now(timezone.utc)
-
-    def score(f):
-        try:
-            alt = int(float(f.get("alt") or 0))
-        except Exception:
-            alt = 0
-        if alt > 0:
-            return 0
-        eta = _parse_time(f.get("eta"))
-        if eta:
-            delta = abs((eta - now).total_seconds())
-            return 1 + delta / 86400
-        return 999
-
-    return sorted(flights, key=score)[0]
-
-
-def _pick_summary(rows, service_start=None):
-    if not rows:
-        return None
-    if service_start:
-        filtered = []
-        for row in rows:
-            dt = (
-                _flight_departure_dt(row)
-                or _parse_time(row.get("first_seen"))
-                or _parse_time(row.get("datetime_takeoff"))
-                or _parse_time(row.get("datetime_landed"))
-            )
-            if dt and dt >= service_start:
-                filtered.append(row)
-        if filtered:
-            rows = filtered
-    now = datetime.now(timezone.utc)
-
-    def score(row):
-        if row.get("datetime_takeoff") and not row.get("datetime_landed"):
-            return 0
-        for key in ("first_seen", "datetime_takeoff", "datetime_landed"):
-            dt = _parse_time(row.get(key))
-            if dt:
-                return 1 + abs((dt - now).total_seconds()) / 86400
-        return 999
-
-    picked = sorted(rows, key=score)[0]
-    picked["_summary"] = True
-    return picked
-
-
-def _flight_departure_dt(flight):
-    return _parse_time(_departure_time(flight or {}))
-
-
-def _summary_params(now, iata_ident, icao_ident, route, repeat_daily=False):
-    if repeat_daily:
-        service_start = _utc(_service_day_start_local(now.astimezone()))
-        date_from = service_start
-        date_to = service_start + timedelta(hours=36)
-    else:
-        date_from = now - timedelta(hours=18)
-        date_to = now + timedelta(hours=36)
-    params = {
-        "flight_datetime_from": date_from.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "flight_datetime_to": date_to.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "limit": "10",
-    }
-    if iata_ident:
-        params["flights"] = iata_ident
-    if icao_ident:
-        params["callsigns"] = icao_ident
-    if route:
-        params["routes"] = route
-    return params
-
-
-def _live_params(iata_ident, icao_ident, airline_icao, route):
-    if iata_ident:
-        return {"flights": iata_ident, "limit": "5"}
-    if icao_ident:
-        return {"callsigns": icao_ident, "limit": "5"}
-    if route and airline_icao:
-        return {"routes": route, "operating_as": airline_icao, "limit": "10"}
-    return None
-
-
-def _poll_state_key(terminal_key):
-    local_day = _service_day_id()
-    return f"{terminal_key}|{local_day}"
-
-
-def _get_poll_state(key):
-    state = _FLIGHT_POLL_STATE.get(key)
-    if state:
-        return state
-    now_local = datetime.now().astimezone()
-    six = _today_6am_local()
-    state = {
-        "flight": None,
-        "next_poll": _utc(six if now_local < six else now_local),
-        "last_error": None,
-        "landed_seen": False,
-        "landed_confirmed": False,
-        "cancelled": False,
-    }
-    _FLIGHT_POLL_STATE[key] = state
-    return state
-
-
-def _schedule_next_poll(state, flight, now):
-    next_day = _utc(_next_6am_local())
-    if not flight:
-        state["next_poll"] = now + timedelta(hours=1)
-        return
-
-    if _is_cancelled(flight):
-        state["cancelled"] = True
-        state["next_poll"] = next_day
-        return
-
-    if _is_landed(flight):
-        if state.get("landed_seen"):
-            state["landed_confirmed"] = True
-            state["next_poll"] = next_day
-        else:
-            state["landed_seen"] = True
-            state["next_poll"] = now + timedelta(minutes=15)
-        return
-
-    state["landed_seen"] = False
-    state["landed_confirmed"] = False
-    departure = _flight_departure_dt(flight)
-    if departure and now < departure - timedelta(minutes=10):
-        state["next_poll"] = departure - timedelta(minutes=10)
-    elif not _airborne(flight):
-        state["next_poll"] = now + timedelta(minutes=10)
-    else:
-        eta = _parse_time(flight.get("eta"))
-        if eta and eta > now and eta - now <= timedelta(minutes=10):
-            state["next_poll"] = now + timedelta(minutes=3)
-        else:
-            state["next_poll"] = now + timedelta(minutes=15)
-
-
-def _load_summary(now, iata_ident, icao_ident, route, api_key, repeat_daily=False):
-    service_start = _utc(_service_day_start_local(now.astimezone())) if repeat_daily else None
-    data = _fetch_uncached("/flight-summary/full", _summary_params(now, iata_ident, icao_ident, route, repeat_daily), api_key)
-    return _pick_summary(_data_rows(data), service_start)
-
-
-def _load_live(iata_ident, icao_ident, airline_icao, route, api_key):
-    params = _live_params(iata_ident, icao_ident, airline_icao, route)
-    if not params:
-        return None
-    data = _fetch_uncached("/live/flight-positions/full", params, api_key)
-    return _pick_flight(_data_rows(data))
-
-
-def _merge_summary_and_live(summary, live):
-    if not summary:
-        return live
-    if not live:
-        return summary
-    merged = dict(summary)
-    for key, value in live.items():
-        if value not in (None, "", [], {}):
-            merged[key] = value
-    for key, value in summary.items():
-        if key.startswith("datetime_") or key in (
-            "orig_iata", "orig_icao", "dest_iata", "dest_icao", "eta",
-            "scheduled_departure", "datetime_scheduled_departure",
-            "flight", "ident_iata", "flight_number",
-        ):
-            if merged.get(key) in (None, "", [], {}):
-                merged[key] = value
-    merged["_summary"] = bool(summary.get("_summary"))
-    return merged
-
-
-def _load_flight(opts):
-    if _DISABLE_POLLING_FOR_TEST:
-        return {
-            "flight": "WN3416",
-            "callsign": "SWA3416",
-            "operating_as": "SWA",
-            "painted_as": "SWA",
-            "orig_iata": "MHT",
-            "dest_iata": "MCO",
-            "scheduled_departure": "2026-05-08T20:55:00Z",
-            "eta": "2026-05-08T22:25:00Z",
-            "alt": 30000,
-            "gspeed": 430,
-            "type": "B38M",
-            "lat": 38.9072,
-            "lon": -77.0369,
-            "_over": "Washington DC",
-            "_pixora_test": True,
-        }, None
-    api_key = str(opts.get("apiKey") or "").strip()
-    if not api_key:
-        return None, "SET API"
-    ident = _ident_from_options(opts, use_icao=False)
-    if not ident:
-        return None, "SET FLT"
-    last_error = None
-    flight_no = _flight_number_from_options(opts)
-    airline_icao = _airline_icao_from_options(opts)
-    route = _route_from_options(opts)
-    iata_ident = ident
-    icao_ident = _ident_from_options(opts, use_icao=True)
-    repeat_daily = _truthy(opts.get("repeatDaily"))
-    terminal_key = _terminal_key(iata_ident, icao_ident, route, repeat_daily)
-    force_refresh = _truthy(opts.get("_forceRefresh"))
-    if force_refresh:
-        _TERMINAL_CACHE.pop(terminal_key, None)
-        _FLIGHT_POLL_STATE.pop(_poll_state_key(terminal_key), None)
-    terminal_flight = _terminal_cached(terminal_key)
-    if terminal_flight and not force_refresh:
-        return terminal_flight, None
-    now = datetime.now(timezone.utc)
-    poll_key = _poll_state_key(terminal_key)
-    poll_state = _get_poll_state(poll_key)
-    cached_flight = poll_state.get("flight")
-    next_poll = poll_state.get("next_poll")
-    cached_error = poll_state.get("last_error")
-    if poll_state.get("cancelled") and cached_flight and not force_refresh:
-        return cached_flight, None
-    if next_poll and now < next_poll and not force_refresh:
-        if cached_flight:
-            return cached_flight, None
-        if cached_error:
-            return None, cached_error
-        return None, "WAIT 6A"
-
-    try:
-        if cached_flight and _airborne(cached_flight) and not _is_landed(cached_flight):
-            live = _load_live(iata_ident, icao_ident, airline_icao, route, api_key)
-            flight = _merge_summary_and_live(cached_flight, live)
-        else:
-            flight = _load_summary(now, iata_ident, icao_ident, route, api_key, repeat_daily)
-            if flight and _airborne(flight) and not _is_landed(flight):
-                try:
-                    live = _load_live(iata_ident, icao_ident, airline_icao, route, api_key)
-                    flight = _merge_summary_and_live(flight, live)
-                except Exception:
-                    pass
-        if flight:
-            poll_state["flight"] = flight
-            poll_state["last_error"] = None
-            _schedule_next_poll(poll_state, flight, now)
-            _cache_terminal(terminal_key, flight)
-            return flight, None
-        last_error = "NO LIVE"
-        poll_state["last_error"] = last_error
-        _schedule_next_poll(poll_state, cached_flight, now)
-        if cached_flight:
-            return cached_flight, None
-    except urllib.error.HTTPError as err:
-        if err.code in (401, 403):
-            return None, "BAD API"
-        _schedule_next_poll(poll_state, cached_flight, now)
-        if cached_flight:
-            return cached_flight, None
-        last_error = "NO LIVE"
-        poll_state["last_error"] = last_error
-    except Exception:
-        _schedule_next_poll(poll_state, cached_flight, now)
-        if cached_flight:
-            return cached_flight, None
-        last_error = "API ERR"
-        poll_state["last_error"] = last_error
-    return None, last_error or "NO LIVE"
-
-
-def _display_error(error, options):
-    if error == "NO LIVE":
-        ident = _ident_from_options(options or {}, use_icao=False) or _flight_number_from_options(options or {}) or "flight"
-        return f"No live tracking data for {ident}"
-    return error
-
-
-def _render_error_image(message, color):
-    from PIL import Image, ImageDraw
-
-    width = 128 if isinstance(message, dict) and message.get("_wide") else 64
-    if isinstance(message, dict):
-        message = message.get("text", "")
-    image = Image.new("RGB", (width, 32), (0, 0, 0))
-    draw = ImageDraw.Draw(image)
-    words = str(message or "").split()
-    lines = []
-    current = ""
-    for word in words:
-        candidate = (current + " " + word).strip()
-        bbox = draw.textbbox((0, 0), candidate, font=FONT_7)
-        if current and bbox[2] - bbox[0] > width - 2:
-            lines.append(current)
-            current = word
-        else:
-            current = candidate
-    if current:
-        lines.append(current)
-    if not lines:
-        lines = [str(message or "")]
-    if len(lines) > 4:
-        lines = lines[:3] + [" ".join(lines[3:])]
-    line_h = 8
-    start_y = (32 - len(lines) * line_h) // 2 - 3
-    for index, line in enumerate(lines):
-        bbox = draw.textbbox((0, 0), line, font=FONT_7)
-        x = max(0, (width - (bbox[2] - bbox[0])) // 2)
-        draw_sharp_text(image, (x, start_y + index * line_h), line, color, FONT_7)
-    return image
-
-
-def _draw_airline_mark(image, draw, flight, logo_left, logo_top, fallback_y=0):
-    iata = _airline_iata(flight)
-    if iata == "WN":
-        _draw_southwest_heart(draw, logo_left, logo_top)
-        return
-    if iata == "DL":
-        _draw_delta_widget(draw, logo_left, logo_top + 1)
-        return
-    logo = fetch_airline_logo(iata) if iata else None
-    if logo:
-        image.paste(logo, (logo_left, logo_top), logo)
-    elif iata:
-        airline = _fit_pixel_text(iata[:2], 12)
-        _draw_pixel_text(draw, image.width - 1 - _pixel_text_width(airline), fallback_y, airline, (100, 190, 255))
-
-
-def _layout_for_flight(flight, width=64):
-    if width == 128:
-        return {
-            "logo_left": 0,
-            "logo_top": 0,
-            "text_left": 20,
-            "ident_max": 105,
-            "route_max": 105,
-        }
-    return {
-        "logo_left": 0,
-        "logo_top": 0,
-        "text_left": 18,
-        "ident_max": 45,
-        "route_max": 45,
-    }
-
-
-def _render_flight_panel(flight, width=64):
+def _draw_main_panel(flight, opts, width):
     from PIL import Image, ImageDraw
 
     image = Image.new("RGB", (width, 32), (0, 5, 18))
     draw = ImageDraw.Draw(image)
-    layout = _layout_for_flight(flight, width)
-    ident = _fit_pixel_text(_flight_number(flight), layout["ident_max"])
-    aircraft = _fit_pixel_text(_aircraft_type(flight), layout["ident_max"])
-    route = f"{_airport_code(flight.get('orig_iata') or flight.get('orig_icao'))}>{_airport_code(flight.get('dest_iata') or flight.get('dest_icao'))}"
-    bottom = _event_time(flight)
+    draw.rectangle((0, 0, width - 1, 8), fill=(0, 17, 45))
+    status, status_color = _status(flight)
+    sw = draw.textbbox((0, 0), status, font=FONT_7)[2] if width > 64 else 0
+    ident_max = width - 24 - sw if width > 64 else width - 21
+    ident = _fit(draw, flight.get("flight"), FONT_BOLD, ident_max)
+    _logo_or_plane(image, draw, flight, 1, 0)
+    draw_sharp_text(image, (20, -3), ident, (245, 250, 255), FONT_BOLD)
+    if width > 64:
+        draw_sharp_text(image, (width - sw - 1, -3), status, status_color, FONT_7)
 
-    _draw_airline_mark(image, draw, flight, layout["logo_left"], layout["logo_top"])
-    _draw_pixel_text(draw, layout["text_left"], 0, ident, (235, 245, 255))
-    if width == 128:
-        bottom_w = _matrix_text_width(bottom, spacing=0)
-        _draw_matrix_text(draw, layout["text_left"], 9, _fit_matrix_text(aircraft, 46, spacing=0), (100, 190, 255), spacing=0)
-        _draw_matrix_text(draw, 74, 9, _fit_matrix_text(route, 52, spacing=0), (100, 190, 255), spacing=0)
-        _draw_matrix_text(draw, max(0, (width - min(bottom_w, width - 2)) // 2), 25, _fit_matrix_text(bottom, width - 2, spacing=0), (255, 220, 90), spacing=0)
-    else:
-        _draw_matrix_text(draw, layout["text_left"], 9, _fit_matrix_text(aircraft, layout["ident_max"], spacing=0), (100, 190, 255), spacing=0)
-        _draw_matrix_text(draw, layout["text_left"], 17, _fit_matrix_text(route, layout["route_max"], spacing=0), (100, 190, 255), spacing=0)
-        _draw_matrix_text(draw, 0, 25, _fit_matrix_text(bottom, 63, spacing=0), (255, 220, 90), spacing=0)
+    route_x = 16 if width <= 64 else 1
+    route = _fit(draw, _route_label(flight), FONT_7, width - route_x - 1)
+    aircraft = _fit(draw, flight.get("aircraft_type") or "AIRCRAFT", FONT_7, width - 2)
+    alt = flight.get("alt_ft", 0)
+    altitude = f"FL{alt // 100}" if alt >= 10000 else (f"{alt}FT" if alt > 0 else "GROUND")
+    speed = format_speed_knots(flight.get("speed_kt", 0))
+    stats = _fit(draw, f"{altitude} {speed}", FONT_7, width - 2)
+
+    row_y = (7, 15, 22) if width <= 64 else (8, 16, 24)
+    draw_sharp_text(image, (route_x, row_y[0]), route, (100, 190, 255), FONT_7)
+    draw_sharp_text(image, (1, row_y[1]), aircraft, (190, 220, 255), FONT_7)
+    draw_sharp_text(image, (1, row_y[2]), stats, (255, 220, 90), FONT_7)
     return image
 
 
-def _render_status_panel(flight, width=64, compact=False):
+def _draw_detail_panel(flight, opts, width):
     from PIL import Image, ImageDraw
 
     image = Image.new("RGB", (width, 32), (0, 5, 18))
     draw = ImageDraw.Draw(image)
     status, status_color = _status(flight)
-    ident = _fit_pixel_text(_flight_number(flight), width - 1)
-    heading = _fit_matrix_text(_position_heading(flight), width - 1, spacing=0)
-    over = _fit_matrix_text(_over_line(flight), width - 1, spacing=0)
-    detail_text = "GROUND" if _is_landed(flight) else (_alt_speed_line(flight) or status)
-    details = _fit_matrix_text(detail_text, width - 1, spacing=0)
-    if compact:
-        _draw_matrix_text(draw, 0, 1, heading, status_color, spacing=0)
-        where = _over_detail(flight)
-        place = _fit_matrix_text(where.get("place") or over, width - 1, spacing=0)
-        region = _fit_matrix_text(where.get("region") or "", width - 1, spacing=0)
-        _draw_matrix_text(draw, 0, 9, place, (255, 220, 90), spacing=0)
-        _draw_matrix_text(draw, 0, 17, region, (255, 220, 90), spacing=0)
-        _draw_matrix_text(draw, 0, 25, details, (100, 190, 255), spacing=0)
-    else:
-        _draw_pixel_text(draw, 0, 0, ident, (235, 245, 255))
-        _draw_matrix_text(draw, 0, 9, heading, status_color, spacing=0)
-        _draw_matrix_text(draw, 0, 17, over, (255, 220, 90), spacing=0)
-        _draw_matrix_text(draw, 0, 25, details, (100, 190, 255), spacing=0)
+    tail = _fit(draw, flight.get("registration") or flight.get("hex") or "NO TAIL", FONT_BOLD, width - 2)
+    location = _fit(draw, _location_line(flight, opts), FONT_7, width - 2)
+    state = _fit(draw, flight.get("over_state") or "", FONT_7, width - 2)
+
+    draw.rectangle((0, 0, width - 1, 8), fill=(0, 17, 45))
+    draw_sharp_text(image, (1, -3), tail, (245, 250, 255), FONT_BOLD)
+    row_y = (7, 15, 22) if width <= 64 else (8, 16, 24)
+    draw_sharp_text(image, (1, row_y[0]), location, (255, 220, 90), FONT_7)
+    draw_sharp_text(image, (1, row_y[1]), state, (190, 220, 255), FONT_7)
+    draw_sharp_text(image, (1, row_y[2]), status, status_color, FONT_7)
     return image
 
 
-def _compose_slide(left, right, offset):
-    from PIL import Image
+def _save_cycle(frames, dwell=4200):
+    out = BytesIO()
+    frames[0].save(
+        out,
+        "WEBP",
+        save_all=True,
+        append_images=frames[1:],
+        duration=dwell,
+        loop=0,
+        lossless=True,
+        quality=100,
+    )
+    return {"body": out.getvalue(), "dwell_secs": max(1, len(frames) * dwell // 1000), "_stay": False}
 
-    width = left.width
-    frame = Image.new("RGB", (width, 32), (0, 5, 18))
-    frame.paste(left, (-offset, 0))
-    frame.paste(right, (width - offset, 0))
-    return frame
+
+def _render_error_image(message, width):
+    from PIL import Image, ImageDraw
+
+    image = Image.new("RGB", (width, 32), (0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    title = "FLIGHT TRACKER" if width > 64 else "FLIGHT TRK"
+    tw = draw.textbbox((0, 0), title, font=FONT_7)[2]
+    draw_sharp_text(image, ((width - tw) // 2, -3), title, (100, 190, 255), FONT_7)
+    raw_message = str(message or "NO DATA").upper()
+    no_live_match = re.match(r"^NO LIVE DATA\s+(.+)$", raw_message)
+    if no_live_match:
+        lines = ["NO LIVE", "DATA", no_live_match.group(1)]
+    else:
+        words = raw_message.split()
+        lines = []
+        current = ""
+        for word in words:
+            candidate = (current + " " + word).strip()
+            if current and draw.textbbox((0, 0), candidate, font=FONT_7)[2] > width - 2:
+                lines.append(current)
+                current = word
+            else:
+                current = candidate
+        if current:
+            lines.append(current)
+    message_y = 6 if width <= 64 else 9
+    line_h = 7 if width <= 64 else 8
+    for index, line in enumerate(lines[:3]):
+        lw = draw.textbbox((0, 0), line, font=FONT_7)[2]
+        draw_sharp_text(image, ((width - lw) // 2, message_y + index * line_h), line, (255, 220, 90), FONT_7)
+    return image
 
 
-def _save_static_webp(image):
+def _render_error(message, width):
+    image = _render_error_image(message, width)
     out = BytesIO()
     image.save(out, "WEBP", lossless=True, quality=100)
     return out.getvalue()
 
 
-def _save_slide_animation(first, second):
-    width = first.width
-    step = 16 if width == 128 else 8
-    slide_offsets = list(range(step, width + 1, step))
-    frames = [_compose_slide(first, second, offset) for offset in slide_offsets] + [second]
-    frame_ms = 120
-    out = BytesIO()
-    frames[0].save(
-        out, "WEBP", save_all=True,
-        append_images=frames[1:],
-        duration=frame_ms, loop=1,
-        lossless=True, quality=100,
-    )
-    return out.getvalue()
+def _display_error(error, opts):
+    if error == "SET FLT":
+        return "Set airline and flight number"
+    if error == "NO LIVE":
+        ident = _flight_ident(opts, use_icao=False, slot=int(opts.get("_slot") or 1)) or "flight"
+        return f"No live data {ident}"
+    if error == "API ERR":
+        return "Open ADS-B source unavailable"
+    return error or "No flight data"
 
 
-def _save_locked_two_page_animation(first, second, first_dwell, second_dwell):
-    width = first.width
-    step = 16 if width == 128 else 8
-    slide_offsets = list(range(step, width + 1, step))
-    frames = [first] + [_compose_slide(first, second, offset) for offset in slide_offsets] + [second]
-    durations = [max(1, int(first_dwell * 1000))]
-    durations += [90 for _ in slide_offsets[:-1]]
-    durations += [max(1, int(second_dwell * 1000))]
-    durations += [1]
-    out = BytesIO()
-    frames[0].save(
-        out, "WEBP", save_all=True,
-        append_images=frames[1:],
-        duration=durations, loop=1,
-        lossless=True, quality=100,
-    )
-    return out.getvalue()
+def _configured_slots(opts):
+    slots = []
+    for slot in range(1, 5):
+        airline = _clean(_slot_value(opts, "airline", slot) or "")
+        number = "".join(ch for ch in str(_slot_value(opts, "flightNumber", slot) or "") if ch.isdigit())
+        if airline and number:
+            slot_opts = dict(opts)
+            slot_opts["_slot"] = slot
+            slots.append(slot_opts)
+    return slots
 
 
-def _combine_side_by_side(first, second):
-    from PIL import Image
-
-    frame = Image.new("RGB", (128, 32), (0, 5, 18))
-    left = first.crop((0, 0, 64, 32)) if first.width != 64 else first
-    right = second.crop((0, 0, 64, 32)) if second.width != 64 else second
-    frame.paste(left, (0, 0))
-    frame.paste(right, (64, 0))
-    return frame
+def _snapshot_key(opts):
+    keys = ["source", "homeZip"]
+    for slot in range(1, 5):
+        keys.extend([f"airline{slot}", f"flightNumber{slot}", f"origin{slot}", f"destination{slot}"])
+    payload = {key: str(opts.get(key) or "") for key in keys}
+    return hashlib.sha1(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
 
 
-def _two_page_response(opts, flight, first, second, locked=True):
-    dwell = max(4, int(opts.get("_dwell", 30) or 30))
-    half_dwell = max(2, dwell // 2)
-    second_dwell = max(2, dwell - half_dwell)
-    if locked:
-        return {
-            "body": _save_locked_two_page_animation(first, second, half_dwell, second_dwell),
-            "dwell_secs": 1,
-            "_stay": False,
-        }
-    return {
-        "body": _save_static_webp(first),
-        "dwell_secs": half_dwell,
-        "_stay": False,
-        "_frames": [
-            {
-                "body": _save_static_webp(second),
-                "dwell_secs": second_dwell,
-                "no_replay": False,
-                "replay_body": None,
-            }
-        ],
-    }
+def _refresh_snapshot(key, opts):
+    try:
+        deadline = time.monotonic() + _REFRESH_BUDGET_SECONDS
+        slots = _configured_slots(opts)
+        flights = []
+        errors = []
+        home = _home_latlon(opts.get("homeZip"))
+        for slot_opts in slots:
+            if _time_left(deadline) < 0.4:
+                break
+            flight, error = _load_live(slot_opts, deadline=deadline)
+            if flight:
+                flights.append({"flight": flight, "slot": int(slot_opts.get("_slot") or 1)})
+            elif error:
+                errors.append(_display_error(error, slot_opts))
+
+        now = time.time()
+        with _SNAPSHOT_LOCK:
+            current = _SNAPSHOT_CACHE.get(key)
+            if flights:
+                _SNAPSHOT_CACHE[key] = {
+                    "flights": flights,
+                    "errors": errors,
+                    "home": home,
+                    "updated": now,
+                    "expires": now + _SNAPSHOT_TTL_SECONDS,
+                }
+            elif current and current.get("flights"):
+                current["errors"] = errors
+                current["expires"] = now + _SNAPSHOT_TTL_SECONDS
+            else:
+                _SNAPSHOT_CACHE[key] = {
+                    "flights": [],
+                    "errors": errors,
+                    "home": home,
+                    "updated": now,
+                    "expires": now + 60,
+                }
+    finally:
+        with _SNAPSHOT_LOCK:
+            _SNAPSHOT_PENDING.discard(key)
 
 
-def render(options=None, dwell_ms=None):
-    options = options or {}
-    dwell = max(4, int(options.get("_dwell", 30) or 30))
-    result = render_webp(options, dwell * 1000)
-    return {
-        "body": result["body"],
-        # The animated WebP already contains the full page1 -> slide -> page2 timing.
-        # A long Pixora-Dwell-Secs header makes the firmware replay it before moving on.
-        "dwell_secs": result.get("dwell_secs", 1),
-        "_stay": False,
-    }
+def _queue_snapshot_refresh(key, opts):
+    now = time.time()
+    with _SNAPSHOT_LOCK:
+        _SNAPSHOT_WATCHED[key] = dict(opts)
+        snapshot = _SNAPSHOT_CACHE.get(key)
+        stale = not snapshot or snapshot.get("expires", 0) <= now
+        if not stale or key in _SNAPSHOT_PENDING:
+            _ensure_snapshot_scheduler()
+            return snapshot
+        _SNAPSHOT_PENDING.add(key)
+    _ensure_snapshot_scheduler()
+    _snapshot_pool().submit(_refresh_snapshot, key, dict(opts))
+    return snapshot
 
 
-def render_webp(options=None, dwell_ms=30000):
-    options = options or {}
-    width = 128 if options.get("_target") == "matrixportal-s3-128x32" else 64
-    flight, error = _load_flight(options)
-    if error:
-        color = (100, 190, 255) if error.startswith("SET") else (238, 80, 80)
-        dwell = max(4, int(dwell_ms / 1000))
-        error_dwell = max(2, dwell // 2)
-        return {
-            "body": _save_static_webp(_render_error_image({"text": _display_error(error, options), "_wide": width == 128}, color)),
-            "durationMs": error_dwell * 1000,
-            "dwell_secs": error_dwell,
-        }
+def _render_snapshot(snapshot, opts, width):
+    frames = []
+    render_opts = dict(opts)
+    render_opts["_home_latlon"] = snapshot.get("home")
+    for entry in snapshot.get("flights") or []:
+        slot_opts = dict(render_opts)
+        slot_opts["_slot"] = entry.get("slot") or 1
+        flight = entry.get("flight")
+        if flight:
+            frames.append(_draw_main_panel(flight, slot_opts, width))
+            frames.append(_draw_detail_panel(flight, slot_opts, width))
+    if frames:
+        return _save_cycle(frames)
+    errors = snapshot.get("errors") or []
+    return _save_cycle([_render_error_image(errors[0], width)]) if errors else _render_error("Updating flight data", width)
 
-    opts = options
-    dwell = max(4, int(dwell_ms / 1000))
-    half_dwell = max(2, dwell // 2)
-    second_dwell = max(2, dwell - half_dwell)
-    if width == 128:
-        first = _render_flight_panel(flight, 64)
-        second = _render_status_panel(flight, 64, compact=True)
-        return {
-            "body": _save_static_webp(_combine_side_by_side(first, second)),
-            "durationMs": max(1000, int(dwell_ms)),
-            "dwell_secs": dwell,
-        }
 
-    first = _render_flight_panel(flight, width)
-    second = _render_status_panel(flight, width, compact=True)
-    return {
-        "body": _save_locked_two_page_animation(first, second, half_dwell, second_dwell),
-        "durationMs": max(1000, int(dwell_ms)),
-        "dwell_secs": 1,
-    }
+def render(options=None):
+    opts = options or {}
+    width = 128 if _is_wide(opts) else 64
+    slots = _configured_slots(opts)
+    if not slots:
+        return _render_error("Set airline and flight number", width)
+    snapshot = _queue_snapshot_refresh(_snapshot_key(opts), opts)
+    if snapshot:
+        return _render_snapshot(snapshot, opts, width)
+    return _render_error("Updating flight data", width)
