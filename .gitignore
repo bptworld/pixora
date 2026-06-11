@@ -39,6 +39,7 @@ firmware/main/setup_pages.h
 # release downloads only.
 /addons/
 /assets/
+/cloud/
 /docs/
 /esphome-hubitat-bridge/
 /scripts/
