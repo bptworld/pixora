@@ -3,7 +3,7 @@ build/
 releases/*
 !releases/server/
 releases/server/*
-!releases/server/PixoraSetup-v1.3.69.exe
+!releases/server/PixoraSetup-v1.3.70.exe
 !releases/firmware/
 releases/firmware/*
 !releases/firmware/*-ota-firmware.bin
