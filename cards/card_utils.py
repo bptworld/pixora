@@ -1155,13 +1155,19 @@ def render_sport_card(options, url, cache, status_color, fallback_text):
         except Exception:
             pass
 
-    is_baseball = str(fallback_text or "").upper() == "NO MLB"
+    is_baseball = str(fallback_text or "").upper() in ("NO MLB", "NO CBASE", "NO SOFT")
+    if is_baseball:
+        status = baseball_status_without_clock(status)
     outs = baseball_outs(competition) if is_baseball and state == "in" else None
     batting_side = baseball_batting_side(status) if is_baseball and state == "in" else None
 
     if (options or {}).get("_target") == "matrixportal-s3-128x32":
+        compact_logo_text = str(fallback_text or "").upper()
+        compact_basketball = compact_logo_text in ("NO NBA", "NO WNBA", "NO WCBB", "NO MCBB", "NO GLEAG")
+        logo_size = 24 if compact_basketball else 28
+        score_pad = 1 if compact_basketball else 6
         return _render_sport_card_128(
-            away, home, away_team, home_team, status, score, status_color, competition.get("series"), outs, batting_side
+            away, home, away_team, home_team, status, score, status_color, competition.get("series"), outs, batting_side, logo_size, score_pad, compact_basketball
         )
 
     image = Image.new("RGB", (64, 32), (5, 7, 10))
@@ -1243,6 +1249,13 @@ def baseball_outs(competition):
         return None
 
 
+def baseball_status_without_clock(status):
+    text = str(status or "").strip()
+    text = re.sub(r"\s+\d{1,2}:\d{2}(?:\s*\d(?:st|nd|rd|th)?)?\s*$", "", text, flags=re.I)
+    text = re.sub(r"\s+\d{1,2}:\d{2}\s*$", "", text)
+    return text.strip() or status
+
+
 def baseball_batting_side(status):
     text = str(status or "").strip().lower()
     if text.startswith(("top", "t ")):
@@ -1303,7 +1316,7 @@ def draw_baseball_bat_marker(draw, cx, y, side):
     draw.line((left + 2, y - 1, right - 2, y - 1), fill=highlight)
 
 
-def _render_sport_card_128(away, home, away_team, home_team, status, score, status_color, series=None, outs=None, batting_side=None):
+def _render_sport_card_128(away, home, away_team, home_team, status, score, status_color, series=None, outs=None, batting_side=None, logo_size=28, score_pad=6, regular_triple_score=False):
     from PIL import Image, ImageDraw, ImageFont
 
     def text_ink_bbox(text, font):
@@ -1334,45 +1347,52 @@ def _render_sport_card_128(away, home, away_team, home_team, status, score, stat
         tiny = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
         small = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
         score_font = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 12)
+        regular_score_font = ImageFont.truetype("assets/fonts/PixelifySans.ttf", 12)
     except Exception:
-        tiny = small = score_font = ImageFont.load_default()
+        tiny = small = score_font = regular_score_font = ImageFont.load_default()
 
     draw.rectangle((0, 0, 127, 8), fill=(8, 18, 28))
     status_text = (status or "").upper()
     status_w = draw.textbbox((0, 0), status_text, font=tiny)[2]
     draw_sharp_text(image, ((128 - status_w) // 2, -3), status_text[:30], status_color, tiny)
 
-    logo_size = 28
+    logo_size = max(18, min(28, int(logo_size or 28)))
     away_logo = fetch_logo(away_team.get("logo", ""), size=logo_size)
     home_logo = fetch_logo(home_team.get("logo", ""), size=logo_size)
     away_color = parse_color("#" + str(away_team.get("color", "")).lstrip("#")) if away_team.get("color") else (255, 255, 255)
     home_color = parse_color("#" + str(home_team.get("color", "")).lstrip("#")) if home_team.get("color") else (255, 255, 255)
+    away_logo_x = 0
+    home_logo_x = 128 - logo_size
 
     if away_logo:
-        image.paste(away_logo, (1, 3), away_logo)
+        image.paste(away_logo, (away_logo_x, 0), away_logo)
     else:
-        draw.ellipse((1, 4, 29, 31), outline=away_color, width=2)
+        draw.ellipse((1, 1, 1 + logo_size, logo_size), outline=away_color, width=2)
     if home_logo:
-        image.paste(home_logo, (100, 3), home_logo)
+        image.paste(home_logo, (home_logo_x, 0), home_logo)
     else:
-        draw.ellipse((99, 4, 127, 31), outline=home_color, width=2)
+        draw.ellipse((127 - logo_size, 1, 127, logo_size), outline=home_color, width=2)
 
-    use_segment_score = any(ch.isdigit() for ch in score) and _BOLD_NUMERIC_RE.match(score)
+    use_regular_score = bool(regular_triple_score and re.search(r"\d{3,}", score or ""))
+    if use_regular_score:
+        score_font = regular_score_font
+    use_segment_score = not use_regular_score and any(ch.isdigit() for ch in score) and _BOLD_NUMERIC_RE.match(score)
     if use_segment_score:
         score_h = bitmap_number_height_for_font(score_font, extra=1)
         sw, sh = bitmap_number_size_for_height(score, score_h)
     else:
         sb = draw.textbbox((0, 0), score, font=score_font)
         sw = sb[2] - sb[0]
-    pill_w = max(34, sw + 12)
+    score_pad = max(1, int(score_pad or 6))
+    pill_w = max(34, sw + score_pad * 2)
     bx1 = (128 - pill_w) // 2
     bx2 = bx1 + pill_w
     by1, by2 = 8, 24
     draw.rounded_rectangle((bx1, by1, bx2, by2), radius=4, fill=(18, 29, 39), outline=(69, 87, 104))
     if use_segment_score:
-        draw_sport_score_number(image, (bx1, by1, bx2, by2), score, (247, 251, 255), score_h)
+        draw_sport_score_number(image, (bx1 + 1, by1, bx2 + 1, by2), score, (247, 251, 255), score_h)
     else:
-        text_x = int(round(64 - (sb[0] + sb[2]) / 2))
+        text_x = int(round(64 - (sb[0] + sb[2]) / 2)) + 1
         text_y = int(round(((by1 + by2) / 2) - ((sb[1] + sb[3]) / 2)))
         draw_sharp_text(image, (text_x, text_y), score, (247, 251, 255), score_font)
     if outs is not None:
@@ -1390,14 +1410,14 @@ def _render_sport_card_128(away, home, away_team, home_team, status, score, stat
     home_abbrev = (home_team.get("abbreviation", "HME") or "HME")[:3].upper()
     away_w = compact_text_width(away_abbrev, small)
     home_ink = text_ink_bbox(home_abbrev, small)
-    away_x = bx1 - 2 - away_w
+    away_x = bx1 - 1 - away_w
     home_x = bx2 + 3 - home_ink[0]
-    draw_compact_text(away_abbrev, away_x, 12, (255, 255, 255), small)
-    draw_compact_text(home_abbrev, home_x, 12, (255, 255, 255), small)
+    draw_compact_text(away_abbrev, away_x, 10, (255, 255, 255), small)
+    draw_compact_text(home_abbrev, home_x, 10, (255, 255, 255), small)
     if batting_side == "away":
-        draw_baseball_bat_marker(draw, away_x + away_w // 2, 10, "away")
+        draw_baseball_bat_marker(draw, away_x + away_w // 2, 8, "away")
     elif batting_side == "home":
-        draw_baseball_bat_marker(draw, home_x + compact_text_width(home_abbrev, small) // 2, 10, "home")
+        draw_baseball_bat_marker(draw, home_x + compact_text_width(home_abbrev, small) // 2, 8, "home")
 
     out = BytesIO()
     image.save(out, "WEBP", lossless=True, quality=100)

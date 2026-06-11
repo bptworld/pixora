@@ -177,7 +177,7 @@ def _render_event(event, width):
         home_w = draw.textbbox((0, 0), home_abbr, font=bold)[2]
         draw_sharp_text(image, (102 - home_w, 13), home_abbr, (245, 250, 255), bold)
         detail = (event.get("name") or event.get("shortName") or "")[:24].upper()
-        _center_text(image, draw, detail, 24, font, (130, 160, 170), 24, 103)
+        _center_text(image, draw, detail, 23, font, (130, 160, 170), 24, 103)
     else:
         away_abbr = (away_team.get("abbreviation") or "AWY")[:3].upper()
         home_abbr = (home_team.get("abbreviation") or "HME")[:3].upper()
