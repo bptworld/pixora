@@ -43,6 +43,16 @@
       "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/spinning-baseball.webp"
     },
     {
+      "id": "tree-of-life",
+      "name": "Animal Kingdom Tree of Life",
+      "category": "Static",
+      "description": "Animal Kingdom Tree of Life graphic for Pixora alerts.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/tree-of-life.png",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/tree-of-life.png"
+    },
+    {
       "id": "cat",
       "name": "Cat",
       "category": "Static",
@@ -61,6 +71,16 @@
       "version": "1.0",
       "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/chicken.png",
       "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/chicken.png"
+    },
+    {
+      "id": "cinderella-castle",
+      "name": "Cinderella Castle",
+      "category": "Static",
+      "description": "Cinderella Castle graphic for Pixora alerts.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/cinderella-castle.png",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/cinderella-castle.png"
     },
     {
       "id": "clothes-dryer",
@@ -233,6 +253,16 @@
       "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/mailbox-open.png"
     },
     {
+      "id": "mickey-sorcerer-hat",
+      "name": "Mickey's Sorcerer Hat",
+      "category": "Static",
+      "description": "Mickey's Sorcerer Hat graphic for Pixora alerts.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/mickey-sorcerer-hat.png",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/mickey-sorcerer-hat.png"
+    },
+    {
       "id": "motion-detected",
       "name": "Motion Detected",
       "category": "Static",
@@ -303,6 +333,16 @@
       "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/smoke-co-alert.png"
     },
     {
+      "id": "spaceship-earth",
+      "name": "Spaceship Earth",
+      "category": "Static",
+      "description": "Spaceship Earth graphic for Pixora alerts.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/spaceship-earth.png",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/spaceship-earth.png"
+    },
+    {
       "id": "stock-alert-down",
       "name": "Stock Alert Down",
       "category": "Static",
@@ -321,6 +361,16 @@
       "version": "1.0",
       "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/stock-alert-up.png",
       "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/stock-alert-up.png"
+    },
+    {
+      "id": "tower-of-terror",
+      "name": "Tower of Terror",
+      "category": "Static",
+      "description": "Tower of Terror graphic for Pixora alerts.",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/tower-of-terror.png",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/graphics/assets/tower-of-terror.png"
     },
     {
       "id": "washer-machine",
