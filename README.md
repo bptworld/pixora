@@ -46,6 +46,8 @@ The Cloud Server setup tool only sends Wi-Fi and Pixora Cloud endpoint settings 
 
 Firmware downloads are provided only as official prebuilt `.bin` files on the release page.
 
+Cloud server code is deployed from the separate `bptworld/pixora-cloud` repository. Render automatically updates the hosted cloud server when `pixora-cloud/main` is pushed. Do not treat this repo's `cloud/` folder as the deployment target; use the `cloud` git remote or a checkout of `https://github.com/bptworld/pixora-cloud.git`.
+
 ## Cards
 
 Cards are downloaded and managed within the Pixora app.
