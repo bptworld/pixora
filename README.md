@@ -42,7 +42,7 @@ Use the Cloud Server setup installer when your display should connect to a hoste
 PixoraCloudSetup-v<version>.exe
 ```
 
-The Cloud Server setup tool only sends Wi-Fi and Pixora Cloud endpoint settings to a display over USB. It does not install the local Pixora server, renderer, cards, or firmware build tools.
+The Cloud Server setup tool only sends Wi-Fi and Pixora Cloud endpoint settings to a display over USB. After provisioning, manage devices and card queues from the Pixora Cloud dashboard hosted on Render.
 
 Firmware downloads are provided only as official prebuilt `.bin` files on the release page.
 
@@ -55,4 +55,4 @@ Card updates must be submitted by pull request.
 
 ## Firmware
 
-Use the OTA firmware files for updates from the Pixora app, and the USB full-flash files for first-time flashing or recovery.
+Use the OTA firmware files from `releases/firmware` for updates from the Pixora app.
