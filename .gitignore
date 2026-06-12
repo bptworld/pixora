@@ -41,8 +41,11 @@ firmware/main/setup_pages.h
 # release downloads only.
 /addons/
 /assets/
+/app.py
+/cloud/
 /docs/
 /esphome-hubitat-bridge/
+/Procfile
 /scripts/
 /tools/
 /card_utils.py
