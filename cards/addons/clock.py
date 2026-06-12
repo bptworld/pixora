@@ -3,6 +3,7 @@ import atexit
 from datetime import datetime, timedelta, timezone
 import re
 import threading
+from zoneinfo import ZoneInfo
 
 from card_utils import (
     _settings_value,
@@ -10,6 +11,7 @@ from card_utils import (
     draw_mini_weather_icon,
     draw_sharp_text,
     format_time,
+    fetch_json_request,
     pixora_bold_number_size,
     paste_openweather_icon,
     weather_for_zip,
@@ -29,6 +31,8 @@ _WEATHER_PENDING = set()
 _WEATHER_LOCK = threading.Lock()
 _WEATHER_TTL = timedelta(minutes=10)
 _WEATHER_RETRY = timedelta(seconds=30)
+_ZIP_TIMEZONE_CACHE = {}
+_ZIP_TIMEZONE_TTL = timedelta(days=7)
 
 _SEGMENTS = {
     "0": "abcfed",
@@ -100,6 +104,73 @@ def _normalize_zip(zip_code):
 
 def _default_zip():
     return _normalize_zip(_settings_value("defaultZipCode", "") or "")
+
+
+def _float_option(options, *keys):
+    options = options or {}
+    for key in keys:
+        value = options.get(key)
+        if value in (None, ""):
+            value = _settings_value(key, "")
+        try:
+            return float(value)
+        except Exception:
+            pass
+    return None
+
+
+def _timezone_name_for_lat_lon(lat, lon):
+    if lat is None or lon is None:
+        return ""
+    if 18 <= lat <= 23 and -161 <= lon <= -154:
+        return "Pacific/Honolulu"
+    if lat >= 50 and lon <= -130:
+        return "America/Anchorage"
+    if lon <= -114:
+        return "America/Los_Angeles"
+    if lon <= -101:
+        return "America/Denver"
+    if lon <= -86:
+        return "America/Chicago"
+    return "America/New_York"
+
+
+def _timezone_name_for_zip(zip_code):
+    zip_code = _normalize_zip(zip_code)
+    if len(zip_code) != 5:
+        return ""
+    now = datetime.now(timezone.utc)
+    cached = _ZIP_TIMEZONE_CACHE.get(zip_code)
+    if cached and cached.get("expires", now) > now:
+        return cached.get("timezone", "")
+    try:
+        location = fetch_json_request(f"https://api.zippopotam.us/us/{zip_code}", seconds=86400)
+        place = location["places"][0]
+        tz_name = _timezone_name_for_lat_lon(float(place["latitude"]), float(place["longitude"]))
+    except Exception:
+        tz_name = ""
+    _ZIP_TIMEZONE_CACHE[zip_code] = {"timezone": tz_name, "expires": now + _ZIP_TIMEZONE_TTL}
+    return tz_name
+
+
+def _clock_now(options=None):
+    options = options or {}
+    tz_name = (
+        str(options.get("timezone") or options.get("timeZone") or "").strip()
+        or str(_settings_value("defaultTimezone", "") or _settings_value("defaultTimeZone", "") or "").strip()
+    )
+    if not tz_name:
+        lat = _float_option(options, "latitude", "lat", "defaultLatitude")
+        lon = _float_option(options, "longitude", "lon", "lng", "defaultLongitude")
+        tz_name = _timezone_name_for_lat_lon(lat, lon)
+    if not tz_name:
+        tz_name = _timezone_name_for_zip(_normalize_zip(options.get("zipCode", "")) or _default_zip())
+    if tz_name:
+        try:
+            return datetime.now(ZoneInfo(tz_name))
+        except Exception:
+            pass
+    return datetime.now().astimezone()
 
 
 def _weather_worker(zip_code):
@@ -182,7 +253,7 @@ def render(options=None):
     except Exception:
         time_font = temp_font = unit_font = small_font = ImageFont.load_default()
 
-    text = format_time(datetime.now())
+    text = format_time(_clock_now(options))
     time_scale = 2 if is_wide else 2
     time_spacing = 2 if is_wide else 1
     tw, th = _bitmap_text_size(text, scale=time_scale, spacing=time_spacing)

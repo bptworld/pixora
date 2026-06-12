@@ -1050,6 +1050,17 @@
       "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/disney.webp"
     },
     {
+      "id": "disney_wait_times",
+      "name": "Disney Wait Times",
+      "category": "Travel",
+      "detail": "Live Disney park waits",
+      "description": "Live Disney park waits",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/addons/disney_wait_times.py",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/disney_wait_times.webp"
+    },
+    {
       "id": "github_issues_watch",
       "name": "GitHub Issues Watch",
       "category": "Utility",
