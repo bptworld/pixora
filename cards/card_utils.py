@@ -1236,7 +1236,17 @@ def render_sport_card(options, url, cache, status_color, fallback_text):
         tiny = small = score_font = ImageFont.load_default()
 
     draw.rectangle((0, 0, 63, 8), fill=(8, 18, 28))
-    draw_sharp_text(image, (1, -3), status[:18].upper(), status_color, tiny)
+    header_status = status.upper()
+    if outs is not None:
+        while header_status and draw.textbbox((0, 0), header_status, font=tiny)[2] > 45:
+            header_status = header_status[:-1].rstrip()
+    else:
+        header_status = header_status[:18]
+    draw_sharp_text(image, (1, -3), header_status, status_color, tiny)
+    if outs is not None:
+        header_w = draw.textbbox((0, 0), header_status, font=tiny)[2]
+        dot_cx = min(56, max(11, 1 + header_w + 9))
+        draw_baseball_out_dots(draw, dot_cx, 4, outs, size=1)
 
     use_segment_score = any(ch.isdigit() for ch in score) and _BOLD_NUMERIC_RE.match(score)
     if use_segment_score:
@@ -1256,9 +1266,6 @@ def render_sport_card(options, url, cache, status_color, fallback_text):
         draw_sport_score_number(image, (bx1, by1, bx2, by2), score, (247, 251, 255), score_h)
     else:
         draw_sharp_text(image, (32 - sw // 2, 4 + pad), score, (247, 251, 255), score_font)
-    if outs is not None:
-        draw_baseball_out_dots(draw, (bx1 + bx2) // 2, min(30, by2 + 5), outs, size=2)
-
     away_abbrev = away_team.get("abbreviation", "AWY")[:3]
     home_abbrev = home_team.get("abbreviation", "HME")[:3]
     habb_w = draw.textbbox((0, 0), home_abbrev, font=small)[2]
