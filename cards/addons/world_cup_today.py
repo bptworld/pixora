@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
+from pathlib import Path
 
 from card_utils import draw_sharp_text, fetch_json_with_headers, render_text_webp
 
@@ -40,6 +41,7 @@ _WIN = (88, 235, 130)
 _LOSS = (245, 86, 96)
 _TIE = (255, 210, 90)
 _CACHE_SECONDS = 300
+_FONT_DIR = Path(__file__).resolve().parents[1] / "assets" / "fonts"
 
 
 def _date_range():
@@ -147,7 +149,18 @@ def _space_width(draw, font):
     except Exception:
         with_space = draw.textbbox((0, 0), "X X", font=font)[2]
         without_space = draw.textbbox((0, 0), "XX", font=font)[2]
-        return max(1, with_space - without_space)
+    return max(1, with_space - without_space)
+
+
+def _load_font(name, size):
+    from PIL import ImageFont
+
+    for path in (f"assets/fonts/{name}", str(_FONT_DIR / name)):
+        try:
+            return ImageFont.truetype(path, size)
+        except Exception:
+            continue
+    return ImageFont.load_default()
 
 
 def _event_row(event, draw, font, result_font, width):
@@ -189,12 +202,37 @@ def _score_row(event, draw, font, width, final=False):
     away_name = _limit_team_text(str((_competitor_team(event, "away").get("abbreviation") or "AWY")).upper(), 3)
     home_name = _limit_team_text(str((_competitor_team(event, "home").get("abbreviation") or "HME")).upper(), 3)
     score = f"{away.get('score', '0')}-{home.get('score', '0')}"
-    vs = "VS"
-    vs_width = draw.textbbox((0, 0), vs, font=font)[2]
-    vs_x = 28 if width == 64 else 57
-    gap = _space_width(draw, font)
     score_width = draw.textbbox((0, 0), score, font=font)[2]
     score_x = width - score_width - 1
+    gap = _space_width(draw, font)
+
+    if width == 64:
+        teams_x = 1
+        sep = "-"
+        max_teams_width = max(8, score_x - teams_x)
+        away_width = draw.textbbox((0, 0), away_name, font=font)[2]
+        sep_width = draw.textbbox((0, 0), sep, font=font)[2]
+        home_width = max(1, max_teams_width - away_width - sep_width)
+        return {
+            "kind": "score",
+            "layout": "teams_left",
+            "away": away_name,
+            "home": _fit_text(draw, home_name, font, home_width),
+            "sep": sep,
+            "score": score,
+            "teams_x": teams_x,
+            "sep_x": teams_x + away_width,
+            "home_x": teams_x + away_width + sep_width,
+            "score_x": score_x,
+            "away_color": _result_color(away, final),
+            "home_color": _result_color(home, final),
+            "sep_color": (120, 170, 190),
+            "score_color": (255, 210, 90) if not final else (245, 250, 255),
+        }
+
+    vs = "VS"
+    vs_width = draw.textbbox((0, 0), vs, font=font)[2]
+    vs_x = 57
     home_x = vs_x + vs_width + gap
     home_width = max(8, score_x - gap - home_x)
     away_width = max(8, vs_x - gap)
@@ -230,10 +268,15 @@ def _draw_frame(rows, offset, width, font, result_font, bold):
             continue
         if row.get("kind") == "score":
             row_font = result_font
-            away_w = draw.textbbox((0, 0), row["away"], font=row_font)[2]
-            draw_sharp_text(image, (row["away_right"] - away_w, y), row["away"], row["away_color"], row_font)
-            draw_sharp_text(image, (row["vs_x"], y), row["vs"], (180, 190, 195), row_font)
-            draw_sharp_text(image, (row["home_x"], y), row["home"], row["home_color"], row_font)
+            if row.get("layout") == "teams_left":
+                draw_sharp_text(image, (row["teams_x"], y), row["away"], row["away_color"], row_font)
+                draw_sharp_text(image, (row["sep_x"], y), row["sep"], row["sep_color"], row_font)
+                draw_sharp_text(image, (row["home_x"], y), row["home"], row["home_color"], row_font)
+            else:
+                away_w = draw.textbbox((0, 0), row["away"], font=row_font)[2]
+                draw_sharp_text(image, (row["away_right"] - away_w, y), row["away"], row["away_color"], row_font)
+                draw_sharp_text(image, (row["vs_x"], y), row["vs"], (180, 190, 195), row_font)
+                draw_sharp_text(image, (row["home_x"], y), row["home"], row["home_color"], row_font)
             draw_sharp_text(image, (row["score_x"], y), row["score"], row["score_color"], row_font)
         else:
             color = (245, 250, 255) if index % 2 == 0 else (205, 224, 222)
@@ -247,12 +290,9 @@ def _draw_frame(rows, offset, width, font, result_font, bold):
 def _render_rows(events, width):
     from PIL import Image, ImageDraw, ImageFont
 
-    try:
-        font = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
-        result_font = ImageFont.truetype("assets/fonts/PixelifySans.ttf", 8)
-        bold = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
-    except Exception:
-        font = result_font = bold = ImageFont.load_default()
+    font = _load_font("Silkscreen-Regular.ttf", 8)
+    result_font = _load_font("Silkscreen-Regular.ttf", 8)
+    bold = _load_font("Silkscreen-Regular.ttf", 8)
 
     dummy = ImageDraw.Draw(Image.new("RGB", (1, 1)))
     rows = [_event_row(event, dummy, font, result_font, width) for event in events]

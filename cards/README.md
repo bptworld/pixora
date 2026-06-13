@@ -2,7 +2,7 @@
 
 Add-on cards for the [Pixora](https://github.com/bptworld/pixora) display system.
 
-## Available Cards - 127
+## Available Cards - 134
 
 ### Finance
 
@@ -166,6 +166,13 @@ Add-on cards for the [Pixora](https://github.com/bptworld/pixora) display system
 | Card | Description |
 |------|-------------|
 | Air Quality | AQI, pollen, and UV by ZIP |
+| Beach Conditions | Water, waves, and beach wind |
+| Boating Conditions | Wind, seas, and tide for boating |
+| Fishing Window | Tide-based fishing window |
+| Marine Forecast | Coastal wind and seas |
+| Rip Current Risk | Active rip current alerts |
+| Surf Report | Wave, swell, and wind |
+| Tide Tracking | Next high and low tide |
 | Weather Alert | Skips when clear |
 | Weather Forecast | 4-day forecast with current weather |
 | Weather Radar Loop | Live RainViewer radar loop |

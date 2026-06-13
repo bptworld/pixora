@@ -168,7 +168,7 @@ def _draw_countdown_in_head(image, draw, cx, cy, days, number_font, tiny_font):
         metrics.append((text, font, tb[2] - tb[0], tb[3] - tb[1]))
         total_h += tb[3] - tb[1]
     total_h += max(0, len(lines) - 1)
-    y = cy - total_h // 2 - 4
+    y = cy - total_h // 2 - (5 if days is not None and days > 0 else 4)
     for text, font, tw, th in metrics:
         draw_sharp_text(image, (cx - tw // 2, y), text, color, font)
         y += th + 1

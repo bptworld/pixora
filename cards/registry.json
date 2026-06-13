@@ -1347,6 +1347,87 @@
       "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/air_quality.webp"
     },
     {
+      "id": "tide_tracking",
+      "name": "Tide Tracking",
+      "category": "Weather",
+      "detail": "Next high and low tide",
+      "description": "Next high and low tide",
+      "attribution": {
+        "label": "Tide predictions by NOAA CO-OPS",
+        "url": "https://api.tidesandcurrents.noaa.gov/api/prod/"
+      },
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/addons/tide_tracking.py",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/tide_tracking.webp"
+    },
+    {
+      "id": "beach_conditions",
+      "name": "Beach Conditions",
+      "category": "Weather",
+      "detail": "Water, waves, and beach wind",
+      "description": "Water, waves, and beach wind",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/addons/beach_conditions.py",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/beach_conditions.webp"
+    },
+    {
+      "id": "marine_forecast",
+      "name": "Marine Forecast",
+      "category": "Weather",
+      "detail": "Coastal wind and seas",
+      "description": "Coastal wind and seas",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/addons/marine_forecast.py",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/marine_forecast.webp"
+    },
+    {
+      "id": "boating_conditions",
+      "name": "Boating Conditions",
+      "category": "Weather",
+      "detail": "Wind, seas, and tide for boating",
+      "description": "Wind, seas, and tide for boating",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/addons/boating_conditions.py",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/boating_conditions.webp"
+    },
+    {
+      "id": "fishing_window",
+      "name": "Fishing Window",
+      "category": "Weather",
+      "detail": "Tide-based fishing window",
+      "description": "Tide-based fishing window",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/addons/fishing_window.py",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/fishing_window.webp"
+    },
+    {
+      "id": "surf_report",
+      "name": "Surf Report",
+      "category": "Weather",
+      "detail": "Wave, swell, and wind",
+      "description": "Wave, swell, and wind",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/addons/surf_report.py",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/surf_report.webp"
+    },
+    {
+      "id": "rip_current_risk",
+      "name": "Rip Current Risk",
+      "category": "Weather",
+      "detail": "Active rip current alerts",
+      "description": "Active rip current alerts",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/addons/rip_current_risk.py",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/rip_current_risk.webp"
+    },
+    {
       "id": "weather_alert",
       "name": "Weather Alert",
       "category": "Weather",
