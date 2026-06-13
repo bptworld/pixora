@@ -182,6 +182,33 @@ def _team_for_animation(team, width):
     }
 
 
+def _team_matches(team, favorite):
+    favorite = str(favorite or "").strip().upper()
+    if not favorite:
+        return False
+    return favorite in _team_values(team or {})
+
+
+def _resolve_team_for_test(favorite, width=64):
+    favorite = str(favorite or "").strip().upper()
+    try:
+        data = _scoreboard(seconds=15)
+        for event in data.get("events") or []:
+            competition = (event.get("competitions") or [{}])[0]
+            for competitor in competition.get("competitors") or []:
+                team = competitor.get("team") or {}
+                if _team_matches(team, favorite):
+                    return _team_for_animation(team, width)
+    except Exception:
+        pass
+    return _team_for_animation({
+        "abbreviation": favorite or "FC",
+        "color": "46DC7D",
+        "alternateColor": "FFFFFF",
+        "logo": f"https://a.espncdn.com/i/teamlogos/countries/500/{(favorite or 'usa').lower()}.png",
+    }, width)
+
+
 def _render_goal_animation_frames(team, kind="goal"):
     return render_wall_score_frames(team, kind or "goal", sport="soccer", default_label="FC")
 
