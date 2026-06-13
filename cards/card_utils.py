@@ -8,6 +8,7 @@ import re
 import urllib.request
 import urllib.parse
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 WEATHER_CACHE = {}
 OPENWEATHER_ICON_CACHE = {}
@@ -117,6 +118,61 @@ def _settings_value(key, default=""):
     except Exception:
         pass
     return default
+
+
+def _timezone_name_for_lat_lon(lat, lon):
+    try:
+        lat = float(lat)
+        lon = float(lon)
+    except Exception:
+        return ""
+    if 18 <= lat <= 23 and -161 <= lon <= -154:
+        return "Pacific/Honolulu"
+    if lat >= 50 and lon <= -130:
+        return "America/Anchorage"
+    if lon <= -114:
+        return "America/Los_Angeles"
+    if lon <= -101:
+        return "America/Denver"
+    if lon <= -86:
+        return "America/Chicago"
+    return "America/New_York"
+
+
+def _configured_timezone_name():
+    tz_name = str(_settings_value("defaultTimezone", "") or _settings_value("defaultTimeZone", "") or "").strip()
+    if tz_name:
+        return tz_name
+    lat = _settings_value("defaultLatitude", "")
+    lon = _settings_value("defaultLongitude", "")
+    tz_name = _timezone_name_for_lat_lon(lat, lon)
+    if tz_name:
+        return tz_name
+    zip_code = re.sub(r"\D", "", str(_settings_value("defaultZipCode", "") or ""))[:5]
+    if len(zip_code) == 5:
+        try:
+            location = fetch_json_request(f"https://api.zippopotam.us/us/{zip_code}", seconds=86400)
+            place = location["places"][0]
+            tz_name = _timezone_name_for_lat_lon(place["latitude"], place["longitude"])
+            if tz_name:
+                return tz_name
+        except Exception:
+            pass
+    return str(os.environ.get("TZ") or "").strip()
+
+
+def pixora_local_now():
+    tz_name = _configured_timezone_name()
+    if tz_name:
+        try:
+            return datetime.now(ZoneInfo(tz_name))
+        except Exception:
+            pass
+    return datetime.now().astimezone()
+
+
+def pixora_local_timezone():
+    return pixora_local_now().tzinfo
 
 
 def _priority_graphic_prune(now):
@@ -1083,15 +1139,15 @@ def render_text_webp(text, color):
 
 
 def pick_sport_event(events, favorite):
-    from datetime import date
-    today = date.today()
+    local_tz = pixora_local_timezone()
+    today = datetime.now(local_tz).date() if local_tz else pixora_local_now().date()
     favorite = (favorite or "").upper()
     today_events = []
     for event in events:
         raw = event.get("date", "")
         try:
             dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
-            if dt.astimezone().date() == today:
+            if dt.astimezone(local_tz).date() == today:
                 today_events.append(event)
         except Exception:
             today_events.append(event)
@@ -1107,7 +1163,7 @@ def pick_sport_event(events, favorite):
 
 
 def dated_scoreboard_url(url):
-    today = datetime.now().strftime("%Y%m%d")
+    today = pixora_local_now().strftime("%Y%m%d")
     sep = "&" if "?" in url else "?"
     return f"{url}{sep}dates={today}"
 

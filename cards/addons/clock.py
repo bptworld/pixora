@@ -208,13 +208,25 @@ def _weather_now_or_queue(zip_code):
     if len(zip_code) != 5:
         return None
     now = datetime.now(timezone.utc)
+    should_fetch_now = False
+    should_refresh = False
     with _WEATHER_LOCK:
         cached = _WEATHER_CACHE.get(zip_code)
         if cached and cached.get("weather") and cached.get("expires", now) > now:
             return cached["weather"]
-        if zip_code not in _WEATHER_PENDING and (not cached or cached.get("expires", now) <= now):
+        if cached and cached.get("weather"):
+            should_refresh = zip_code not in _WEATHER_PENDING
+        else:
+            should_fetch_now = zip_code not in _WEATHER_PENDING
+        if should_fetch_now or should_refresh:
             _WEATHER_PENDING.add(zip_code)
-            _weather_pool().submit(_weather_worker, zip_code)
+    if should_fetch_now:
+        _weather_worker(zip_code)
+        with _WEATHER_LOCK:
+            cached = _WEATHER_CACHE.get(zip_code)
+            return cached.get("weather") if cached else None
+    if should_refresh:
+        _weather_pool().submit(_weather_worker, zip_code)
     return cached.get("weather") if cached else None
 
 
