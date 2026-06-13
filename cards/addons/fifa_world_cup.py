@@ -1,7 +1,17 @@
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
 
-from card_utils import draw_sharp_text, fetch_json_request, fetch_logo, render_text_webp
+from card_utils import (
+    cached_priority_graphic,
+    draw_sharp_text,
+    fetch_json_with_headers,
+    fetch_logo,
+    priority_graphic_key,
+    render_text_webp,
+    warm_priority_graphic,
+)
+from _sports_breaking import SCORE_ANIMATION_TEAMS_OPTION, animation_competitors, final_win_alert
+from _sports_wall import render_wall_score_frames
 
 CARD_ID = "fifa_world_cup"
 CARD_NAME = "FIFA World Cup"
@@ -33,9 +43,21 @@ CARD_OPTIONS = [
         ],
     },
 ]
+CARD_OPTIONS.append({
+    "key": "goalAnimationTarget",
+    "label": "Goal Animation",
+    "type": "select",
+    "default": "device",
+    "choices": [
+        {"value": "device", "label": "Single Device"},
+        {"value": "group_wall", "label": "Group Wall"},
+    ],
+})
+CARD_OPTIONS.append(dict(SCORE_ANIMATION_TEAMS_OPTION))
 
 _COLOR = (70, 220, 125)
 _CACHE_SECONDS = 300
+_GOAL_STATE = {}
 
 
 def _date_range():
@@ -47,11 +69,13 @@ def _date_range():
     return start.strftime("%Y%m%d"), end.strftime("%Y%m%d")
 
 
-def _scoreboard():
+def _scoreboard(seconds=_CACHE_SECONDS):
     start, end = _date_range()
-    return fetch_json_request(
-        f"https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates={start}-{end}",
-        seconds=_CACHE_SECONDS,
+    url = f"https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates={start}-{end}"
+    return fetch_json_with_headers(
+        url,
+        seconds=seconds,
+        cache_key=f"fifa_world_cup:scoreboard:{start}:{end}:{seconds}",
     )
 
 
@@ -133,6 +157,125 @@ def _center_text(image, draw, text, y, font, color, x1=0, x2=None):
     draw_sharp_text(image, (x1 + ((x2 - x1 + 1) - width) // 2, y), text, color, font)
 
 
+def _animation_width(options):
+    options = options or {}
+    try:
+        explicit = int(options.get("_width") or 0)
+        if explicit > 0:
+            return max(64, min(512, explicit))
+    except Exception:
+        pass
+    target = str(options.get("_target") or "").lower()
+    return 128 if "128x32" in target else 64
+
+
+def _team_for_animation(team, width):
+    return {
+        **(team or {}),
+        "abbreviation": (team or {}).get("abbreviation") or (team or {}).get("shortDisplayName") or "FC",
+        "color": (team or {}).get("color") or "46DC7D",
+        "alternateColor": (team or {}).get("alternateColor") or "FFFFFF",
+        "logo": (team or {}).get("logo") or (((team or {}).get("logos") or [{}])[0].get("href") if (team or {}).get("logos") else ""),
+        "_width": width,
+    }
+
+
+def _render_goal_animation_frames(team, kind="goal"):
+    return render_wall_score_frames(team, kind or "goal", sport="soccer", default_label="FC")
+
+
+def _render_goal_animation(team, kind="goal"):
+    frames, durations = _render_goal_animation_frames(team, kind)
+    out = BytesIO()
+    frames[0].save(
+        out,
+        "WEBP",
+        save_all=True,
+        append_images=frames[1:],
+        duration=durations,
+        loop=1,
+        lossless=True,
+        quality=100,
+    )
+    return out.getvalue()
+
+
+def _maybe_goal_animation(options):
+    opts = options or {}
+    favorite = str(opts.get("favoriteTeam") or "").strip().upper()
+    if not favorite and str(opts.get("scoreAnimationTeams") or "favorite").strip().lower() not in ("both", "all", "game"):
+        return None
+    try:
+        data = _scoreboard(seconds=15)
+    except Exception:
+        return None
+    event = _pick_event(_events_for_today(data.get("events") or [], favorite), favorite)
+    if not event:
+        return None
+
+    competition = (event.get("competitions") or [{}])[0]
+    state = ((competition.get("status") or {}).get("type") or {}).get("state")
+    competitors = animation_competitors(event, favorite, opts)
+    if not competitors:
+        return None
+
+    game_id = str(event.get("id") or competition.get("id") or datetime.now().strftime("%Y%m%d"))
+    device_id = opts.get("_device_id", "local")
+    width = _animation_width(opts)
+    for competitor in competitors:
+        team = competitor.get("team") or {}
+        team_key = (team.get("abbreviation") or team.get("shortDisplayName") or favorite or "FC").upper()
+        key = f"{device_id}:fifa.world:{game_id}:{team_key}"
+        try:
+            score = int(competitor.get("score", 0) or 0)
+        except Exception:
+            score = 0
+
+        animation_team = _team_for_animation(team, width)
+        cache_key = priority_graphic_key(CARD_ID, animation_team, "goal", width)
+        previous = _GOAL_STATE.get(key)
+        if state != "in":
+            if str(state or "").lower() == "post":
+                win = final_win_alert(
+                    CARD_ID, _GOAL_STATE, key, competition, competitor, animation_team,
+                    sport="soccer", render=_render_goal_animation,
+                    target=opts.get("goalAnimationTarget") or "device", dwell_secs=7,
+                    renderer_name="_render_goal_animation_frames",
+                )
+                if win and previous is not None:
+                    return win
+            _GOAL_STATE[key] = {**(_GOAL_STATE.get(key) or {}), "score": score, "animated": score, "seen": datetime.now(timezone.utc)}
+            continue
+
+        if previous is None:
+            _GOAL_STATE[key] = {"score": score, "animated": score, "seen": datetime.now(timezone.utc)}
+            warm_priority_graphic(cache_key, lambda animation_team=animation_team: _render_goal_animation(animation_team))
+            continue
+
+        last_score = int(previous.get("score", score) or 0)
+        animated = int(previous.get("animated", last_score) or 0)
+        _GOAL_STATE[key] = {"score": score, "animated": animated, "seen": datetime.now(timezone.utc)}
+        warm_priority_graphic(cache_key, lambda animation_team=animation_team: _render_goal_animation(animation_team))
+        if score > last_score and score > animated:
+            _GOAL_STATE[key]["animated"] = score
+            target = str(opts.get("goalAnimationTarget") or "device").strip().lower()
+            wall = target in ("group", "group_wall", "wall") or target.startswith("group:")
+            return {
+                "body": cached_priority_graphic(cache_key, lambda animation_team=animation_team: _render_goal_animation(animation_team)),
+                "dwell_secs": 4,
+                "_stay": True,
+                "_no_replay": True,
+                "_group_wall": {
+                    "type": "goal",
+                    "kind": "goal",
+                    "renderer": "_render_goal_animation_frames",
+                    "team": dict(animation_team),
+                    "dwell_secs": 6,
+                } if wall else None,
+            }
+    return None
+
+
 def _render_event(event, width):
     from PIL import Image, ImageDraw, ImageFont
 
@@ -194,6 +337,21 @@ def _render_event(event, width):
 
 def render(options=None):
     opts = options or {}
+    animation = _maybe_goal_animation(opts)
+    if animation:
+        if animation.get("_group_wall"):
+            try:
+                data = _scoreboard(seconds=15)
+                favorite = str(opts.get("favoriteTeam") or "").strip().upper()
+                event = _pick_event(_events_for_today(data.get("events") or [], favorite), favorite)
+                normal_card = _render_event(event, 128 if opts.get("_target") == "matrixportal-s3-128x32" else 64) if event else None
+            except Exception:
+                normal_card = None
+            if normal_card:
+                animation["body"] = normal_card
+                animation["dwell_secs"] = opts.get("_dwell", 10)
+                animation["_no_replay"] = False
+        return animation
     favorite = str(opts.get("favoriteTeam") or "").strip().upper()
     try:
         data = _scoreboard()
