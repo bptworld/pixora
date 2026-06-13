@@ -1244,7 +1244,7 @@ def render_sport_card(options, url, cache, status_color, fallback_text):
         header_status = header_status[:18]
     draw_sharp_text(image, (1, -3), header_status, status_color, tiny)
     if outs is not None:
-        draw_baseball_out_dots(draw, 56, 4, outs, size=1)
+        draw_baseball_out_dots(draw, 56, 2, outs, size=1)
 
     use_segment_score = any(ch.isdigit() for ch in score) and _BOLD_NUMERIC_RE.match(score)
     if use_segment_score:
