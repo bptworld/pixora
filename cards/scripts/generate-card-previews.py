@@ -714,6 +714,9 @@ CUSTOM = {
     "disney_park_hours": lambda: _message("MAGIC", "9A-10P", "EE 8:30A", (120, 205, 255)),
     "disney_showtimes": lambda: _message("SHOWTIME", "PARADE", "3:00P", (255, 210, 80)),
     "disney_wait_times": lambda: _message("DISNEY", "75 MIN", "WAIT", (120, 205, 255)),
+    "universal_park_hours": lambda: _message("UNIV", "9A-9P", "TODAY", (76, 180, 255)),
+    "universal_showtimes": lambda: _message("SHOWTIME", "WATER", "3:15P", (255, 188, 74)),
+    "universal_wait_times": lambda: _message("UNIV", "65 MIN", "WAIT", (76, 180, 255)),
     "gcal": lambda: _message("CALENDAR", "MEETING", "2:30PM", (80, 180, 255)),
     "moon_phase": lambda: _message("MOON", "WAXING", "61%", (200, 220, 255)),
 }

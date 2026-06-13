@@ -2,7 +2,7 @@
 
 Add-on cards for the [Pixora](https://github.com/bptworld/pixora) display system.
 
-## Available Cards - 124
+## Available Cards - 127
 
 ### Finance
 
@@ -123,6 +123,9 @@ Add-on cards for the [Pixora](https://github.com/bptworld/pixora) display system
 | Flights Overhead | Live flights above you |
 | Gas Price Local | AAA local gas average |
 | NASA / SpaceX Launch | Next rocket launch countdown |
+| Universal Park Hours | Today's Universal park hours |
+| Universal Showtimes | Today's Universal showtimes |
+| Universal Wait Times | Live Universal park waits |
 
 ### Utility
 

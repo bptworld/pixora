@@ -1116,6 +1116,39 @@
       "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/disney_park_hours.webp"
     },
     {
+      "id": "universal_wait_times",
+      "name": "Universal Wait Times",
+      "category": "Travel",
+      "detail": "Live Universal park waits",
+      "description": "Live Universal park waits",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/addons/universal_wait_times.py",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/universal_wait_times.webp"
+    },
+    {
+      "id": "universal_park_hours",
+      "name": "Universal Park Hours",
+      "category": "Travel",
+      "detail": "Today's Universal park hours",
+      "description": "Today's Universal park hours",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/addons/universal_park_hours.py",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/universal_park_hours.webp"
+    },
+    {
+      "id": "universal_showtimes",
+      "name": "Universal Showtimes",
+      "category": "Travel",
+      "detail": "Today's Universal showtimes",
+      "description": "Today's Universal showtimes",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/addons/universal_showtimes.py",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/universal_showtimes.webp"
+    },
+    {
       "id": "github_issues_watch",
       "name": "GitHub Issues Watch",
       "category": "Utility",
