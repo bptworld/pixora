@@ -47,7 +47,7 @@ CARD_OPTIONS.append({
     "key": "goalAnimationTarget",
     "label": "Goal Animation",
     "type": "select",
-    "default": "device",
+    "default": "group_wall",
     "choices": [
         {"value": "device", "label": "Single Device"},
         {"value": "group_wall", "label": "Group Wall"},
