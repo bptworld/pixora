@@ -74,10 +74,16 @@ def render(options=None):
         font = bold = ImageFont.load_default()
 
     icon_x = 14 if width == 128 else 5
-    draw.ellipse((icon_x, 10, icon_x + 14, 24), fill=(255, 196, 58))
-    for line in [(icon_x + 7, 6, icon_x + 7, 8), (icon_x + 7, 26, icon_x + 7, 29), (icon_x - 4, 17, icon_x - 1, 17), (icon_x + 15, 17, icon_x + 18, 17)]:
+    icon_y = 10 if width == 128 else 9
+    draw.ellipse((icon_x, icon_y, icon_x + 14, icon_y + 14), fill=(255, 196, 58))
+    for line in [
+        (icon_x + 7, icon_y - 4, icon_x + 7, icon_y - 2),
+        (icon_x + 7, icon_y + 16, icon_x + 7, icon_y + 19),
+        (icon_x - 4, icon_y + 7, icon_x - 1, icon_y + 7),
+        (icon_x + 15, icon_y + 7, icon_x + 18, icon_y + 7),
+    ]:
         draw.line(line, fill=(255, 226, 110))
-    draw.line((icon_x - 3, 28, icon_x + 19, 28), fill=(60, 180, 225))
+    draw.line((icon_x - 3, icon_y + 18, icon_x + 19, icon_y + 18), fill=(60, 180, 225))
 
     mode = opts.get("mode", "both")
     if mode == "sunrise":
@@ -88,7 +94,10 @@ def render(options=None):
         rows = [("RISE", sunrise, (255, 210, 80)), ("SET", sunset, (255, 125, 80))]
 
     x = 54 if width == 128 else 27
-    y = -4 if width == 128 and len(rows) == 2 else (-2 if len(rows) == 2 else 2)
+    if width == 128:
+        y = -4 if len(rows) == 2 else 2
+    else:
+        y = -3 if len(rows) == 2 else 1
     for label, value, color in rows:
         draw_sharp_text(image, (x, y), label, color, font)
         draw_sharp_text(image, (x, y + 8), value, (235, 245, 255), bold)
