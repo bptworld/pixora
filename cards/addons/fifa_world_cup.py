@@ -490,4 +490,6 @@ def render(options=None):
     if not event:
         return None
     width = 128 if opts.get("_target") == "matrixportal-s3-128x32" else 64
-    return _render_event(event, width)
+    competition = (event.get("competitions") or [{}])[0]
+    state = ((competition.get("status") or {}).get("type") or {}).get("state")
+    return {"body": _render_event(event, width), "_sports_live": state == "in"}

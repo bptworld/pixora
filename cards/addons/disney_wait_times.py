@@ -363,10 +363,27 @@ def _draw_ride_row(img, y, ride, fonts, wide=False, x_offset=1, show_minutes=Tru
     from PIL import ImageDraw
 
     draw = ImageDraw.Draw(img)
-    wait = "--" if ride["open"] and ride["wait"] is None else str(ride["wait"]) if ride["open"] else "X"
-    wait_label = f"{wait}M" if show_minutes and ride["open"] and wait not in ("--", "X") else wait
-    color = (130, 150, 170) if ride["wait"] is None else (120, 255, 150) if ride["wait"] <= 20 else (255, 220, 80) if ride["wait"] <= 50 else (255, 100, 95)
-    slot_box = draw.textbbox((0, 0), "888M" if show_minutes else "888", font=fonts["number"])
+    status = _safe_text(ride.get("status")).upper()
+    if ride["open"]:
+        wait = "--" if ride["wait"] is None else str(ride["wait"])
+        wait_label = f"{wait}M" if show_minutes and wait != "--" else wait
+    elif "DOWN" in status:
+        wait_label = "DOWN"
+    elif "REFURB" in status:
+        wait_label = "REFURB" if wide else "REF"
+    elif status:
+        wait_label = "CLOSED" if wide else "CLSD"
+    else:
+        wait_label = "CLSD"
+    color = (
+        (255, 100, 95) if not ride["open"]
+        else (130, 150, 170) if ride["wait"] is None
+        else (120, 255, 150) if ride["wait"] <= 20
+        else (255, 220, 80) if ride["wait"] <= 50
+        else (255, 100, 95)
+    )
+    slot_hint = "CLOSED" if wide else "CLSD"
+    slot_box = draw.textbbox((0, 0), slot_hint, font=fonts["number"])
     slot_w = slot_box[2] - slot_box[0]
     wait_box = draw.textbbox((0, 0), wait_label, font=fonts["number"])
     wait_w = wait_box[2] - wait_box[0]

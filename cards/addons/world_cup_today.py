@@ -289,4 +289,6 @@ def render(options=None):
         data = _scoreboard()
     except Exception:
         return render_text_webp("WC ERR", (238, 80, 80))
-    return _render_rows(_events_for_today(data.get("events") or [], city), width)
+    events = _events_for_today(data.get("events") or [], city)
+    live = any(_event_state(event) == "in" for event in events)
+    return {"body": _render_rows(events, width), "_sports_live": live}

@@ -1170,7 +1170,11 @@ def dated_scoreboard_url(url):
 
 def render_sport_card(options, url, cache, status_color, fallback_text):
     from PIL import Image, ImageDraw, ImageFont
-    favorite = (options or {}).get("favoriteTeam", "")
+    opts = options or {}
+    sports_meta = opts.get("_sports_meta")
+    if isinstance(sports_meta, dict):
+        sports_meta.update({"has_event": False, "live": False, "state": ""})
+    favorite = opts.get("favoriteTeam", "")
     data = fetch_sport_scoreboard(url, cache, favorite, seconds=15)
     event = pick_sport_event(data.get("events", []), favorite)
     if not event:
@@ -1184,6 +1188,8 @@ def render_sport_card(options, url, cache, status_color, fallback_text):
     away_team = away.get("team", {})
     home_team = home.get("team", {})
     state = competition.get("status", {}).get("type", {}).get("state")
+    if isinstance(sports_meta, dict):
+        sports_meta.update({"has_event": True, "live": state == "in", "state": state or ""})
 
     if state == "in":
         cache_secs = 15

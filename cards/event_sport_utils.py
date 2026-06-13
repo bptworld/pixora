@@ -239,6 +239,9 @@ def _render_scrolling_leaders(rows, title, color, icon, font, bold, hide_score=F
 def render_event_sport_card(sport, league, title, color, fallback, icon="race", scroll_leaders=False, hide_score=False, options=None, leaderboard_only=False):
     from PIL import Image, ImageDraw, ImageFont
     opts = options or {}
+    sports_meta = opts.get("_sports_meta")
+    if isinstance(sports_meta, dict):
+        sports_meta.update({"has_event": False, "live": False, "state": ""})
     width = 128 if opts.get("_target") == "matrixportal-s3-128x32" else 64
 
     event = None
@@ -265,6 +268,9 @@ def render_event_sport_card(sport, league, title, color, fallback, icon="race", 
             return render_text_webp(fallback + " ERR", (238, 80, 80))
         if not event:
             return None
+    if isinstance(sports_meta, dict):
+        state = _event_state(event).get("state", "") if event else ""
+        sports_meta.update({"has_event": bool(event), "live": state == "in", "state": state})
 
     try:
         font = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)

@@ -333,6 +333,6 @@ def render(options=None):
         state = _event_state(knockout)
         exact = _event_has_team(knockout, selected)
         if exact or state != "pre":
-            return _render_matchup(knockout, selected, width, font, bold)
+            return {"body": _render_matchup(knockout, selected, width, font, bold), "_sports_live": state == "in"}
 
     return _render_group(child, entries, selected, width, font, bold)
