@@ -151,11 +151,107 @@ def _draw_badge(image, draw, team, color, default_label):
     if logo:
         image.alpha_composite(logo, (0, 5))
         return
+    if _draw_flag_badge(draw, (team or {}).get("flagCode")):
+        return
     draw.rounded_rectangle((0, 4, 25, 28), radius=2, outline=color, width=2, fill=(4, 7, 9, 255))
     abbr = str((team or {}).get("abbreviation") or (team or {}).get("shortDisplayName") or default_label).upper()[:3]
     font = fit_font(abbr, 21, (9, 8, 7, 6))
     bbox = draw.textbbox((0, 0), abbr, font=font)
     draw_sharp_text(image, (13 - (bbox[2] - bbox[0]) // 2, 11), abbr, color, font)
+
+
+def _draw_flag_badge(draw, code):
+    code = str(code or "").strip().upper()
+    if code not in {
+        "ARG", "AUS", "BRA", "CAN", "ENG", "ESP", "FRA", "GER", "ITA",
+        "JPN", "KOR", "MEX", "NED", "POR", "USA",
+    }:
+        return False
+    x0, y0, x1, y1 = 1, 7, 24, 25
+    draw.rounded_rectangle((0, 5, 25, 27), radius=2, fill=(4, 7, 9, 255), outline=(224, 232, 238, 255))
+    draw.rectangle((x0, y0, x1, y1), fill=(245, 245, 245, 255))
+
+    def hstripe(colors):
+        stripe_h = max(1, (y1 - y0 + 1) // len(colors))
+        y = y0
+        for index, value in enumerate(colors):
+            bottom = y1 if index == len(colors) - 1 else min(y1, y + stripe_h - 1)
+            draw.rectangle((x0, y, x1, bottom), fill=value + (255,))
+            y = bottom + 1
+
+    def vstripe(colors):
+        stripe_w = max(1, (x1 - x0 + 1) // len(colors))
+        x = x0
+        for index, value in enumerate(colors):
+            right = x1 if index == len(colors) - 1 else min(x1, x + stripe_w - 1)
+            draw.rectangle((x, y0, right, y1), fill=value + (255,))
+            x = right + 1
+
+    red = (200, 22, 45)
+    blue = (0, 56, 168)
+    dark_blue = (0, 38, 84)
+    green = (0, 122, 61)
+    yellow = (255, 205, 0)
+    black = (20, 20, 20)
+    white = (245, 245, 245)
+
+    if code == "USA":
+        hstripe([red, white, red, white, red, white, red])
+        draw.rectangle((x0, y0, x0 + 9, y0 + 8), fill=dark_blue + (255,))
+        for sx in (x0 + 2, x0 + 5, x0 + 8):
+            for sy in (y0 + 2, y0 + 5):
+                draw.point((sx, sy), fill=white + (255,))
+    elif code == "CAN":
+        vstripe([red, white, red])
+        draw.rectangle((x0 + 11, y0 + 7, x0 + 13, y0 + 12), fill=red + (255,))
+        draw.rectangle((x0 + 9, y0 + 9, x0 + 15, y0 + 10), fill=red + (255,))
+    elif code == "MEX":
+        vstripe([green, white, red])
+        draw.rectangle((x0 + 11, y0 + 8, x0 + 13, y0 + 10), fill=(154, 116, 52, 255))
+    elif code == "ARG":
+        hstripe([(116, 172, 223), white, (116, 172, 223)])
+        draw.rectangle((x0 + 11, y0 + 8, x0 + 13, y0 + 10), fill=yellow + (255,))
+    elif code == "BRA":
+        draw.rectangle((x0, y0, x1, y1), fill=(0, 156, 59, 255))
+        draw.polygon([(12, y0 + 2), (x1 - 2, 16), (12, y1 - 2), (x0 + 2, 16)], fill=yellow + (255,))
+        draw.ellipse((9, 12, 15, 18), fill=(0, 39, 118, 255))
+    elif code == "ENG":
+        draw.rectangle((x0, y0, x1, y1), fill=white + (255,))
+        draw.rectangle((x0 + 10, y0, x0 + 13, y1), fill=red + (255,))
+        draw.rectangle((x0, y0 + 8, x1, y0 + 11), fill=red + (255,))
+    elif code == "FRA":
+        vstripe([(0, 35, 149), white, (237, 41, 57)])
+    elif code == "GER":
+        hstripe([black, (221, 0, 0), yellow])
+    elif code == "ESP":
+        hstripe([(198, 11, 30), yellow, (198, 11, 30)])
+        draw.rectangle((x0 + 5, y0 + 8, x0 + 7, y0 + 11), fill=(126, 61, 24, 255))
+    elif code == "POR":
+        draw.rectangle((x0, y0, x0 + 9, y1), fill=(0, 102, 0, 255))
+        draw.rectangle((x0 + 10, y0, x1, y1), fill=(255, 0, 0, 255))
+        draw.rectangle((x0 + 8, y0 + 8, x0 + 11, y0 + 11), fill=yellow + (255,))
+    elif code == "ITA":
+        vstripe([(0, 146, 70), white, (206, 43, 55)])
+    elif code == "NED":
+        hstripe([(174, 28, 40), white, (33, 70, 139)])
+    elif code == "JPN":
+        draw.rectangle((x0, y0, x1, y1), fill=white + (255,))
+        draw.ellipse((9, 11, 16, 18), fill=(188, 0, 45, 255))
+    elif code == "KOR":
+        draw.rectangle((x0, y0, x1, y1), fill=white + (255,))
+        draw.pieslice((8, 10, 17, 19), 0, 180, fill=(205, 46, 58, 255))
+        draw.pieslice((8, 10, 17, 19), 180, 360, fill=(0, 71, 160, 255))
+        for px, py in ((4, 9), (20, 9), (4, 21), (20, 21)):
+            draw.line((px, py, px + 3, py), fill=black + (255,))
+    elif code == "AUS":
+        draw.rectangle((x0, y0, x1, y1), fill=(0, 0, 139, 255))
+        draw.rectangle((x0, y0, x0 + 10, y0 + 8), fill=(20, 34, 90, 255))
+        draw.rectangle((x0 + 4, y0, x0 + 6, y0 + 8), fill=white + (255,))
+        draw.rectangle((x0, y0 + 3, x0 + 10, y0 + 5), fill=white + (255,))
+        for sx, sy in ((17, 12), (20, 19), (13, 21)):
+            draw.rectangle((sx, sy, sx + 1, sy + 1), fill=white + (255,))
+    draw.rectangle((x0, y0, x1, y1), outline=(232, 238, 242, 255))
+    return True
 
 
 def _draw_sport_mark(draw, sport, x, y, color, alt, phase=0):

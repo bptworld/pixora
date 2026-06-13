@@ -170,12 +170,14 @@ def _animation_width(options):
 
 
 def _team_for_animation(team, width):
+    abbr = (team or {}).get("abbreviation") or (team or {}).get("shortDisplayName") or "FC"
     return {
         **(team or {}),
-        "abbreviation": (team or {}).get("abbreviation") or (team or {}).get("shortDisplayName") or "FC",
+        "abbreviation": abbr,
         "color": (team or {}).get("color") or "46DC7D",
         "alternateColor": (team or {}).get("alternateColor") or "FFFFFF",
         "logo": (team or {}).get("logo") or (((team or {}).get("logos") or [{}])[0].get("href") if (team or {}).get("logos") else ""),
+        "flagCode": str(abbr or "").upper(),
         "_width": width,
     }
 
@@ -198,6 +200,85 @@ def _render_goal_animation(team, kind="goal"):
         quality=100,
     )
     return out.getvalue()
+
+
+def _draw_small_flag(draw, box, code):
+    code = str(code or "").strip().upper()
+    if code not in {"ARG", "AUS", "BRA", "CAN", "ENG", "ESP", "FRA", "GER", "ITA", "JPN", "KOR", "MEX", "NED", "POR", "USA"}:
+        return False
+    x0, y0, x1, y1 = box
+    red = (200, 22, 45)
+    blue = (0, 56, 168)
+    dark_blue = (0, 38, 84)
+    green = (0, 122, 61)
+    yellow = (255, 205, 0)
+    black = (20, 20, 20)
+    white = (245, 245, 245)
+    draw.rectangle((x0, y0, x1, y1), fill=white, outline=(210, 220, 226))
+
+    def hstripe(colors):
+        height = y1 - y0 + 1
+        stripe_h = max(1, height // len(colors))
+        y = y0
+        for index, color in enumerate(colors):
+            bottom = y1 if index == len(colors) - 1 else min(y1, y + stripe_h - 1)
+            draw.rectangle((x0, y, x1, bottom), fill=color)
+            y = bottom + 1
+
+    def vstripe(colors):
+        width = x1 - x0 + 1
+        stripe_w = max(1, width // len(colors))
+        x = x0
+        for index, color in enumerate(colors):
+            right = x1 if index == len(colors) - 1 else min(x1, x + stripe_w - 1)
+            draw.rectangle((x, y0, right, y1), fill=color)
+            x = right + 1
+
+    if code == "USA":
+        hstripe([red, white, red, white, red])
+        draw.rectangle((x0, y0, x0 + 5, y0 + 5), fill=dark_blue)
+        draw.point((x0 + 2, y0 + 2), fill=white)
+        draw.point((x0 + 4, y0 + 4), fill=white)
+    elif code == "CAN":
+        vstripe([red, white, red])
+        draw.rectangle((x0 + 6, y0 + 4, x0 + 8, y0 + 7), fill=red)
+    elif code == "MEX":
+        vstripe([green, white, red])
+    elif code == "ARG":
+        hstripe([(116, 172, 223), white, (116, 172, 223)])
+        draw.point((x0 + 7, y0 + 5), fill=yellow)
+    elif code == "BRA":
+        draw.rectangle((x0, y0, x1, y1), fill=(0, 156, 59), outline=(210, 220, 226))
+        draw.polygon([(x0 + 7, y0 + 1), (x1 - 1, y0 + 5), (x0 + 7, y1 - 1), (x0 + 1, y0 + 5)], fill=yellow)
+        draw.rectangle((x0 + 6, y0 + 4, x0 + 8, y0 + 6), fill=blue)
+    elif code == "ENG":
+        draw.rectangle((x0 + 6, y0, x0 + 8, y1), fill=red)
+        draw.rectangle((x0, y0 + 4, x1, y0 + 6), fill=red)
+    elif code == "FRA":
+        vstripe([(0, 35, 149), white, (237, 41, 57)])
+    elif code == "GER":
+        hstripe([black, (221, 0, 0), yellow])
+    elif code == "ESP":
+        hstripe([(198, 11, 30), yellow, (198, 11, 30)])
+    elif code == "POR":
+        draw.rectangle((x0, y0, x0 + 5, y1), fill=(0, 102, 0))
+        draw.rectangle((x0 + 6, y0, x1, y1), fill=(255, 0, 0))
+        draw.point((x0 + 6, y0 + 5), fill=yellow)
+    elif code == "ITA":
+        vstripe([(0, 146, 70), white, (206, 43, 55)])
+    elif code == "NED":
+        hstripe([(174, 28, 40), white, (33, 70, 139)])
+    elif code == "JPN":
+        draw.ellipse((x0 + 4, y0 + 2, x1 - 4, y1 - 2), fill=(188, 0, 45))
+    elif code == "KOR":
+        draw.pieslice((x0 + 4, y0 + 2, x1 - 4, y1 - 2), 0, 180, fill=(205, 46, 58))
+        draw.pieslice((x0 + 4, y0 + 2, x1 - 4, y1 - 2), 180, 360, fill=(0, 71, 160))
+    elif code == "AUS":
+        draw.rectangle((x0, y0, x1, y1), fill=(0, 0, 139), outline=(210, 220, 226))
+        draw.point((x0 + 10, y0 + 4), fill=white)
+        draw.point((x0 + 12, y0 + 8), fill=white)
+    draw.rectangle((x0, y0, x1, y1), outline=(210, 220, 226))
+    return True
 
 
 def _maybe_goal_animation(options):
@@ -303,30 +384,47 @@ def _render_event(event, width):
     if status_w <= width - 56:
         draw_sharp_text(image, (width - status_w - 1, -3), status, (165, 190, 185), font)
 
+    def draw_logo_or_flag(team, xy, size):
+        logo = _logo(team, size)
+        if logo:
+            image.paste(logo, xy, logo)
+            return True
+        return _draw_small_flag(draw, (xy[0], xy[1] + 2, xy[0] + size - 1, xy[1] + size - 4), team.get("abbreviation"))
+
     if width == 128:
         logo_size = 22
-        away_logo = _logo(away_team, logo_size)
-        home_logo = _logo(home_team, logo_size)
-        if away_logo:
-            image.paste(away_logo, (1, 8), away_logo)
-        if home_logo:
-            image.paste(home_logo, (105, 8), home_logo)
+        away_has_mark = draw_logo_or_flag(away_team, (1, 8), logo_size)
+        home_has_mark = draw_logo_or_flag(home_team, (105, 8), logo_size)
         score_w = draw.textbbox((0, 0), score, font=bold)[2]
         draw.rounded_rectangle((64 - score_w // 2 - 5, 10, 64 + (score_w + 1) // 2 + 5, 23), radius=3, fill=(15, 27, 34), outline=(52, 78, 88))
         _center_text(image, draw, score, 10, bold, (245, 250, 255), 0, 127)
         away_abbr = (away_team.get("abbreviation") or "AWY")[:3].upper()
         home_abbr = (home_team.get("abbreviation") or "HME")[:3].upper()
-        draw_sharp_text(image, (26, 13), away_abbr, (245, 250, 255), bold)
+        if not away_has_mark:
+            draw_sharp_text(image, (26, 13), away_abbr, (245, 250, 255), bold)
         home_w = draw.textbbox((0, 0), home_abbr, font=bold)[2]
-        draw_sharp_text(image, (102 - home_w, 13), home_abbr, (245, 250, 255), bold)
+        if not home_has_mark:
+            draw_sharp_text(image, (102 - home_w, 13), home_abbr, (245, 250, 255), bold)
         detail = (event.get("name") or event.get("shortName") or "")[:24].upper()
         _center_text(image, draw, detail, 23, font, (130, 160, 170), 24, 103)
     else:
         away_abbr = (away_team.get("abbreviation") or "AWY")[:3].upper()
         home_abbr = (home_team.get("abbreviation") or "HME")[:3].upper()
-        draw_sharp_text(image, (1, 10), away_abbr, (245, 250, 255), bold)
+        away_logo = _logo(away_team, 13)
+        home_logo = _logo(home_team, 13)
+        if away_logo:
+            image.paste(away_logo, (1, 10), away_logo)
+        elif _draw_small_flag(draw, (1, 12, 14, 20), away_abbr):
+            pass
+        else:
+            draw_sharp_text(image, (1, 10), away_abbr, (245, 250, 255), bold)
         home_w = draw.textbbox((0, 0), home_abbr, font=bold)[2]
-        draw_sharp_text(image, (63 - home_w, 10), home_abbr, (245, 250, 255), bold)
+        if home_logo:
+            image.paste(home_logo, (50, 10), home_logo)
+        elif _draw_small_flag(draw, (49, 12, 62, 20), home_abbr):
+            pass
+        else:
+            draw_sharp_text(image, (63 - home_w, 10), home_abbr, (245, 250, 255), bold)
         _center_text(image, draw, score, 10, bold, (245, 250, 255), 0, 63)
         _center_text(image, draw, status[:14], 22, font, (130, 160, 170), 0, 63)
 
