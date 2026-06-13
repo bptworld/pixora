@@ -2,7 +2,7 @@
 
 Add-on cards for the [Pixora](https://github.com/bptworld/pixora) display system.
 
-## Available Cards - 122
+## Available Cards - 123
 
 ### Finance
 
@@ -116,6 +116,7 @@ Add-on cards for the [Pixora](https://github.com/bptworld/pixora) display system
 | Airport Board | Low-credit FR24 arrival and departure board |
 | Airport Delays | FAA delay status |
 | Commute Time | Drive time estimate |
+| Disney Park Hours | Today's Disney park hours |
 | Disney Wait Times | Live Disney park waits |
 | Flight Tracker | Flightradar24 live and summary tracking |
 | Flights Overhead | Live flights above you |

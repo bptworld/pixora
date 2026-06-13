@@ -21,16 +21,61 @@ _PARK_ICONS = [
     "tree-of-life.png",
     "tower-of-terror.png",
     "spaceship-earth.png",
+    "typhoon-lagoon.png",
+    "blizzard-beach.png",
+    "sleeping-beauty-castle.png",
+    "california-adventure-wheel.png",
 ]
+
+
+def _draw_magic_sky(image, draw):
+    width = image.width
+    for y in range(32):
+        if y < 9:
+            color = (18, 10, 38)
+        else:
+            blend = (y - 9) / 22
+            color = (
+                round(10 + 8 * (1 - blend)),
+                round(7 + 5 * (1 - blend)),
+                round(22 + 18 * (1 - blend)),
+            )
+        draw.line((0, y, width - 1, y), fill=color)
+    stars = [
+        (5, 11, 0), (13, 25, 1), (22, 14, 2), (39, 28, 0), (51, 12, 1),
+        (width - 8, 16, 2), (width - 18, 25, 0), (width // 2 - 19, 10, 1),
+        (width // 2 + 25, 28, 2),
+    ]
+    for x, y, kind in stars:
+        if 0 <= x < width:
+            color = [(255, 245, 170), (190, 230, 255), (255, 180, 230)][kind]
+            draw.point((x, y), fill=color)
+            if kind == 0 and 1 <= x < width - 1 and 1 <= y < 31:
+                draw.point((x - 1, y), fill=(210, 180, 110))
+                draw.point((x + 1, y), fill=(210, 180, 110))
+                draw.point((x, y - 1), fill=(210, 180, 110))
+                draw.point((x, y + 1), fill=(210, 180, 110))
+    twinkles = [
+        (9, 29, 0.55), (width - 12, 30, 0.5), (width // 2 + 6, 12, 0.45),
+        (width // 2 - 30, 18, 0.45), (width // 2 + 34, 11, 0.4),
+        (width - 31, 21, 0.5), (31, 20, 0.45),
+    ]
+    for x, y, chance in twinkles:
+        if random.random() > chance:
+            continue
+        if 1 <= x < width - 1:
+            draw.point((x, y), fill=(255, 255, 235))
+            draw.point((x + 1, y), fill=(180, 150, 255))
 
 
 def _draw_base(image, draw, header_font):
     width = image.width
-    image.paste((8, 5, 18), (0, 0, width, 32))
-    label = "DISNEY COUNTDOWN" if width == 128 else "DISNEY"
+    _draw_magic_sky(image, draw)
+    label = "DISNEY MAGIC" if width == 128 else "DISNEY"
     w = draw.textbbox((0, 0), label, font=header_font)[2]
     draw_sharp_text(image, ((width - w) // 2 if width == 128 else 1, -3), label, (255, 210, 50), header_font)
-    draw.line((0, 8, width - 1, 8), fill=(60, 45, 10))
+    draw.line((0, 8, width - 1, 8), fill=(125, 82, 210))
+    draw.line((0, 9, width - 1, 9), fill=(55, 34, 110))
 
 
 def _draw_mickey(draw, cx, cy):
@@ -338,6 +383,20 @@ def render(options=None):
         img.save(buf, "WEBP", lossless=True, quality=100)
         return buf.getvalue()
 
+    def frames_to_webp(frames, duration=500):
+        buf = BytesIO()
+        frames[0].save(
+            buf,
+            "WEBP",
+            save_all=True,
+            append_images=frames[1:],
+            duration=duration,
+            loop=0,
+            lossless=True,
+            quality=100,
+        )
+        return buf.getvalue()
+
     # Toggle: default True so the very first render is always the intro
     show_intro = _SHOW_INTRO.get(device_id, True)
 
@@ -349,6 +408,12 @@ def render(options=None):
     else:
         _SHOW_INTRO[device_id] = True   # next render: intro again
         icon_path = _current_cycle_icon(device_id)
-        body = to_webp(_build_countdown_frame(days, header_font, countdown_font, tiny_font, width, 1.0, icon_path) if width <= 64 else _build_128_reveal_frame(days, header_font, reveal_font, reveal_word_font, 1.0, icon_path))
+        frames = [
+            _build_countdown_frame(days, header_font, countdown_font, tiny_font, width, 1.0, icon_path)
+            if width <= 64
+            else _build_128_reveal_frame(days, header_font, reveal_font, reveal_word_font, 1.0, icon_path)
+            for _ in range(6)
+        ]
+        body = frames_to_webp(frames, 500)
         _finish_cycle_icon(device_id)
         return {"body": body, "dwell_secs": dwell - 3}

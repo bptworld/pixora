@@ -711,6 +711,7 @@ CUSTOM = {
     "countdown": lambda: _message("COUNTDOWN", "14 DAYS", "VACATION", (80, 180, 255)),
     "countdown_confetti": lambda: _message("COUNTDOWN", "14 DAYS", "CONFETTI", (255, 120, 190)),
     "disney": lambda: _message("DISNEY", "42 DAYS", "MAGIC", (255, 210, 80)),
+    "disney_park_hours": lambda: _message("MAGIC", "9A-10P", "EE 8:30A", (120, 205, 255)),
     "disney_wait_times": lambda: _message("DISNEY", "75 MIN", "WAIT", (120, 205, 255)),
     "gcal": lambda: _message("CALENDAR", "MEETING", "2:30PM", (80, 180, 255)),
     "moon_phase": lambda: _message("MOON", "WAXING", "61%", (200, 220, 255)),

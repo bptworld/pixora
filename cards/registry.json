@@ -1094,6 +1094,17 @@
       "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/disney_wait_times.webp"
     },
     {
+      "id": "disney_park_hours",
+      "name": "Disney Park Hours",
+      "category": "Travel",
+      "detail": "Today's Disney park hours",
+      "description": "Today's Disney park hours",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/addons/disney_park_hours.py",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/disney_park_hours.webp"
+    },
+    {
       "id": "github_issues_watch",
       "name": "GitHub Issues Watch",
       "category": "Utility",

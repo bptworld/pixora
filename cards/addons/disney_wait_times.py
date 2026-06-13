@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
+import random
 import re
 
 from card_utils import draw_sharp_text, fetch_json_request
@@ -15,8 +16,10 @@ _PARKS = [
     {"value": "47f90d2c-e191-4239-a466-5892ef59a88b", "label": "EPCOT"},
     {"value": "288747d1-8b4f-4a64-867e-ea7c9b27bad8", "label": "Hollywood Studios"},
     {"value": "1c84a229-8862-4648-9c71-378ddd2c7693", "label": "Animal Kingdom"},
-    {"value": "832fcd51-ea19-4e77-85c7-75d5843b127c", "label": "Disneyland Park"},
-    {"value": "30ea578c-adc8-4116-a54d-dccb60765ef9", "label": "California Adventure"},
+    {"value": "b070cbc5-feaa-4b87-a8c1-f94cca037a18", "label": "Typhoon Lagoon"},
+    {"value": "ead53ea5-22e5-4095-9a83-8c29300d7c63", "label": "Blizzard Beach"},
+    {"value": "7340550b-c14d-4def-80bb-acdb51d49a66", "label": "Disneyland Park"},
+    {"value": "832fcd51-ea19-4e77-85c7-75d5843b127c", "label": "California Adventure"},
 ]
 
 CARD_OPTIONS = [
@@ -50,6 +53,10 @@ _PARK_ASSETS = {
     "47f90d2c-e191-4239-a466-5892ef59a88b": "spaceship-earth.png",
     "288747d1-8b4f-4a64-867e-ea7c9b27bad8": "tower-of-terror.png",
     "1c84a229-8862-4648-9c71-378ddd2c7693": "tree-of-life.png",
+    "b070cbc5-feaa-4b87-a8c1-f94cca037a18": "typhoon-lagoon.png",
+    "ead53ea5-22e5-4095-9a83-8c29300d7c63": "blizzard-beach.png",
+    "7340550b-c14d-4def-80bb-acdb51d49a66": "sleeping-beauty-castle.png",
+    "832fcd51-ea19-4e77-85c7-75d5843b127c": "california-adventure-wheel.png",
 }
 _SAMPLE = [
     {"id": "sample-tiana", "entityType": "ATTRACTION", "name": "Tiana's Bayou Adventure", "status": "OPERATING", "queue": {"STANDBY": {"waitTime": 75}}},
@@ -79,7 +86,15 @@ def _park_label(park_id):
     for park in _PARKS:
         if park["value"] == park_id:
             label = park["label"]
-            return {"Magic Kingdom": "MK", "Hollywood Studios": "DHS", "Animal Kingdom": "DAK", "Disneyland Park": "DLR"}.get(label, label.upper())
+            return {
+                "Magic Kingdom": "MK",
+                "Hollywood Studios": "DHS",
+                "Animal Kingdom": "DAK",
+                "Typhoon Lagoon": "TL",
+                "Blizzard Beach": "BB",
+                "Disneyland Park": "DLR",
+                "California Adventure": "DCA",
+            }.get(label, label.upper())
     return "DISNEY"
 
 
@@ -254,11 +269,75 @@ def _fonts():
 
 
 def _draw_header(img, draw, fonts, park, age):
-    draw.rectangle((0, 0, img.width, 8), fill=(18, 26, 48))
-    draw_sharp_text(img, (1, -3), park, (120, 205, 255), fonts["header"])
+    draw.rectangle((0, 0, img.width, 8), fill=(26, 14, 52))
+    if random.random() < 0.75:
+        draw.point((img.width // 2, 2), fill=(255, 245, 170))
+        draw.point((img.width // 2 + 1, 2), fill=(210, 180, 255))
+    if img.width >= 128:
+        if random.random() < 0.55:
+            draw.point((img.width // 2 - 18, 5), fill=(190, 230, 255))
+        if random.random() < 0.55:
+            draw.point((img.width // 2 + 24, 4), fill=(255, 180, 230))
+            draw.point((img.width // 2 + 25, 4), fill=(255, 245, 170))
+    draw_sharp_text(img, (1, -3), park, (255, 218, 84), fonts["header"])
     label = age or "LIVE"
     box = draw.textbbox((0, 0), label, font=fonts["tiny"])
-    draw_sharp_text(img, (img.width - (box[2] - box[0]) - 1, 0), label, (255, 210, 80), fonts["tiny"])
+    draw_sharp_text(img, (img.width - (box[2] - box[0]) - 1, 0), label, (120, 225, 255), fonts["tiny"])
+    draw.line((0, 8, img.width - 1, 8), fill=(135, 86, 220))
+
+
+def _draw_magic_background(img, draw):
+    for y in range(32):
+        if y < 9:
+            continue
+        blend = (y - 9) / 22
+        color = (
+            round(7 + 6 * (1 - blend)),
+            round(8 + 4 * (1 - blend)),
+            round(20 + 22 * (1 - blend)),
+        )
+        draw.line((0, y, img.width - 1, y), fill=color)
+    for x, y, color, chance in [
+        (8, 13, (255, 245, 170), 0.65),
+        (13, 21, (255, 180, 230), 0.45),
+        (20, 28, (150, 220, 255), 0.5),
+        (31, 11, (255, 245, 170), 0.45),
+        (img.width - 7, 16, (255, 180, 230), 0.55),
+        (img.width - 12, 23, (150, 220, 255), 0.5),
+        (img.width - 19, 27, (255, 245, 170), 0.6),
+        (img.width // 2 + 3, 30, (255, 245, 170), 0.45),
+    ]:
+        if random.random() > chance:
+            continue
+        if 0 <= x < img.width:
+            draw.point((x, y), fill=color)
+            if color == (255, 245, 170) and 1 <= x < img.width - 1:
+                draw.point((x + 1, y), fill=(120, 90, 180))
+
+
+def _draw_twinkles(img, seed):
+    from PIL import ImageDraw
+
+    draw = ImageDraw.Draw(img)
+    rng = random.Random(seed)
+    palette = [(255, 255, 235), (255, 230, 110), (155, 220, 255), (255, 170, 230)]
+    zones = [
+        (1, 10, img.width - 2, 13),
+        (1, 27, img.width - 2, 30),
+        (1, 14, 13, 25),
+        (img.width - 14, 14, img.width - 2, 25),
+    ]
+    for index in range(7 if img.width >= 128 else 5):
+        x1, y1, x2, y2 = zones[index % len(zones)]
+        x = rng.randint(x1, x2)
+        y = rng.randint(y1, y2)
+        color = palette[rng.randrange(len(palette))]
+        draw.point((x, y), fill=color)
+        if rng.random() < 0.55 and 1 <= x < img.width - 1 and 1 <= y < 31:
+            draw.point((x - 1, y), fill=(110, 80, 170))
+            draw.point((x + 1, y), fill=(110, 80, 170))
+            draw.point((x, y - 1), fill=(110, 80, 170))
+            draw.point((x, y + 1), fill=(110, 80, 170))
 
 
 def _draw_park_art(img, park_id, x, y, max_w, max_h):
@@ -297,12 +376,13 @@ def _draw_ride_row(img, y, ride, fonts, wide=False, x_offset=1, show_minutes=Tru
     draw_sharp_text(img, (wait_x, y - 1), wait_label, color, fonts["number"])
 
 
-def _render_card(rides, park, age, width, park_id="", row_offset=0):
+def _render_card(rides, park, age, width, park_id="", row_offset=0, sparkle_seed=None):
     from PIL import Image, ImageDraw
 
-    img = Image.new("RGB", (width, 32), (5, 8, 18))
+    img = Image.new("RGB", (width, 32), (7, 8, 20))
     draw = ImageDraw.Draw(img)
     fonts = _fonts()
+    _draw_magic_background(img, draw)
     _draw_header(img, draw, fonts, park, age)
     art_w = _draw_park_art(img, park_id, 1, 9, 27, 22) if width >= 128 else 0
     if not rides:
@@ -315,6 +395,8 @@ def _render_card(rides, park, age, width, park_id="", row_offset=0):
         y = 6 + index * 8 - row_offset
         if 6 <= y <= 22:
             _draw_ride_row(img, y, ride, fonts, wide=width >= 128, x_offset=max(1, art_w), show_minutes=width >= 128)
+    if sparkle_seed is not None:
+        _draw_twinkles(img, sparkle_seed)
     return img
 
 
@@ -330,11 +412,12 @@ def _to_webp(img, append_images=None, durations=None):
 def _render_body(rides, park, age, width, park_id):
     visible_rows = 3
     if len(rides) <= visible_rows:
-        return _to_webp(_render_card(rides, park, age, width, park_id)), 12
+        frames = [_render_card(rides, park, age, width, park_id, 0, f"{park}-{index}") for index in range(6)]
+        return _to_webp(frames[0], frames[1:], 500), 12
     row_step = 8
     max_offset = max(0, (len(rides) - visible_rows) * row_step)
     offsets = [0, 0] + list(range(0, max_offset + 1)) + [max_offset] * 4
-    frames = [_render_card(rides, park, age, width, park_id, offset) for offset in offsets]
+    frames = [_render_card(rides, park, age, width, park_id, offset, f"{park}-{index}-{offset}") for index, offset in enumerate(offsets)]
     durations = [700, 500] + [120] * (len(offsets) - 6) + [500, 700, 700, 900]
     total_secs = max(12, int(round(sum(durations) / 1000)))
     return _to_webp(frames[0], frames[1:], durations), total_secs
