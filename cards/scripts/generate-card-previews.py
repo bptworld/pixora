@@ -270,6 +270,46 @@ def _fifa_world_cup():
     return _webp(image)
 
 
+def _world_cup_today():
+    image = Image.new("RGB", (64, 32), (3, 8, 12))
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((0, 0, 63, 8), fill=(4, 24, 20))
+    draw_sharp_text(image, (1, -3), "WC TODAY", (70, 220, 125), BOLD)
+    rows = ["USA VS MEX", "CAN VS BRA", "ENG VS FRA"]
+    y = 8
+    for idx, row in enumerate(rows):
+        draw_sharp_text(image, (1, y), row, (245, 250, 255) if idx % 2 == 0 else (205, 224, 222), FONT)
+        y += 8
+    return _webp(image)
+
+
+def _world_cup_tracker():
+    image, draw = _simple_header("USA GROUP D", (70, 220, 125))
+    rows = [("1", "USA", "PTS 6"), ("2", "PAR", "PTS 4"), ("3", "AUS", "PTS 1")]
+    y = 7
+    for rank, team, pts in rows:
+        selected = team == "USA"
+        draw_sharp_text(image, (1, y), rank, (70, 220, 125), FONT)
+        draw_sharp_text(image, (8, y), team, (255, 235, 95) if selected else (245, 250, 255), BOLD)
+        w = draw.textbbox((0, 0), pts, font=FONT)[2]
+        draw_sharp_text(image, (63 - w, y), pts, (70, 220, 125) if selected else (145, 165, 182), FONT)
+        y += 8
+    return _webp(image)
+
+
+def _world_cup_golden_boot():
+    image, draw = _simple_header("GOLD BOOT", (255, 210, 80))
+    rows = [("1", "BALOGUN", "2"), ("2", "RAMOS", "1"), ("3", "MARTIN", "1")]
+    y = 7
+    for rank, name, goals in rows:
+        draw_sharp_text(image, (1, y), rank, (255, 210, 80), FONT)
+        draw_sharp_text(image, (8, y), name, (245, 250, 255), FONT)
+        w = draw.textbbox((0, 0), goals, font=BOLD)[2]
+        draw_sharp_text(image, (63 - w, y - 1), goals, (255, 210, 80), BOLD)
+        y += 8
+    return _webp(image)
+
+
 def _stock():
     image = Image.new("RGB", (64, 32), (0, 4, 8))
     draw = ImageDraw.Draw(image)
@@ -615,6 +655,9 @@ CUSTOM = {
     "soccer": lambda: _sport("78'", "BOS", "MIA", "2-1", (80, 220, 170)),
     "womens_college_volleyball": lambda: _sport("SET 3", "UK", "UCLA", "2-1", (255, 185, 85)),
     "fifa_world_cup": _fifa_world_cup,
+    "world_cup_golden_boot": _world_cup_golden_boot,
+    "world_cup_today": _world_cup_today,
+    "world_cup_tracker": _world_cup_tracker,
     "pga": lambda: _event_sport("PGA", "golf"),
     "lpga": lambda: _event_sport("LPGA", "golf"),
     "f1": lambda: _event_sport("F1", "race"),

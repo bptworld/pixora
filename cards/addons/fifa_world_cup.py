@@ -16,7 +16,7 @@ from _sports_wall import render_wall_score_frames
 CARD_ID = "fifa_world_cup"
 CARD_NAME = "FIFA World Cup"
 CARD_CATEGORY = "Sports"
-CARD_DETAIL = "World Cup match days only"
+CARD_DETAIL = "Selected team next match"
 CARD_OPTIONS = [
     {
         "key": "favoriteTeam",
@@ -62,10 +62,8 @@ _GOAL_STATE = {}
 
 def _date_range():
     today = datetime.now().astimezone().date()
-    # Query a small buffer around today because ESPN's event date can cross UTC
-    # boundaries for evening matches; the display filter below still uses local day.
     start = today - timedelta(days=1)
-    end = today + timedelta(days=1)
+    end = max(today + timedelta(days=1), datetime(today.year, 7, 31).date())
     return start.strftime("%Y%m%d"), end.strftime("%Y%m%d")
 
 
@@ -406,9 +404,15 @@ def _render_event(event, width):
     status = _status_text(event, state).upper()
 
     draw.rectangle((0, 0, width - 1, 8), fill=(4, 24, 20))
-    draw_sharp_text(image, (1, -3), "WORLD CUP", (70, 220, 125), bold)
+    header = "WORLD CUP"
+    draw_sharp_text(image, (1, -3), header, (70, 220, 125), bold)
     status_w = draw.textbbox((0, 0), status, font=font)[2]
-    if status_w <= width - 56:
+    header_w = draw.textbbox((0, 0), header, font=bold)[2]
+    available_status_w = width - header_w - 6
+    while status and status_w > available_status_w:
+        status = status[:-1].rstrip()
+        status_w = draw.textbbox((0, 0), status, font=font)[2]
+    if status:
         draw_sharp_text(image, (width - status_w - 1, -3), status, (165, 190, 185), font)
 
     def draw_logo_or_flag(team, xy, size):
@@ -482,8 +486,7 @@ def render(options=None):
         data = _scoreboard()
     except Exception:
         return None
-    todays_events = _events_for_today(data.get("events") or [], favorite)
-    event = _pick_event(todays_events, favorite)
+    event = _pick_event(data.get("events") or [], favorite)
     if not event:
         return None
     width = 128 if opts.get("_target") == "matrixportal-s3-128x32" else 64

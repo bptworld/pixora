@@ -495,12 +495,45 @@
       "id": "fifa_world_cup",
       "name": "FIFA World Cup",
       "category": "Sports",
-      "detail": "Live and upcoming World Cup matches",
-      "description": "Live and upcoming World Cup matches",
+      "detail": "Selected team next match",
+      "description": "Selected team next match",
       "author": "bptworld",
       "version": "1.0",
       "url": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/addons/fifa_world_cup.py",
       "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/fifa_world_cup.webp"
+    },
+    {
+      "id": "world_cup_today",
+      "name": "World Cup Today",
+      "category": "Sports",
+      "detail": "Today's World Cup matches",
+      "description": "Today's World Cup matches",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/addons/world_cup_today.py",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/world_cup_today.webp"
+    },
+    {
+      "id": "world_cup_golden_boot",
+      "name": "World Cup Golden Boot",
+      "category": "Sports",
+      "detail": "World Cup top scorers",
+      "description": "World Cup top scorers",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/addons/world_cup_golden_boot.py",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/world_cup_golden_boot.webp"
+    },
+    {
+      "id": "world_cup_tracker",
+      "name": "World Cup Tracker",
+      "category": "Sports",
+      "detail": "Track one World Cup team",
+      "description": "Track one World Cup team",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/addons/world_cup_tracker.py",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/world_cup_tracker.webp"
     },
     {
       "id": "lpga",
