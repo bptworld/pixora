@@ -14,6 +14,7 @@ CARD_OPTIONS = [
 ]
 
 _SHOW_INTRO = {}  # device_id -> True means next render is the intro frame
+_ICON_STATE = {}  # device_id -> {"current": Path, "last": "filename"}
 _PARK_ICONS = [
     "cinderella-castle.png",
     "mickey-sorcerer-hat.png",
@@ -55,14 +56,38 @@ def _asset_path(filename):
     return None
 
 
-def _random_icon_path():
+def _random_icon_path(exclude_name=None):
     names = list(_PARK_ICONS)
+    if exclude_name and len(names) > 1:
+        names = [name for name in names if name != exclude_name] or names
     random.shuffle(names)
     for name in names:
         path = _asset_path(name)
         if path:
             return path
     return _asset_path("cinderella-castle.png")
+
+
+def _choose_cycle_icon(device_id):
+    state = _ICON_STATE.get(device_id) or {}
+    path = _random_icon_path(state.get("last"))
+    _ICON_STATE[device_id] = {"current": path, "last": state.get("last")}
+    return path
+
+
+def _current_cycle_icon(device_id):
+    state = _ICON_STATE.get(device_id) or {}
+    path = state.get("current")
+    if path:
+        return path
+    return _choose_cycle_icon(device_id)
+
+
+def _finish_cycle_icon(device_id):
+    state = _ICON_STATE.get(device_id) or {}
+    path = state.get("current")
+    if path:
+        _ICON_STATE[device_id] = {"current": None, "last": Path(path).name}
 
 
 def _draw_park_icon(image, x, y, max_w, max_h, path=None):
@@ -315,13 +340,15 @@ def render(options=None):
 
     # Toggle: default True so the very first render is always the intro
     show_intro = _SHOW_INTRO.get(device_id, True)
-    icon_path = _random_icon_path()
 
     if show_intro:
         _SHOW_INTRO[device_id] = False  # next render: countdown
+        icon_path = _choose_cycle_icon(device_id)
         body = _build_countdown_webp(days, header_font, countdown_font, tiny_font, width, icon_path) if width <= 64 else _build_128_reveal_webp(days, header_font, reveal_font, reveal_word_font, icon_path)
         return {"body": body, "dwell_secs": 3, "_stay": True}
     else:
         _SHOW_INTRO[device_id] = True   # next render: intro again
+        icon_path = _current_cycle_icon(device_id)
         body = to_webp(_build_countdown_frame(days, header_font, countdown_font, tiny_font, width, 1.0, icon_path) if width <= 64 else _build_128_reveal_frame(days, header_font, reveal_font, reveal_word_font, 1.0, icon_path))
+        _finish_cycle_icon(device_id)
         return {"body": body, "dwell_secs": dwell - 3}
