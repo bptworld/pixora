@@ -44,7 +44,7 @@ def _plain_text(value):
     return "".join(ch for ch in text if not unicodedata.combining(ch))
 
 
-def _leaders(limit=10):
+def _leaders(limit=9):
     data = _fetch_json(_LEADERS_URL, seconds=300)
     category = next((cat for cat in data.get("categories") or [] if cat.get("name") == "goalsLeaders"), None)
     rows = []

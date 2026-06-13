@@ -4,6 +4,7 @@ from card_utils import (
     render_text_webp,
 )
 from pathlib import Path
+import random
 
 CARD_ID = "disney"
 CARD_NAME = "Disney Countdown"
@@ -13,6 +14,13 @@ CARD_OPTIONS = [
 ]
 
 _SHOW_INTRO = {}  # device_id -> True means next render is the intro frame
+_PARK_ICONS = [
+    "cinderella-castle.png",
+    "mickey-sorcerer-hat.png",
+    "tree-of-life.png",
+    "tower-of-terror.png",
+    "spaceship-earth.png",
+]
 
 
 def _draw_base(image, draw, header_font):
@@ -37,30 +45,40 @@ def _draw_mickey_outline(draw, cx, cy, color=(255, 210, 50)):
     draw.ellipse((cx + 7, cy - 16, cx + 18, cy - 5), outline=color, width=2)
 
 
-def _castle_asset_path():
+def _asset_path(filename):
     here = Path(__file__).resolve()
     for root in (here.parents[2], here.parents[3] if len(here.parents) > 3 else here.parents[2]):
-        for rel in ("graphics/assets/cinderella-castle.png", "cloud/graphics/assets/cinderella-castle.png"):
+        for rel in (f"graphics/assets/{filename}", f"cloud/graphics/assets/{filename}"):
             path = root / rel
             if path.exists():
                 return path
     return None
 
 
-def _draw_castle(image, x, y, max_w, max_h):
+def _random_icon_path():
+    names = list(_PARK_ICONS)
+    random.shuffle(names)
+    for name in names:
+        path = _asset_path(name)
+        if path:
+            return path
+    return _asset_path("cinderella-castle.png")
+
+
+def _draw_park_icon(image, x, y, max_w, max_h, path=None):
     from PIL import Image
 
-    path = _castle_asset_path()
+    path = path or _random_icon_path()
     if not path:
         return
     try:
         with Image.open(path) as source:
-            castle = source.convert("RGBA")
-            box = castle.getbbox()
+            icon = source.convert("RGBA")
+            box = icon.getbbox()
             if box:
-                castle = castle.crop(box)
-            castle.thumbnail((max_w, max_h), Image.Resampling.LANCZOS)
-            image.paste(castle, (x, y + max(0, (max_h - castle.height) // 2)), castle)
+                icon = icon.crop(box)
+            icon.thumbnail((max_w, max_h), Image.Resampling.LANCZOS)
+            image.paste(icon, (x, y + max(0, (max_h - icon.height) // 2)), icon)
     except Exception:
         return
 
@@ -155,7 +173,7 @@ def _build_intro_webp(header_font, width=64):
     return out.getvalue()
 
 
-def _build_128_reveal_frame(days, header_font, number_font, word_font, progress=1.0):
+def _build_128_reveal_frame(days, header_font, number_font, word_font, progress=1.0, icon_path=None):
     from PIL import Image, ImageDraw
 
     width = 128
@@ -167,22 +185,22 @@ def _build_128_reveal_frame(days, header_font, number_font, word_font, progress=
     if progress >= 0.18:
         _draw_128_center_countdown(img, draw, days, number_font, word_font)
 
-    castle_start = 47
-    castle_end = 0
+    icon_start = 47
+    icon_end = 0
     mickey_start = 78
     mickey_end = width - 18
-    castle_x = round(castle_start + (castle_end - castle_start) * progress)
+    icon_x = round(icon_start + (icon_end - icon_start) * progress)
     mickey_x = round(mickey_start + (mickey_end - mickey_start) * progress)
-    _draw_castle(img, castle_x, 10, 38, 21)
+    _draw_park_icon(img, icon_x, 10, 38, 21, icon_path)
     _draw_mickey_outline(draw, mickey_x, 22)
     return img
 
 
-def _build_128_reveal_webp(days, header_font, number_font, word_font):
+def _build_128_reveal_webp(days, header_font, number_font, word_font, icon_path=None):
     from io import BytesIO
 
     steps = [0.0, 0.1, 0.2, 0.32, 0.45, 0.58, 0.72, 0.86, 1.0]
-    frames = [_build_128_reveal_frame(days, header_font, number_font, word_font, progress) for progress in steps]
+    frames = [_build_128_reveal_frame(days, header_font, number_font, word_font, progress, icon_path) for progress in steps]
     frames.extend([frames[-1]] * 6)
     out = BytesIO()
     frames[0].save(
@@ -198,7 +216,7 @@ def _build_128_reveal_webp(days, header_font, number_font, word_font):
     return out.getvalue()
 
 
-def _build_countdown_frame(days, header_font, countdown_font, tiny_font, width=64, progress=1.0):
+def _build_countdown_frame(days, header_font, countdown_font, tiny_font, width=64, progress=1.0, icon_path=None):
     from PIL import Image, ImageDraw
     img = Image.new("RGB", (width, 32), (8, 5, 18))
     draw = ImageDraw.Draw(img)
@@ -208,22 +226,22 @@ def _build_countdown_frame(days, header_font, countdown_font, tiny_font, width=6
     end_x = width - (20 if width <= 64 else 24)
     cx = round(start_x + (end_x - start_x) * progress)
     cy = 22
-    castle_alpha = progress
-    if castle_alpha > 0:
-        castle_w = 22 if width <= 64 else 38
-        castle_h = 21
-        _draw_castle(img, 1 if width <= 64 else 4, 10, castle_w, castle_h)
+    icon_alpha = progress
+    if icon_alpha > 0:
+        icon_w = 22 if width <= 64 else 38
+        icon_h = 21
+        _draw_park_icon(img, 1 if width <= 64 else 4, 10, icon_w, icon_h, icon_path)
     _draw_mickey_outline(draw, cx, cy)
     if progress >= 0.55:
         _draw_countdown_in_head(img, draw, cx, cy, days, countdown_font, tiny_font)
     return img
 
 
-def _build_countdown_webp(days, header_font, countdown_font, tiny_font, width=64):
+def _build_countdown_webp(days, header_font, countdown_font, tiny_font, width=64, icon_path=None):
     from io import BytesIO
 
     steps = [0.0, 0.12, 0.25, 0.38, 0.5, 0.62, 0.75, 0.88, 1.0]
-    frames = [_build_countdown_frame(days, header_font, countdown_font, tiny_font, width, progress) for progress in steps]
+    frames = [_build_countdown_frame(days, header_font, countdown_font, tiny_font, width, progress, icon_path) for progress in steps]
     frames.extend([frames[-1]] * 6)
     out = BytesIO()
     frames[0].save(
@@ -297,12 +315,13 @@ def render(options=None):
 
     # Toggle: default True so the very first render is always the intro
     show_intro = _SHOW_INTRO.get(device_id, True)
+    icon_path = _random_icon_path()
 
     if show_intro:
         _SHOW_INTRO[device_id] = False  # next render: countdown
-        body = _build_countdown_webp(days, header_font, countdown_font, tiny_font, width) if width <= 64 else _build_128_reveal_webp(days, header_font, reveal_font, reveal_word_font)
+        body = _build_countdown_webp(days, header_font, countdown_font, tiny_font, width, icon_path) if width <= 64 else _build_128_reveal_webp(days, header_font, reveal_font, reveal_word_font, icon_path)
         return {"body": body, "dwell_secs": 3, "_stay": True}
     else:
         _SHOW_INTRO[device_id] = True   # next render: intro again
-        body = to_webp(_build_countdown_frame(days, header_font, countdown_font, tiny_font, width, 1.0) if width <= 64 else _build_128_reveal_frame(days, header_font, reveal_font, reveal_word_font, 1.0))
+        body = to_webp(_build_countdown_frame(days, header_font, countdown_font, tiny_font, width, 1.0, icon_path) if width <= 64 else _build_128_reveal_frame(days, header_font, reveal_font, reveal_word_font, 1.0, icon_path))
         return {"body": body, "dwell_secs": dwell - 3}
