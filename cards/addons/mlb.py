@@ -343,15 +343,22 @@ def _classify_latest_run(event, competitor, previous_score, current_score):
         return "run"
     plays = list(summary.get("scoringPlays") or [])
     if not plays:
-        plays = [play for play in summary.get("plays") or [] if play.get("scoringPlay")]
-    candidates = []
+        plays = []
+        seen_score = previous_score
+        for play in summary.get("plays") or []:
+            play_score = _play_score_for_competitor(play, competitor)
+            if previous_score < play_score <= current_score and play_score > seen_score:
+                plays.append(play)
+            seen_score = max(seen_score, play_score)
+    matched_candidates = []
+    score_candidates = []
     for play in plays:
-        if not _play_team_matches(play, competitor):
-            continue
         play_score = _play_score_for_competitor(play, competitor)
         if previous_score < play_score <= current_score:
-            candidates.append(play)
-    play = candidates[-1] if candidates else None
+            if _play_team_matches(play, competitor):
+                matched_candidates.append(play)
+            score_candidates.append(play)
+    play = (matched_candidates or score_candidates)[-1] if (matched_candidates or score_candidates) else None
     if not play:
         return "run"
     delta = max(0, int(current_score or 0) - int(previous_score or 0))
