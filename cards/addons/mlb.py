@@ -336,6 +336,18 @@ def _play_team_matches(play, competitor):
     return bool(play_values & team_values)
 
 
+def _play_is_bookkeeping(play):
+    play_type = play.get("type") or {}
+    type_key = str(play_type.get("type") or "").strip().lower()
+    type_id = str(play_type.get("id") or "").strip()
+    return type_key in {
+        "start-batterpitcher",
+        "end-batterpitcher",
+        "start-inning",
+        "end-inning",
+    } or type_id in {"1", "59", "60", "99"}
+
+
 def _classify_latest_run(event, competitor, previous_score, current_score):
     try:
         summary = _fetch_summary(event.get("id"))
@@ -346,6 +358,8 @@ def _classify_latest_run(event, competitor, previous_score, current_score):
         plays = []
         seen_score = previous_score
         for play in summary.get("plays") or []:
+            if _play_is_bookkeeping(play):
+                continue
             play_score = _play_score_for_competitor(play, competitor)
             if previous_score < play_score <= current_score and play_score > seen_score:
                 plays.append(play)
