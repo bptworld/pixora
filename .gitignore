@@ -3,7 +3,7 @@ build/
 releases/*
 !releases/server/
 releases/server/*
-!releases/server/PixoraSetup-v1.3.71.exe
+!releases/server/PixoraSetup-v1.3.85.exe
 !releases/cloud-server/
 releases/cloud-server/*
 !releases/cloud-server/PixoraCloudSetup-v1.3.78.exe
