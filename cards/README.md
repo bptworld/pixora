@@ -2,16 +2,19 @@
 
 Add-on cards for the [Pixora](https://github.com/bptworld/pixora) display system.
 
-## Available Cards - 134
+## Available Cards - 137
 
 ### Finance
 
 | Card | Description |
 |------|-------------|
+| Commodities Watch | Gold, oil, and metals |
 | Crypto Watch | BTC, ETH, and more |
+| Currency Rates | FX pairs and daily moves |
 | Market Indexes | Dow, S&P, Nasdaq |
 | Market Open / Closed | NYSE/Nasdaq open status |
 | Portfolio Pulse | Value and daily gain |
+| Sector Heat | ETF sector daily moves |
 | Stock Ticker | Scrolling stocks and crypto |
 
 ### Fun

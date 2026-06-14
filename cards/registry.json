@@ -14,6 +14,28 @@
       "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/crypto_watch.webp"
     },
     {
+      "id": "commodities_watch",
+      "name": "Commodities Watch",
+      "category": "Finance",
+      "detail": "Gold, oil, and metals",
+      "description": "Gold, oil, and metals",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/addons/commodities_watch.py",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/commodities_watch.webp"
+    },
+    {
+      "id": "currency_rates",
+      "name": "Currency Rates",
+      "category": "Finance",
+      "detail": "FX pairs and daily moves",
+      "description": "FX pairs and daily moves",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/addons/currency_rates.py",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/currency_rates.webp"
+    },
+    {
       "id": "market_indexes",
       "name": "Market Indexes",
       "category": "Finance",
@@ -45,6 +67,17 @@
       "version": "1.0",
       "url": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/addons/portfolio_pulse.py",
       "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/portfolio_pulse.webp"
+    },
+    {
+      "id": "sector_heat",
+      "name": "Sector Heat",
+      "category": "Finance",
+      "detail": "ETF sector daily moves",
+      "description": "ETF sector daily moves",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/addons/sector_heat.py",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/sector_heat.webp"
     },
     {
       "id": "stocks",
