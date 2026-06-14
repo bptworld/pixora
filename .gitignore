@@ -1,12 +1,12 @@
 dist/
 build/
 releases/*
+!releases/cloud-server/
+releases/cloud-server/*
+!releases/cloud-server/PixoraCloudSetup-v1.3.84.exe
 !releases/server/
 releases/server/*
 !releases/server/PixoraSetup-v1.3.85.exe
-!releases/cloud-server/
-releases/cloud-server/*
-!releases/cloud-server/PixoraCloudSetup-v1.3.78.exe
 !releases/firmware/
 releases/firmware/*
 !releases/firmware/*-ota-firmware.bin
