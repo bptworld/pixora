@@ -320,11 +320,11 @@ def _draw_boom(draw, image, width, color, alt, phase=0):
     boom_w = bbox[2] - bbox[0]
     x = max(29, (width - boom_w) // 2) - bbox[0]
     y = 2 - bbox[1]
+    center_x = x + boom_w // 2
+    _draw_firework(draw, center_x, 16, 11 + (phase % 3), color, alt, phase, width)
     for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
         draw_sharp_text(image, (x + dx, y + dy), boom, (255, 70, 44), font)
     draw_sharp_text(image, (x, y), boom, alt if phase % 2 else (255, 236, 112), font)
-    center_x = x + boom_w // 2
-    _draw_firework(draw, center_x, 16, 11 + (phase % 3), color, alt, phase, width)
 
 
 def _draw_light_tower(draw, x, y, mirror=False, phase=0):
@@ -531,29 +531,31 @@ def _render_baseball_wall_frames(team, kind="run", default_label="MLB"):
         if frame_index > 23:
             boom_font = fit_font("BOOM", 34, (10, 9, 8))
             crack_font = fit_font("CRACK", 38, (8, 7, 6))
-            draw_sharp_text(image, (5, 10), "CRACK", (245, 50, 64) if frame_index % 4 < 2 else (245, 248, 236), crack_font)
-            if width >= 128:
-                draw_sharp_text(image, (width - 52, 18), "BOOM", (38, 160, 255) if frame_index % 4 < 2 else (245, 248, 236), boom_font)
             phase = frame_index - 23
             _draw_firework(draw, int(width * 0.22), 10, 4 + (phase % 8), (245, 50, 64), alt, phase, width)
             _draw_firework(draw, int(width * 0.74), 9, 5 + ((phase + 3) % 8), color, (255, 96, 200), phase + 2, width)
             if frame_index > 30:
                 _draw_firework(draw, width - 20, 8, 4 + ((phase + 5) % 7), (38, 160, 255), alt, phase + 4, width)
+            draw_sharp_text(image, (5, 10), "CRACK", (245, 50, 64) if frame_index % 4 < 2 else (245, 248, 236), crack_font)
+            if width >= 128:
+                draw_sharp_text(image, (width - 52, 18), "BOOM", (38, 160, 255) if frame_index % 4 < 2 else (245, 248, 236), boom_font)
+            if reveal > 0:
+                _draw_baseball_wall_text(image, draw, width, headline, frame_index, color, alt, reveal=reveal)
         frames.append(image.convert("RGB"))
         durations.append(55)
 
     for frame_index in range(14):
         image, draw = _draw_ballpark_frame(width, 52 + frame_index, color, alt)
-        _draw_baseball_wall_text(image, draw, width, headline, frame_index, color, alt, reveal=1)
         crack_font = fit_font("CRACK", 38, (8, 7, 6))
-        draw_sharp_text(image, (5, 10), "CRACK", (245, 50, 64) if frame_index % 2 else (245, 248, 236), crack_font)
-        if width >= 128:
-            boom_font = fit_font("BOOM", 34, (10, 9, 8))
-            draw_sharp_text(image, (width - 52, 18), "BOOM", (38, 160, 255) if frame_index % 2 else (245, 248, 236), boom_font)
         _draw_sport_mark(draw, "baseball", width - 17, 7, color, alt, frame_index)
         _draw_firework(draw, int(width * 0.22), 10, 8 + (frame_index % 4), (245, 50, 64), alt, frame_index, width)
         _draw_firework(draw, int(width * 0.74), 9, 9 + ((frame_index + 2) % 4), color, (255, 96, 200), frame_index + 2, width)
         _draw_firework(draw, width - 20, 8, 7 + ((frame_index + 1) % 4), (38, 160, 255), alt, frame_index + 4, width)
+        draw_sharp_text(image, (5, 10), "CRACK", (245, 50, 64) if frame_index % 2 else (245, 248, 236), crack_font)
+        if width >= 128:
+            boom_font = fit_font("BOOM", 34, (10, 9, 8))
+            draw_sharp_text(image, (width - 52, 18), "BOOM", (38, 160, 255) if frame_index % 2 else (245, 248, 236), boom_font)
+        _draw_baseball_wall_text(image, draw, width, headline, frame_index, color, alt, reveal=1)
         frames.append(image.convert("RGB"))
         durations.append(90)
 
@@ -705,10 +707,6 @@ def render_wall_score_frames(team, kind="score", sport="score", default_label="T
     for i in range(12):
         image, draw = base_frame(i + 20)
         reveal = int(text_w * min(1, (i + 1) / 8))
-        draw.rectangle((panel_x0, panel_y0, panel_x1, panel_y1), fill=(2, 8, 10, 255), outline=dim(color, 0.55) + (255,))
-        draw_sharp_text(image, (text_x, text_y), headline, color if i % 2 else alt, title_font)
-        if reveal < text_w and text_x + reveal <= panel_x1:
-            draw.rectangle((text_x + reveal, panel_y0 - 1, panel_x1, panel_y1 + 1), fill=(2, 8, 10, 255))
         for sparkle in range(3):
             sx = (37 + i * 11 + sparkle * 29) % max(width, 1)
             sy = 7 + ((i + sparkle * 3) % 18)
@@ -720,13 +718,15 @@ def render_wall_score_frames(team, kind="score", sport="score", default_label="T
             _draw_firework(draw, 34 + (i % 3), 22, max(3, shell_radius - 3), alt, color, i + 2, width)
             if i in (4, 5, 6, 7):
                 _draw_boom(draw, image, width, color, alt, i)
+        draw.rectangle((panel_x0, panel_y0, panel_x1, panel_y1), fill=(2, 8, 10, 255), outline=dim(color, 0.55) + (255,))
+        draw_sharp_text(image, (text_x, text_y), headline, color if i % 2 else alt, title_font)
+        if reveal < text_w and text_x + reveal <= panel_x1:
+            draw.rectangle((text_x + reveal, panel_y0 - 1, panel_x1, panel_y1 + 1), fill=(2, 8, 10, 255))
         frames.append(image.convert("RGB"))
         durations.append(85)
 
     for i in range(8):
         image, draw = base_frame(i + 32)
-        draw.rectangle((panel_x0, panel_y0, panel_x1, panel_y1), fill=(2, 8, 10, 255), outline=(alt if i % 2 else color) + (255,))
-        draw_sharp_text(image, (text_x, text_y), headline, alt if i % 2 else color, title_font)
         _draw_sport_mark(draw, sport, impact_x, impact_y, color, alt, i)
         if is_win:
             _draw_firework(draw, 34 + ((i % 2) * 7), 8, 8 + (i % 4), color, alt, i, width)
@@ -735,6 +735,8 @@ def render_wall_score_frames(team, kind="score", sport="score", default_label="T
                 _draw_firework(draw, width // 2, 16, 12 + (i % 3), (255, 202, 64), alt, i + 8, width)
             if i < 4:
                 _draw_boom(draw, image, width, color, alt, i)
+        draw.rectangle((panel_x0, panel_y0, panel_x1, panel_y1), fill=(2, 8, 10, 255), outline=(alt if i % 2 else color) + (255,))
+        draw_sharp_text(image, (text_x, text_y), headline, alt if i % 2 else color, title_font)
         frames.append(image.convert("RGB"))
         durations.append(130)
 

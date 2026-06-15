@@ -42,6 +42,13 @@ CARD_OPTIONS = [
             {"value": "AUS", "label": "Australia"},
         ],
     },
+    {
+        "key": "onlyGameDay",
+        "label": "Only show on game day",
+        "type": "checkbox",
+        "default": False,
+        "perInstance": True,
+    },
 ]
 CARD_OPTIONS.append({
     "key": "goalAnimationTarget",
@@ -111,6 +118,12 @@ def _events_for_today(events, favorite=""):
         for event in events
         if _event_dt(event).astimezone().date() == today and _event_has_favorite(event, favorite)
     ]
+
+
+def _option_enabled(value):
+    if isinstance(value, str):
+        return value.strip().lower() in ("1", "true", "yes", "on")
+    return bool(value)
 
 
 def _pick_event(events, favorite=""):
@@ -486,7 +499,12 @@ def render(options=None):
         data = _scoreboard()
     except Exception:
         return None
-    event = _pick_event(data.get("events") or [], favorite)
+    events = data.get("events") or []
+    if _option_enabled(opts.get("onlyGameDay")):
+        events = _events_for_today(events, favorite)
+        if not events:
+            return None
+    event = _pick_event(events, favorite)
     if not event:
         return None
     width = 128 if opts.get("_target") == "matrixportal-s3-128x32" else 64

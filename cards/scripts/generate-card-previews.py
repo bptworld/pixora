@@ -649,6 +649,7 @@ CUSTOM = {
     "womens_college_lacrosse": lambda: _sport("2ND 6:02", "BC", "UNC", "7-6", (255, 150, 210)),
     "pll_lacrosse": lambda: _sport("4TH 1:22", "CAN", "ATL", "13-11", (220, 120, 255)),
     "nll_lacrosse": lambda: _sport("3RD 2:45", "BUF", "TOR", "10-9", (170, 125, 255)),
+    "ufc": lambda: _sport("PRE-FIGHT", "LOP", "GAR", "VS", (255, 70, 70)),
     "ufl": lambda: _sport("2ND 5:44", "DC", "STL", "14-10", (80, 190, 255)),
     "cfl": lambda: _sport("3RD 9:00", "BCL", "WBB", "21-17", (235, 70, 80)),
     "nba_g_league": lambda: _sport("4TH 3:02", "MNE", "STO", "95-90", (85, 180, 255)),

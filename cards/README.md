@@ -100,6 +100,7 @@ Add-on cards for the [Pixora](https://github.com/bptworld/pixora) display system
 | Soccer Scores | Live ESPN soccer scoreboard |
 | Soccer Standings | Soccer league table |
 | Sports Standings | Top teams from ESPN standings |
+| UFC | Live ESPN UFC fight card |
 | UFL Scores | Live ESPN UFL scoreboard |
 | WNBA Scores | Live ESPN scoreboard |
 | Women's College Basketball | Live ESPN scoreboard |

@@ -789,6 +789,17 @@
       "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/sports_standings.webp"
     },
     {
+      "id": "ufc",
+      "name": "UFC",
+      "category": "Sports",
+      "detail": "Live ESPN UFC fight card",
+      "description": "Live ESPN UFC fight card",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/addons/ufc.py",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/ufc.webp"
+    },
+    {
       "id": "ufl",
       "name": "UFL Scores",
       "category": "Sports",
