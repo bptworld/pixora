@@ -126,6 +126,8 @@ _SOURCE_HTTP_TIMEOUT = 1.2
 _ENRICH_HTTP_TIMEOUT = 0.7
 _REFRESH_BUDGET_SECONDS = 45.0
 _SNAPSHOT_TTL_SECONDS = 300
+_JSON_CACHE_MAX_ENTRIES = 128
+_SNAPSHOT_CACHE_MAX_ENTRIES = 32
 _JSON_CACHE = {}
 _SNAPSHOT_CACHE = {}
 _SNAPSHOT_PENDING = set()
@@ -180,6 +182,7 @@ def _snapshot_scheduler_loop():
         now = time.time()
         due = []
         with _SNAPSHOT_LOCK:
+            _prune_snapshot_state(now)
             for key, opts in list(_SNAPSHOT_WATCHED.items()):
                 snapshot = _SNAPSHOT_CACHE.get(key)
                 if key not in _SNAPSHOT_PENDING and (not snapshot or snapshot.get("expires", 0) <= now):
@@ -191,6 +194,7 @@ def _snapshot_scheduler_loop():
 
 def _fetch_json(url, seconds=600, timeout=2.0, deadline=None):
     now = time.time()
+    _prune_json_cache(now)
     cached = _JSON_CACHE.get(url)
     if cached and cached["expires"] > now:
         return cached["data"]
@@ -210,7 +214,33 @@ def _fetch_json(url, seconds=600, timeout=2.0, deadline=None):
             return cached["data"]
         raise
     _JSON_CACHE[url] = {"expires": now + seconds, "data": data}
+    _prune_json_cache(now)
     return data
+
+
+def _prune_json_cache(now):
+    for key, item in list(_JSON_CACHE.items()):
+        if item.get("expires", 0) <= now:
+            _JSON_CACHE.pop(key, None)
+    while len(_JSON_CACHE) > _JSON_CACHE_MAX_ENTRIES:
+        _JSON_CACHE.pop(next(iter(_JSON_CACHE)), None)
+
+
+def _prune_snapshot_state(now):
+    for key, item in list(_SNAPSHOT_CACHE.items()):
+        if item.get("expires", 0) <= now and key not in _SNAPSHOT_WATCHED:
+            _SNAPSHOT_CACHE.pop(key, None)
+    while len(_SNAPSHOT_WATCHED) > _SNAPSHOT_CACHE_MAX_ENTRIES:
+        key = next(iter(_SNAPSHOT_WATCHED))
+        _SNAPSHOT_WATCHED.pop(key, None)
+        _SNAPSHOT_CACHE.pop(key, None)
+        _SNAPSHOT_PENDING.discard(key)
+    while len(_SNAPSHOT_CACHE) > _SNAPSHOT_CACHE_MAX_ENTRIES:
+        key = next((item_key for item_key in _SNAPSHOT_CACHE if item_key not in _SNAPSHOT_WATCHED), None)
+        if key is None:
+            break
+        _SNAPSHOT_CACHE.pop(key, None)
+        _SNAPSHOT_PENDING.discard(key)
 
 
 def _slot_value(opts, key, slot):

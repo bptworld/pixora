@@ -15,6 +15,10 @@ OPENWEATHER_ICON_CACHE = {}
 LOGO_CACHE = {}
 PRIORITY_GRAPHIC_CACHE = {}
 PRIORITY_GRAPHIC_CACHE_TTL_SECS = 900
+WEATHER_CACHE_MAX_ENTRIES = 128
+ICON_CACHE_MAX_ENTRIES = 64
+LOGO_CACHE_MAX_ENTRIES = 128
+AIRLINE_LOGO_CACHE_MAX_ENTRIES = 64
 
 _BOLD_NUMERIC_RE = re.compile(r"^[\d\s:.,+\-/$%]+$")
 _PIXORA_BOLD_DIGITS = {
@@ -179,6 +183,30 @@ def _priority_graphic_prune(now):
     for key, item in list(PRIORITY_GRAPHIC_CACHE.items()):
         if (now - item.get("seen", now)).total_seconds() > PRIORITY_GRAPHIC_CACHE_TTL_SECS:
             PRIORITY_GRAPHIC_CACHE.pop(key, None)
+
+
+def _prune_expiring_cache(cache, now, max_entries):
+    for key, item in list(cache.items()):
+        if isinstance(item, dict) and item.get("expires", now) <= now:
+            cache.pop(key, None)
+    while len(cache) > max_entries:
+        cache.pop(next(iter(cache)), None)
+
+
+def _cache_get(cache, key):
+    if key not in cache:
+        return None
+    value = cache.pop(key)
+    cache[key] = value
+    return value
+
+
+def _cache_put(cache, key, value, max_entries):
+    if key in cache:
+        cache.pop(key, None)
+    cache[key] = value
+    while len(cache) > max_entries:
+        cache.pop(next(iter(cache)), None)
 
 
 def priority_graphic_key(card_id, team=None, kind="", width=64):
@@ -524,6 +552,7 @@ def fetch_sport_scoreboard(url, cache, favorite="", seconds=15):
 
 def fetch_json_request(url, seconds=600):
     now = datetime.now(timezone.utc)
+    _prune_expiring_cache(WEATHER_CACHE, now, WEATHER_CACHE_MAX_ENTRIES)
     cached = WEATHER_CACHE.get(url)
     if cached and cached["expires"] > now:
         return cached["data"]
@@ -538,13 +567,14 @@ def fetch_json_request(url, seconds=600):
         if cached and "data" in cached:
             return cached["data"]
         raise
-    WEATHER_CACHE[url] = {"expires": now + timedelta(seconds=seconds), "data": data}
+    _cache_put(WEATHER_CACHE, url, {"expires": now + timedelta(seconds=seconds), "data": data}, WEATHER_CACHE_MAX_ENTRIES)
     return data
 
 
 def fetch_json_with_headers(url, headers=None, seconds=600, cache_key=None):
     now = datetime.now(timezone.utc)
     key = cache_key or url + "|" + json.dumps(headers or {}, sort_keys=True)
+    _prune_expiring_cache(WEATHER_CACHE, now, WEATHER_CACHE_MAX_ENTRIES)
     cached = WEATHER_CACHE.get(key)
     if cached and cached["expires"] > now:
         return cached["data"]
@@ -558,7 +588,7 @@ def fetch_json_with_headers(url, headers=None, seconds=600, cache_key=None):
         if cached and "data" in cached:
             return cached["data"]
         raise
-    WEATHER_CACHE[key] = {"expires": now + timedelta(seconds=seconds), "data": data}
+    _cache_put(WEATHER_CACHE, key, {"expires": now + timedelta(seconds=seconds), "data": data}, WEATHER_CACHE_MAX_ENTRIES)
     return data
 
 
@@ -927,7 +957,7 @@ def paste_openweather_icon(image, icon_code, x, y, size=14):
         return False
     try:
         from PIL import Image
-        cached = OPENWEATHER_ICON_CACHE.get((icon_code, size))
+        cached = _cache_get(OPENWEATHER_ICON_CACHE, (icon_code, size))
         if cached is None:
             url = f"https://openweathermap.org/img/wn/{icon_code}@2x.png"
             with urllib.request.urlopen(
@@ -941,7 +971,7 @@ def paste_openweather_icon(image, icon_code, x, y, size=14):
             r, g, b, a = icon.split()
             a = a.point(lambda p: 255 if p > 42 else 0)
             cached = Image.merge("RGBA", (r, g, b, a))
-            OPENWEATHER_ICON_CACHE[(icon_code, size)] = cached
+            _cache_put(OPENWEATHER_ICON_CACHE, (icon_code, size), cached, ICON_CACHE_MAX_ENTRIES)
         image.paste(cached, (int(x), int(y)), cached)
         return True
     except Exception:
@@ -953,8 +983,9 @@ def fetch_logo(url, size=11):
     if not url:
         return None
     cache_key = (url, int(size))
-    if cache_key in LOGO_CACHE:
-        return LOGO_CACHE[cache_key]
+    cached = _cache_get(LOGO_CACHE, cache_key)
+    if cached is not None:
+        return cached
     try:
         from PIL import Image
         with urllib.request.urlopen(
@@ -969,7 +1000,7 @@ def fetch_logo(url, size=11):
         r, g, b, a = img.split()
         a = a.point(lambda p: 255 if p > 48 else 0)
         logo = Image.merge("RGBA", (r, g, b, a))
-        LOGO_CACHE[cache_key] = logo
+        _cache_put(LOGO_CACHE, cache_key, logo, LOGO_CACHE_MAX_ENTRIES)
         return logo
     except Exception:
         return None
@@ -1532,12 +1563,13 @@ def iata_to_icao_prefix(iata):
 
 def fetch_airline_logo(iata):
     iata = (iata or "").strip().upper()
-    if iata in _AIRLINE_LOGO_CACHE:
-        return _AIRLINE_LOGO_CACHE[iata]
+    cached = _cache_get(_AIRLINE_LOGO_CACHE, iata)
+    if cached is not None or iata in _AIRLINE_LOGO_CACHE:
+        return cached
     logo = fetch_logo(f"{_AIRLINE_LOGO_BASE}/{iata}.png")
     if logo is None:
         logo = fetch_logo(f"https://images.kiwi.com/airlines/64/{iata.lower()}.png")
-    _AIRLINE_LOGO_CACHE[iata] = logo
+    _cache_put(_AIRLINE_LOGO_CACHE, iata, logo, AIRLINE_LOGO_CACHE_MAX_ENTRIES)
     return logo
 
 

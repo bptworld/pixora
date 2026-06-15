@@ -2,7 +2,7 @@
 
 Add-on cards for the [Pixora](https://github.com/bptworld/pixora) display system.
 
-## Available Cards - 137
+## Available Cards - 138
 
 ### Finance
 
