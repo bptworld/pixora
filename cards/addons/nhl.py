@@ -12,7 +12,7 @@ from card_utils import (
     warm_priority_graphic,
 )
 
-from _sports_breaking import SCORE_ANIMATION_TEAMS_OPTION, animation_competitors, final_win_alert
+from _sports_breaking import SCORE_ANIMATION_TEAMS_OPTION, animation_competitors, final_win_alert, game_moment_alert, graphic_target_option
 from _sports_wall import render_wall_score_frames
 
 CARD_ID = "nhl"
@@ -71,6 +71,9 @@ CARD_OPTIONS.append({
         {"value": "group_wall", "label": "Group Wall"},
     ],
 })
+CARD_OPTIONS.append(graphic_target_option("startPeriodAnimationTarget", "Start of Period Graphic"))
+CARD_OPTIONS.append(graphic_target_option("endPeriodAnimationTarget", "End of Period Graphic"))
+CARD_OPTIONS.append(graphic_target_option("winAnimationTarget", "End of Game Winner Graphic"))
 CARD_OPTIONS.append(dict(SCORE_ANIMATION_TEAMS_OPTION))
 
 _URL = "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard"
@@ -271,6 +274,16 @@ def _maybe_goal_animation(options):
 
     game_id = str(event.get("id") or competition.get("id") or datetime.now().strftime("%Y%m%d"))
     device_id = (options or {}).get("_device_id", "local")
+    moment_team = None
+    favorite_competitor = _selected_competitor(event, favorite)
+    if favorite_competitor:
+        moment_team = {**(favorite_competitor.get("team") or {})}
+    elif competitors:
+        moment_team = {**(competitors[0].get("team") or {})}
+    if moment_team:
+        moment = game_moment_alert(options, CARD_ID, _GOAL_STATE, event, competition, moment_team, sport="hockey", unit="period", default_label="NHL")
+        if moment:
+            return moment
     for competitor in competitors:
         team = competitor.get("team", {})
         team_key = (team.get("abbreviation") or team.get("shortDisplayName") or favorite or "NHL").upper()
@@ -289,7 +302,7 @@ def _maybe_goal_animation(options):
                 win = final_win_alert(
                     CARD_ID, _GOAL_STATE, key, competition, competitor, animation_team,
                     sport="hockey", render=_render_goal_animation,
-                    target=(options or {}).get("goalAnimationTarget") or "device", dwell_secs=7,
+                    target=(options or {}).get("winAnimationTarget") or (options or {}).get("goalAnimationTarget") or "device", dwell_secs=7,
                     renderer_name="_render_goal_animation_frames",
                 )
                 if win and previous is not None:

@@ -177,7 +177,7 @@ Add-on cards for the [Pixora](https://github.com/bptworld/pixora) display system
 | Rip Current Risk | Active rip current alerts |
 | Surf Report | Wave, swell, and wind |
 | Tide Tracking | Next high and low tide |
-| Weather Alert | Skips when clear |
+| Weather Alert | Skips when clear. Note: also exposes rule fields alert_count, event, and severity. |
 | Weather Forecast | 4-day forecast with current weather |
 | Weather Radar Loop | Live RainViewer radar loop |
 | Weather Mood | Animated weather vibe |

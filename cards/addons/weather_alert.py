@@ -1,17 +1,34 @@
 from io import BytesIO
-from card_utils import _settings_value, draw_sharp_text, fetch_json_request, openweather_alerts_for_zip, render_text_webp
+from datetime import datetime, timezone
+
+from card_utils import _settings_value, cached_priority_graphic, draw_sharp_text, fetch_json_request, openweather_alerts_for_zip, priority_graphic_key, render_text_webp
 
 CARD_ID = "weather_alert"
 CARD_NAME = "Weather Alert"
-CARD_DETAIL = "Skips when clear"
+CARD_DETAIL = "Skips when clear. Note: also exposes rule fields alert_count, event, and severity."
+_SEVERITY_CHOICES = [
+    {"value": "minor", "label": "Minor"},
+    {"value": "moderate", "label": "Moderate"},
+    {"value": "severe", "label": "Severe"},
+    {"value": "extreme", "label": "Extreme"},
+    {"value": "unknown", "label": "Unknown"},
+]
+_TARGET_CHOICES = [
+    {"value": "device", "label": "Single Device"},
+    {"value": "group_wall", "label": "Group Wall"},
+]
 CARD_OPTIONS = [
     {"key": "zipCode", "label": "ZIP Code", "type": "text", "default": "10001", "maxlength": 5, "inputmode": "numeric"},
+    {"key": "severityLevels", "label": "Display Levels", "type": "multiselect", "default": "minor,moderate,severe,extreme,unknown", "size": 5, "choices": _SEVERITY_CHOICES},
+    {"key": "severeAlertTarget", "label": "Severe Wall Graphic", "type": "select", "default": "device", "choices": _TARGET_CHOICES},
+    {"key": "extremeAlertTarget", "label": "Extreme Wall Graphic", "type": "select", "default": "group_wall", "choices": _TARGET_CHOICES},
 ]
 CARD_RULE_FIELDS = [
     {"id": "alert_count", "label": "Alert Count"},
     {"id": "event", "label": "Event"},
     {"id": "severity", "label": "Severity"},
 ]
+_ALERT_STATE = {}
 
 
 def _zip_latlon(zip_code):
@@ -35,6 +52,22 @@ def _severity_color(severity):
     if sev == "moderate":
         return (255, 190, 70)
     return (255, 230, 90)
+
+
+def _severity_key(severity):
+    sev = str(severity or "").strip().lower()
+    return sev if sev in {"minor", "moderate", "severe", "extreme"} else "unknown"
+
+
+def _selected_levels(value):
+    if isinstance(value, (list, tuple, set)):
+        raw = [str(item or "").strip().lower() for item in value]
+    else:
+        raw = [part.strip().lower() for part in str(value or "").replace("|", ",").split(",")]
+    levels = {item for item in raw if item}
+    valid = {"minor", "moderate", "severe", "extreme", "unknown"}
+    levels = {item for item in levels if item in valid}
+    return levels or set(valid)
 
 
 def _short_event(event):
@@ -67,12 +100,157 @@ def _alerts_for_zip(zip_code):
     return alerts or []
 
 
+def _filtered_alerts(alerts, options):
+    selected = _selected_levels((options or {}).get("severityLevels"))
+    out = []
+    for alert in alerts or []:
+        props = alert.get("properties") or {}
+        if _severity_key(props.get("severity")) in selected:
+            out.append(alert)
+    return out
+
+
+def _alert_identity(alert, zip_code):
+    props = (alert or {}).get("properties") or {}
+    return "|".join(str(value or "") for value in (
+        zip_code,
+        props.get("id"),
+        props.get("@id"),
+        props.get("event"),
+        props.get("severity"),
+        props.get("onset"),
+        props.get("effective"),
+        props.get("expires"),
+        props.get("headline"),
+    ))
+
+
+def _animation_width(options):
+    try:
+        explicit = int((options or {}).get("_width") or 0)
+        if explicit > 0:
+            return max(64, min(512, explicit))
+    except Exception:
+        pass
+    target = str((options or {}).get("_target") or "").lower()
+    return 128 if "128x32" in target else 64
+
+
+def _target_for_severity(severity, options):
+    key = "extremeAlertTarget" if _severity_key(severity) == "extreme" else "severeAlertTarget"
+    return str((options or {}).get(key) or "device").strip().lower()
+
+
+def _wall_selected(target):
+    return target in ("group", "group_wall", "wall") or target.startswith("group:")
+
+
+def _render_weather_alert_frames(team, kind="severe"):
+    from PIL import Image, ImageDraw, ImageFont
+
+    team = team or {}
+    try:
+        width = int(team.get("_width") or 64)
+    except Exception:
+        width = 64
+    width = max(64, min(512, width))
+    severity = _severity_key(team.get("severity") or kind)
+    color = _severity_color(severity)
+    event = str(team.get("event") or "WEATHER ALERT").upper()
+    headline = "EXTREME WX" if severity == "extreme" else "SEVERE WX"
+    frames = []
+    durations = []
+    try:
+        font = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
+        bold = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 9)
+    except Exception:
+        font = bold = ImageFont.load_default()
+
+    def fit(text, max_width, face):
+        text = str(text or "")
+        probe = ImageDraw.Draw(Image.new("RGB", (1, 1)))
+        while text and probe.textbbox((0, 0), text, font=face)[2] > max_width:
+            text = text[:-1].rstrip()
+        return text
+
+    event = fit(event, width - 4, font)
+    for index in range(20):
+        flash = index % 2 == 0
+        bg = (34, 0, 8) if severity == "extreme" else (28, 8, 0)
+        image = Image.new("RGB", (width, 32), bg if flash else (4, 6, 8))
+        draw = ImageDraw.Draw(image)
+        rail = color if flash else tuple(max(0, c // 3) for c in color)
+        draw.rectangle((0, 0, width - 1, 4), fill=rail)
+        draw.rectangle((0, 28, width - 1, 31), fill=rail)
+        for x in range(0, width, 12):
+            offset = (x + index * 4) % max(width, 1)
+            draw.line((offset, 4, max(0, offset - 10), 28), fill=tuple(max(0, c // 2) for c in color))
+        icon_x = width - 16
+        draw.ellipse((icon_x, 9, icon_x + 11, 20), outline=color)
+        draw.polygon([(icon_x + 5, 6), (icon_x, 20), (icon_x + 6, 17), (icon_x + 2, 28), (icon_x + 14, 12), (icon_x + 7, 15)], fill=(255, 230, 80))
+        title = headline if flash else "WX ALERT"
+        title_w = draw.textbbox((0, 0), title, font=bold)[2]
+        draw_sharp_text(image, (max(1, (width - title_w) // 2), 5), title, color if flash else (245, 245, 245), bold)
+        event_w = draw.textbbox((0, 0), event, font=font)[2]
+        draw_sharp_text(image, (max(1, (width - event_w) // 2), 19), event, (245, 245, 245), font)
+        frames.append(image)
+        durations.append(120 if flash else 85)
+    return frames, durations
+
+
+def _render_weather_alert_animation(team, kind="severe"):
+    frames, durations = _render_weather_alert_frames(team, kind)
+    out = BytesIO()
+    frames[0].save(out, "WEBP", save_all=True, append_images=frames[1:], duration=durations, loop=1, lossless=True, quality=100)
+    return out.getvalue()
+
+
+def _maybe_severity_animation(options, alert, zip_code):
+    props = (alert or {}).get("properties") or {}
+    severity = _severity_key(props.get("severity"))
+    if severity not in {"severe", "extreme"}:
+        return None
+    device_id = (options or {}).get("_device_id", "local")
+    identity = _alert_identity(alert, zip_code)
+    key = f"{device_id}:{zip_code}:{severity}:{identity}"
+    previous = _ALERT_STATE.get(key)
+    _ALERT_STATE[key] = {"seen": datetime.now(timezone.utc)}
+    if previous is not None:
+        return None
+
+    width = _animation_width(options)
+    team = {
+        "abbreviation": "WX",
+        "event": props.get("event") or "Weather Alert",
+        "severity": severity,
+        "color": "%02X%02X%02X" % _severity_color(severity),
+        "alternateColor": "FFE650",
+        "_width": width,
+    }
+    target = _target_for_severity(severity, options)
+    wall = _wall_selected(target)
+    cache_key = priority_graphic_key(CARD_ID, team, severity, width)
+    return {
+        "body": cached_priority_graphic(cache_key, lambda team=team, severity=severity: _render_weather_alert_animation(team, severity)),
+        "dwell_secs": 8,
+        "_stay": True,
+        "_no_replay": True,
+        "_group_wall": {
+            "type": severity,
+            "renderer": "_render_weather_alert_frames",
+            "team": dict(team),
+            "kind": severity,
+            "dwell_secs": 8,
+        } if wall else None,
+    }
+
+
 def rule_value(options=None, field=""):
     opts = options or {}
     zip_code = (opts.get("zipCode") or "").strip() or _default_zip()
     if len(zip_code) != 5:
         return ""
-    alerts = _alerts_for_zip(zip_code)
+    alerts = _filtered_alerts(_alerts_for_zip(zip_code), opts)
     key = str(field or "alert_count").strip()
     if key == "alert_count":
         return len(alerts)
@@ -92,7 +270,7 @@ def render(options=None):
     if len(zip_code) != 5:
         return render_text_webp("SET ZIP", (100, 180, 255))
 
-    alerts = _alerts_for_zip(zip_code)
+    alerts = _filtered_alerts(_alerts_for_zip(zip_code), opts)
 
     if not alerts:
         return None
@@ -130,4 +308,16 @@ def render(options=None):
 
     out = BytesIO()
     image.save(out, "WEBP", lossless=True, quality=100)
-    return out.getvalue()
+    normal_body = out.getvalue()
+    animation = None
+    for alert in alerts:
+        animation = _maybe_severity_animation(opts, alert, zip_code)
+        if animation:
+            break
+    if animation:
+        if animation.get("_group_wall"):
+            animation["body"] = normal_body
+            animation["dwell_secs"] = opts.get("_dwell", 10)
+            animation["_no_replay"] = False
+        return animation
+    return normal_body

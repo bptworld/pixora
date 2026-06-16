@@ -36,12 +36,52 @@ SCORE_ANIMATION_TEAMS_OPTION = {
 }
 
 
+def graphic_target_option(key, label, default="device"):
+    return {
+        "key": key,
+        "label": label,
+        "type": "select",
+        "default": default,
+        "choices": [
+            {"value": "device", "label": "Single Device"},
+            {"value": "group_wall", "label": "Group Wall"},
+        ],
+    }
+
+
 def with_score_animation_option(options):
     options = list(options or [])
     if not any(isinstance(option, dict) and option.get("key") == "scoreAnimationTarget" for option in options):
         options.append(dict(SCORE_ANIMATION_OPTION))
     if not any(isinstance(option, dict) and option.get("key") == "scoreAnimationTeams" for option in options):
         options.append(dict(SCORE_ANIMATION_TEAMS_OPTION))
+    return options
+
+
+def with_game_moment_options(options, unit="quarter"):
+    options = with_score_animation_option(options)
+    label_unit = "Period" if str(unit or "").lower() == "period" else "Quarter"
+    for key, label in (
+        ("startPeriodAnimationTarget", f"Start of {label_unit} Graphic"),
+        ("endPeriodAnimationTarget", f"End of {label_unit} Graphic"),
+        ("winAnimationTarget", "End of Game Winner Graphic"),
+    ):
+        if not any(isinstance(option, dict) and option.get("key") == key for option in options):
+            options.append(graphic_target_option(key, label))
+    return options
+
+
+def with_soccer_moment_options(options):
+    options = list(options or [])
+    for key, label in (
+        ("gameStartAnimationTarget", "Start of Game Graphic"),
+        ("gameEndAnimationTarget", "End of Game Graphic"),
+        ("halfStartAnimationTarget", "Start of Half Graphic"),
+        ("halfEndAnimationTarget", "End of Half Graphic"),
+        ("winAnimationTarget", "End of Game Winner Graphic"),
+    ):
+        if not any(isinstance(option, dict) and option.get("key") == key for option in options):
+            options.append(graphic_target_option(key, label))
     return options
 
 
@@ -168,6 +208,141 @@ def final_win_alert(card_id, state, key, competition, competitor, animation_team
     }
 
 
+def _status_text(competition):
+    status = ((competition or {}).get("status") or {})
+    status_type = status.get("type") or {}
+    return " ".join(
+        str(value or "")
+        for value in (
+            status_type.get("name"),
+            status_type.get("description"),
+            status_type.get("detail"),
+            status_type.get("shortDetail"),
+            status.get("displayClock"),
+        )
+    ).lower()
+
+
+def game_moment_alert(options, card_id, state, event, competition, animation_team, sport="score", unit="quarter", default_label="TEAM"):
+    status = (competition.get("status") or {})
+    status_type = status.get("type") or {}
+    game_state = str(status_type.get("state") or "").lower()
+    game_id = str(event.get("id") or competition.get("id") or datetime.now().strftime("%Y%m%d"))
+    device_id = (options or {}).get("_device_id", "local")
+    key = f"{card_id}:{device_id}:{game_id}:game_moment"
+    try:
+        period = int(status.get("period") or 0)
+    except Exception:
+        period = 0
+    text = _status_text(competition)
+    unit = str(unit or "quarter").lower()
+    start_kind = "period_start" if unit == "period" else "quarter_start"
+    end_kind = "period_end" if unit == "period" else "quarter_end"
+    previous = state.get(key)
+    signature = {"period": period, "state": game_state, "text": text, "seen": datetime.now(timezone.utc)}
+    state[key] = signature
+    if previous is None:
+        return None
+
+    kind = ""
+    target_key = ""
+    if period > 0 and period > int(previous.get("period") or 0) and game_state == "in":
+        kind = start_kind
+        target_key = "startPeriodAnimationTarget"
+    elif "end" in text and (unit in text or ("quarter" in text if unit != "period" else "period" in text)):
+        previous_text = str(previous.get("text") or "")
+        if "end" not in previous_text or text != previous_text:
+            kind = end_kind
+            target_key = "endPeriodAnimationTarget"
+    if not kind:
+        return None
+
+    animation_team = {**(animation_team or {}), "_width": _animation_width(options), "_sport": sport}
+    cache_key = priority_graphic_key(card_id, animation_team, kind, animation_team["_width"])
+    target = str((options or {}).get(target_key) or "device").strip().lower()
+    wall = target in ("group", "group_wall", "wall") or target.startswith("group:")
+    return {
+        "body": cached_priority_graphic(cache_key, lambda animation_team=animation_team, kind=kind: render_score_alert(animation_team, kind)),
+        "dwell_secs": 5,
+        "_stay": True,
+        "_no_replay": True,
+        "_group_wall": {
+            "type": kind,
+            "renderer": "_render_score_alert_frames",
+            "team": dict(animation_team),
+            "kind": kind,
+            "dwell_secs": 6,
+        } if wall else None,
+    }
+
+
+def soccer_moment_alert(options, card_id, state, event, competition, animation_team, render=None, renderer_name="_render_score_alert_frames"):
+    status = (competition.get("status") or {})
+    status_type = status.get("type") or {}
+    game_state = str(status_type.get("state") or "").lower()
+    game_id = str(event.get("id") or competition.get("id") or datetime.now().strftime("%Y%m%d"))
+    device_id = (options or {}).get("_device_id", "local")
+    key = f"{card_id}:{device_id}:{game_id}:soccer_moment"
+    try:
+        period = int(status.get("period") or 0)
+    except Exception:
+        period = 0
+    text = _status_text(competition)
+    previous = state.get(key)
+    signature = {"period": period, "state": game_state, "text": text, "seen": datetime.now(timezone.utc)}
+    state[key] = signature
+    if previous is None:
+        return None
+
+    kind = ""
+    target_key = ""
+    previous_state = str(previous.get("state") or "").lower()
+    previous_text = str(previous.get("text") or "")
+    previous_period = int(previous.get("period") or 0)
+    stripped_text = text.strip()
+    is_halftime = (
+        "halftime" in text
+        or "half time" in text
+        or "status_halftime" in text
+        or stripped_text in ("ht", "half")
+        or ("half" in text and "end" in text)
+    )
+
+    if game_state == "post" and previous_state != "post":
+        kind = "game_end"
+        target_key = "gameEndAnimationTarget"
+    elif game_state == "in" and previous_state != "in":
+        kind = "game_start" if period <= 1 else "half_start"
+        target_key = "gameStartAnimationTarget" if kind == "game_start" else "halfStartAnimationTarget"
+    elif game_state == "in" and period > previous_period:
+        kind = "half_start"
+        target_key = "halfStartAnimationTarget"
+    elif is_halftime and text != previous_text:
+        kind = "half_end"
+        target_key = "halfEndAnimationTarget"
+    if not kind:
+        return None
+
+    animation_team = {**(animation_team or {}), "_width": _animation_width(options), "_sport": "soccer"}
+    render = render or render_score_alert
+    cache_key = priority_graphic_key(card_id, animation_team, kind, animation_team["_width"])
+    target = str((options or {}).get(target_key) or "device").strip().lower()
+    wall = target in ("group", "group_wall", "wall") or target.startswith("group:")
+    return {
+        "body": cached_priority_graphic(cache_key, lambda animation_team=animation_team, kind=kind: render(animation_team, kind)),
+        "dwell_secs": 5,
+        "_stay": True,
+        "_no_replay": True,
+        "_group_wall": {
+            "type": kind,
+            "renderer": renderer_name,
+            "team": dict(animation_team),
+            "kind": kind,
+            "dwell_secs": 6,
+        } if wall else None,
+    }
+
+
 def _kind_lines(kind):
     kind = str(kind or "score").lower()
     if kind == "touchdown":
@@ -188,6 +363,18 @@ def _kind_lines(kind):
         return "POINT", ""
     if kind in ("win", "wins", "winner", "final_win"):
         return "WINS", ""
+    if kind in ("quarter_start", "period_start"):
+        return "START", "PERIOD" if kind == "period_start" else "QTR"
+    if kind in ("quarter_end", "period_end"):
+        return "END", "PERIOD" if kind == "period_end" else "QTR"
+    if kind == "game_start":
+        return "START", "GAME"
+    if kind == "game_end":
+        return "END", "GAME"
+    if kind == "half_start":
+        return "START", "HALF"
+    if kind == "half_end":
+        return "END", "HALF"
     return "SCORE", ""
 
 
@@ -286,7 +473,7 @@ def maybe_score_alert(options, card_id, url, cache, state, sport="score", defaul
                     competitor,
                     animation_team,
                     sport=sport,
-                    target=(options or {}).get("scoreAnimationTarget") or "device",
+                    target=(options or {}).get("winAnimationTarget") or (options or {}).get("scoreAnimationTarget") or "device",
                 )
                 if win and previous is not None:
                     return win

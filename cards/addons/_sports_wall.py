@@ -43,6 +43,18 @@ def readable_accent(color, alt):
 def kind_headline(kind, sport="score"):
     kind = str(kind or "score").lower()
     sport = str(sport or "score").lower()
+    if kind == "game_start":
+        return "START GAME"
+    if kind == "game_end":
+        return "END GAME"
+    if kind == "half_start":
+        return "START HALF"
+    if kind == "half_end":
+        return "END HALF"
+    if kind in ("quarter_start", "period_start"):
+        return "START " + ("PERIOD" if sport in ("hockey", "nhl") else "QUARTER")
+    if kind in ("quarter_end", "period_end"):
+        return "END " + ("PERIOD" if sport in ("hockey", "nhl") else "QUARTER")
     if kind in ("grand_slam", "grand slam", "slam"):
         return "GRAND SLAM"
     if kind in ("home_run", "homerun", "homer", "hr"):
@@ -73,6 +85,18 @@ def kind_headline(kind, sport="score"):
 def compact_headline(kind, sport="score"):
     kind = str(kind or "score").lower()
     sport = str(sport or "score").lower()
+    if kind == "game_start":
+        return "START"
+    if kind == "game_end":
+        return "END"
+    if kind == "half_start":
+        return "START H"
+    if kind == "half_end":
+        return "END H"
+    if kind in ("quarter_start", "period_start"):
+        return "START " + ("P" if sport in ("hockey", "nhl") else "Q")
+    if kind in ("quarter_end", "period_end"):
+        return "END " + ("P" if sport in ("hockey", "nhl") else "Q")
     if kind in ("grand_slam", "grand slam", "slam"):
         return "SLAM"
     if kind in ("home_run", "homerun", "homer", "hr"):

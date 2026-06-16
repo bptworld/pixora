@@ -1,12 +1,18 @@
 from datetime import datetime, timezone
 
-from card_utils import render_sport_card
-from _sports_breaking import maybe_score_alert, render_score_alert_frames, with_score_animation_option
+from card_utils import fetch_sport_scoreboard, pick_sport_event, render_sport_card
+from _sports_breaking import (
+    game_moment_alert,
+    maybe_score_alert,
+    render_score_alert_frames,
+    selected_competitor,
+    with_game_moment_options,
+)
 
 CARD_ID = "nba"
 CARD_NAME = "NBA Scores"
 CARD_DETAIL = "Live ESPN scoreboard"
-CARD_OPTIONS = with_score_animation_option([
+CARD_OPTIONS = with_game_moment_options([
     {
         "key": "favoriteTeam",
         "label": "Team",
@@ -45,7 +51,7 @@ CARD_OPTIONS = with_score_animation_option([
             {"value": "WSH", "label": "Washington Wizards"},
         ],
     }
-])
+], unit="quarter")
 
 _URL = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard"
 _CACHE = {"expires": datetime.min.replace(tzinfo=timezone.utc), "body": b""}
@@ -56,6 +62,23 @@ _render_score_alert_frames = render_score_alert_frames
 
 def render(options=None):
     opts = options or {}
+    favorite = opts.get("favoriteTeam", "")
+    data = fetch_sport_scoreboard(_URL, _CACHE, favorite, seconds=15)
+    event = pick_sport_event(data.get("events", []), favorite)
+    if event:
+        competition = event.get("competitions", [{}])[0]
+        competitor = selected_competitor(event, favorite)
+        if competitor:
+            team = {**(competitor.get("team") or {})}
+            animation = game_moment_alert(opts, CARD_ID, _SCORE_STATE, event, competition, team, sport="basketball", unit="quarter", default_label="NBA")
+            if animation:
+                if animation.get("_group_wall"):
+                    normal_card = render_sport_card(opts, _URL, _CACHE, _COLOR, "NO NBA")
+                    if normal_card:
+                        animation["body"] = normal_card
+                        animation["dwell_secs"] = opts.get("_dwell", 10)
+                        animation["_no_replay"] = False
+                return animation
     animation = maybe_score_alert(opts, CARD_ID, _URL, _CACHE, _SCORE_STATE, sport="basketball", default_label="NBA")
     if animation:
         if animation.get("_group_wall"):
