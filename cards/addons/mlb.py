@@ -14,7 +14,7 @@ from card_utils import (
     warm_priority_graphic,
 )
 
-from _sports_breaking import SCORE_ANIMATION_TEAMS_OPTION, animation_competitors, final_win_alert
+from _sports_breaking import SCORE_ANIMATION_TEAMS_OPTION, animation_competitors, final_win_alert, graphic_target_option
 from _sports_wall import render_wall_score_frames
 
 CARD_ID = "mlb"
@@ -70,6 +70,7 @@ CARD_OPTIONS = [
         ],
     }
 ]
+CARD_OPTIONS.append(graphic_target_option("gameStartAnimationTarget", "Start of Game Graphic"))
 CARD_OPTIONS.append(dict(SCORE_ANIMATION_TEAMS_OPTION))
 
 _URL = "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard"
@@ -77,6 +78,7 @@ _CACHE = {"expires": datetime.min.replace(tzinfo=timezone.utc), "body": b""}
 _SUMMARY_CACHE = {}
 _COLOR = (117, 231, 214)
 _RUN_STATE = {}
+_GAME_STATE = {}
 _LOGO_CACHE = {}
 
 
@@ -389,6 +391,39 @@ def _classify_latest_run(event, competitor, previous_score, current_score):
     return "run"
 
 
+def _maybe_game_start_animation(options, event, competition, competitors, favorite):
+    game_id = str(event.get("id") or competition.get("id") or datetime.now().strftime("%Y%m%d"))
+    device_id = (options or {}).get("_device_id", "local")
+    state = str(((competition.get("status") or {}).get("type") or {}).get("state") or "").lower()
+    key = f"{device_id}:{game_id}:game_start"
+    previous = _GAME_STATE.get(key)
+    _GAME_STATE[key] = {"state": state, "seen": datetime.now(timezone.utc)}
+    if previous is None or state != "in" or str(previous.get("state") or "").lower() == "in":
+        return None
+
+    favorite_competitor = _selected_competitor(event, favorite)
+    competitor = favorite_competitor or (competitors[0] if competitors else {})
+    team = (competitor or {}).get("team") or {}
+    animation_team = dict(team)
+    animation_team["_width"] = _run_animation_width(options)
+    target = str((options or {}).get("gameStartAnimationTarget") or "device").strip().lower()
+    wall = target in ("group", "group_wall", "wall") or target.startswith("group:")
+    cache_key = priority_graphic_key(CARD_ID, animation_team, "game_start", animation_team["_width"])
+    return {
+        "body": cached_priority_graphic(cache_key, lambda animation_team=animation_team: _render_run_animation(animation_team, "game_start")),
+        "dwell_secs": 6,
+        "_stay": True,
+        "_no_replay": True,
+        "_group_wall": {
+            "type": "game_start",
+            "renderer": "_render_run_animation_frames",
+            "team": dict(animation_team),
+            "kind": "game_start",
+            "dwell_secs": 6,
+        } if wall else None,
+    }
+
+
 def _maybe_run_animation(options):
     favorite = (options or {}).get("favoriteTeam", "")
     if not str(favorite or "").strip():
@@ -404,6 +439,10 @@ def _maybe_run_animation(options):
     competitors = animation_competitors(event, favorite, options)
     if not competitors:
         return None
+
+    game_start = _maybe_game_start_animation(options, event, competition, competitors, favorite)
+    if game_start:
+        return game_start
 
     game_id = str(event.get("id") or competition.get("id") or datetime.now().strftime("%Y%m%d"))
     device_id = (options or {}).get("_device_id", "local")
