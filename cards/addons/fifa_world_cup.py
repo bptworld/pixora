@@ -194,6 +194,20 @@ def _team_for_animation(team, width):
     }
 
 
+def _matchup_payload(competition):
+    payload = {}
+    for competitor in (competition or {}).get("competitors") or []:
+        side = str(competitor.get("homeAway") or "").lower()
+        if side not in ("away", "home"):
+            continue
+        team = competitor.get("team") or {}
+        prefix = "away" if side == "away" else "home"
+        payload[f"{prefix}TeamName"] = team.get("shortDisplayName") or team.get("displayName") or team.get("name") or team.get("abbreviation") or ""
+        payload[f"{prefix}TeamAbbr"] = team.get("abbreviation") or team.get("shortDisplayName") or ""
+        payload[f"{prefix}TeamLogo"] = _team_flag_url(team)
+    return payload
+
+
 def _team_flag_url(team):
     logos = (team or {}).get("logos") or []
     return (team or {}).get("logo") or (logos[0].get("href") if logos else "")
@@ -249,7 +263,7 @@ def _resolve_team_for_test(favorite, width=64):
             for competitor in competition.get("competitors") or []:
                 team = competitor.get("team") or {}
                 if _team_matches(team, favorite):
-                    return _team_for_animation(team, width)
+                    return {**_team_for_animation(team, width), **_matchup_payload(competition)}
     except Exception:
         pass
     return _team_for_animation({
@@ -264,7 +278,7 @@ def _render_goal_animation_frames(team, kind="goal"):
     kind = str(kind or "goal").lower()
     if (team or {}).get("_wall"):
         return render_wall_score_frames(team, kind, sport="soccer", default_label="FC")
-    return render_score_alert_frames(team, kind)
+    return render_score_alert_frames({**(team or {}), "_sport": "soccer"}, kind)
 
 
 def _render_goal_animation(team, kind="goal"):

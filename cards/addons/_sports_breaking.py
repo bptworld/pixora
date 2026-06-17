@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from card_utils import (
     cached_priority_graphic,
     draw_sharp_text,
+    fetch_logo,
     fetch_sport_scoreboard,
     pick_sport_event,
     priority_graphic_key,
@@ -381,7 +382,12 @@ def soccer_moment_alert(options, card_id, state, event, competition, animation_t
     if not kind:
         return None
 
-    animation_team = {**(animation_team or {}), "_width": _animation_width(options), "_sport": "soccer"}
+    animation_team = {
+        **(animation_team or {}),
+        **_soccer_matchup_payload(competition),
+        "_width": _animation_width(options),
+        "_sport": "soccer",
+    }
     render = render or render_score_alert
     cache_key = priority_graphic_key(card_id, animation_team, kind, animation_team["_width"])
     target = str((options or {}).get(target_key) or "device").strip().lower()
@@ -400,6 +406,30 @@ def soccer_moment_alert(options, card_id, state, event, competition, animation_t
             "dwell_secs": 6,
         } if wall else None,
     }
+
+
+def _team_display_label(team):
+    return (
+        (team or {}).get("shortDisplayName")
+        or (team or {}).get("displayName")
+        or (team or {}).get("name")
+        or (team or {}).get("abbreviation")
+        or ""
+    )
+
+
+def _soccer_matchup_payload(competition):
+    payload = {}
+    for competitor in (competition or {}).get("competitors") or []:
+        side = str(competitor.get("homeAway") or "").lower()
+        if side not in ("away", "home"):
+            continue
+        team = competitor.get("team") or {}
+        prefix = "away" if side == "away" else "home"
+        payload[f"{prefix}TeamName"] = _team_display_label(team)
+        payload[f"{prefix}TeamAbbr"] = team.get("abbreviation") or team.get("shortDisplayName") or ""
+        payload[f"{prefix}TeamLogo"] = _team_logo_url(team)
+    return payload
 
 
 def _kind_lines(kind):
@@ -437,11 +467,115 @@ def _kind_lines(kind):
     return "SCORE", ""
 
 
+def _draw_soccer_device_pitch(draw, width, phase, color):
+    grass_a = (4, 78, 40)
+    grass_b = (6, 104, 50)
+    line = (218, 242, 220)
+    draw.rectangle((0, 0, width - 1, 31), fill=grass_a)
+    for x in range(-8, width + 8, 8):
+        fill = grass_b if ((x // 8) + phase) % 2 else grass_a
+        draw.polygon([(x, 31), (x + 12, 31), (x + 22, 0), (x + 10, 0)], fill=fill)
+    draw.rectangle((2, 4, width - 3, 29), outline=line)
+    draw.line((width // 2, 4, width // 2, 29), fill=line)
+    draw.ellipse((width // 2 - 8, 12, width // 2 + 8, 28), outline=line)
+    draw.rectangle((2, 13, 12, 25), outline=line)
+    draw.rectangle((width - 13, 13, width - 3, 25), outline=line)
+    draw.rectangle((0, 0, width - 1, 2), fill=color)
+    draw.rectangle((0, 30, width - 1, 31), fill=tuple(max(0, c // 2) for c in color))
+
+
+def _soccer_timing_text(kind):
+    kind = str(kind or "").lower()
+    if kind == "game_start":
+        return "KICK", "OFF"
+    if kind == "game_end":
+        return "FULL", "TIME"
+    if kind == "half_start":
+        return "2ND", "HALF"
+    if kind == "half_end":
+        return "HALF", "TIME"
+    return _kind_lines(kind)
+
+
+def _fit_device_text(draw, text, font, max_width):
+    text = str(text or "").strip().upper()
+    while text and draw.textbbox((0, 0), text, font=font)[2] > max_width:
+        text = text[:-1].rstrip()
+    return text
+
+
+def _draw_128_soccer_net_badges(image, draw, team, font):
+    width = image.width
+    if width < 96:
+        return
+    sides = (
+        (2, (team or {}).get("awayTeamName"), (team or {}).get("awayTeamLogo")),
+        (width - 35, (team or {}).get("homeTeamName"), (team or {}).get("homeTeamLogo")),
+    )
+    fallback_label = (team or {}).get("shortDisplayName") or (team or {}).get("displayName") or (team or {}).get("name") or (team or {}).get("abbreviation") or "FC"
+    fallback_logo = _team_logo_url(team)
+    for x0, raw_label, raw_logo in sides:
+        label = _fit_device_text(draw, raw_label or fallback_label, font, 34)
+        logo = fetch_logo(raw_logo or fallback_logo, size=13)
+        if label:
+            label_w = draw.textbbox((0, 0), label, font=font)[2]
+            label_x = x0 + max(0, (33 - label_w) // 2)
+            draw.rectangle((max(0, label_x - 1), 4, min(width - 1, label_x + label_w + 1), 11), fill=(0, 44, 21))
+            draw_sharp_text(image, (label_x, 1), label, (245, 250, 255), font)
+        if logo:
+            image.paste(logo, (x0 + 10, 14), logo)
+
+
+def _render_soccer_timing_device_frames(team, kind):
+    from PIL import Image, ImageDraw, ImageFont
+
+    try:
+        width = int((team or {}).get("_width") or 64)
+    except Exception:
+        width = 64
+    width = max(64, min(512, width))
+    color = _hex_color((team or {}).get("color"), (70, 220, 125))
+    alt = _hex_color((team or {}).get("alternateColor"), (245, 250, 255))
+    try:
+        small = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
+        big = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 10)
+    except Exception:
+        small = big = ImageFont.load_default()
+    abbr = str((team or {}).get("abbreviation") or (team or {}).get("shortDisplayName") or "FC").upper()[:5]
+    line1, line2 = _soccer_timing_text(kind)
+    frames = []
+    durations = []
+    for step in range(10):
+        image = Image.new("RGB", (width, 32), (0, 0, 0))
+        draw = ImageDraw.Draw(image)
+        _draw_soccer_device_pitch(draw, width, step, color)
+        _draw_128_soccer_net_badges(image, draw, team, small)
+        abbr_w = draw.textbbox((0, 0), abbr, font=small)[2]
+        if width < 96:
+            draw.rectangle((1, 3, 3 + abbr_w, 10), fill=(0, 32, 18))
+            draw_sharp_text(image, (2, 0), abbr, alt, small)
+        for text, y, font, fill in ((line1, 3, big, (230, 36, 48)), (line2, 15, small, color)):
+            if not text:
+                continue
+            if text == "HALF":
+                fill = (230, 36, 48)
+            text_w = draw.textbbox((0, 0), text, font=font)[2]
+            x = (width - text_w) // 2
+            for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                draw_sharp_text(image, (x + dx, y + dy), text, (0, 35, 18), font)
+            draw_sharp_text(image, (x, y), text, fill, font)
+        frames.append(image)
+        durations.append(130 if step % 2 == 0 else 90)
+    return frames, durations
+
+
 def render_score_alert_frames(team, kind="score"):
     from PIL import Image, ImageDraw, ImageFont
 
     if (team or {}).get("_wall"):
         return render_wall_score_frames(team, kind, sport=(team or {}).get("_sport") or "score")
+    if str((team or {}).get("_sport") or "").lower() == "soccer" and str(kind or "").lower() in ("game_start", "game_end", "half_start", "half_end"):
+        return _render_soccer_timing_device_frames(team, kind)
 
     try:
         width = int((team or {}).get("_width") or 64)

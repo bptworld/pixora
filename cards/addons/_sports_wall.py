@@ -803,6 +803,66 @@ def _draw_whistle(draw, x, y, color, alt):
     draw.line((x + 10, y + 4, x + 15, y + 6), fill=alt + (255,))
 
 
+def _fit_label(draw, text, font, max_width):
+    text = str(text or "").strip().upper()
+    while text and draw.textbbox((0, 0), text, font=font)[2] > max_width:
+        text = text[:-1].rstrip()
+    return text
+
+
+def _draw_full_soccer_pitch(draw, width, phase, color, alt):
+    grass_a = (5, 92, 47, 255)
+    grass_b = (7, 116, 57, 255)
+    grass_c = (9, 140, 66, 255)
+    line = (222, 244, 224, 255)
+    draw.rectangle((0, 3, width - 1, 30), fill=grass_a)
+    stripe_w = 8 if width < 96 else 12
+    for x in range(-stripe_w, width + stripe_w, stripe_w):
+        fill = grass_b if ((x // stripe_w) + phase) % 2 else grass_c
+        draw.polygon([(x, 30), (x + stripe_w + 8, 30), (x + stripe_w * 2, 3), (x + stripe_w - 8, 3)], fill=fill)
+    draw.rectangle((3, 5, width - 4, 29), outline=line)
+    draw.line((width // 2, 5, width // 2, 29), fill=line)
+    draw.ellipse((width // 2 - 9, 11, width // 2 + 9, 29), outline=line)
+    draw.point((width // 2, 20), fill=line)
+    box_w = 12 if width < 96 else 18
+    draw.rectangle((3, 12, 3 + box_w, 26), outline=line)
+    draw.rectangle((width - 4 - box_w, 12, width - 4, 26), outline=line)
+    draw.rectangle((3, 16, 8, 23), outline=line)
+    draw.rectangle((width - 9, 16, width - 4, 23), outline=line)
+    draw.rectangle((0, 0, width - 1, 2), fill=color + (255,))
+    draw.rectangle((0, 30, width - 1, 31), fill=dim(color, 0.34) + (255,))
+    for x in range(2, width, 10):
+        bulb = alt if ((x // 10) + phase) % 3 == 0 else dim(color, 0.35)
+        draw.point((x, 1), fill=bulb + (255,))
+
+
+def _draw_soccer_matchup_net_badges(image, draw, team, font, color, alt):
+    width = image.width
+    if width < 96:
+        return False
+    fallback_label = (team or {}).get("shortDisplayName") or (team or {}).get("displayName") or (team or {}).get("name") or (team or {}).get("abbreviation") or "FC"
+    fallback_logo = _team_logo_url(team)
+    sides = (
+        (2, (team or {}).get("awayTeamName"), (team or {}).get("awayTeamLogo")),
+        (width - 35, (team or {}).get("homeTeamName"), (team or {}).get("homeTeamLogo")),
+    )
+    drew = False
+    for x0, raw_label, raw_logo in sides:
+        label = _fit_label(draw, raw_label or fallback_label, font, 34)
+        logo = _fetch_logo(raw_logo or fallback_logo)
+        if label:
+            label_w = draw.textbbox((0, 0), label, font=font)[2]
+            label_x = x0 + max(0, (33 - label_w) // 2)
+            draw.rectangle((max(0, label_x - 1), 4, min(width - 1, label_x + label_w + 1), 11), fill=(0, 44, 21, 255))
+            draw_sharp_text(image, (label_x, 1), label, (245, 250, 255), font)
+            drew = True
+        if logo:
+            logo = logo.resize((13, 13))
+            image.alpha_composite(logo, (x0 + 10, 14))
+            drew = True
+    return drew
+
+
 def _render_soccer_timing_wall_frames(team, kind, default_label="FC"):
     from PIL import Image, ImageDraw
 
@@ -818,6 +878,7 @@ def _render_soccer_timing_wall_frames(team, kind, default_label="FC"):
     subline = "45:00" if str(kind or "").lower() == "half_end" else "90:00" if str(kind or "").lower() == "game_end" else "00:00"
     title_font = fit_font(headline, max(26, width - 36), (13, 12, 11, 10, 9, 8, 7))
     clock_font = fit_font(subline, 30 if width < 96 else 42, (8, 7, 6))
+    badge_font = fit_font("PORTU", 34, (8, 7, 6))
     logo = _fetch_logo(_team_logo_url(team))
     frames = []
     durations = []
@@ -825,12 +886,12 @@ def _render_soccer_timing_wall_frames(team, kind, default_label="FC"):
     def frame(phase):
         image = Image.new("RGBA", (width, 32), (0, 8, 13, 255))
         draw = ImageDraw.Draw(image)
-        _draw_generic_arena_frame(image, draw, width, "soccer", phase, color, alt)
-        for x in range(-width, width, 8):
-            draw.line((x + (phase * 2) % 8, 31, x + 22 + (phase * 2) % 8, 14), fill=(10, 142, 66, 255))
+        _draw_full_soccer_pitch(draw, width, phase, color, alt)
         _draw_goal_net(draw, 2, 18, 13, 29, alt if phase % 2 else color)
         _draw_goal_net(draw, width - 14, 18, width - 3, 29, alt if phase % 2 else color)
-        if logo:
+        if _draw_soccer_matchup_net_badges(image, draw, team, badge_font, color, alt):
+            pass
+        elif logo:
             image.alpha_composite(logo, (1, 4))
         else:
             _draw_badge(image, draw, team, color, default_label)
@@ -853,17 +914,17 @@ def _render_soccer_timing_wall_frames(team, kind, default_label="FC"):
         pulse = i % 6
         panel_x0 = 19 if width < 96 else max(28, width // 2 - 43)
         panel_x1 = width - 18 if width < 96 else min(width - 29, width // 2 + 43)
-        draw.rounded_rectangle((panel_x0, 5, panel_x1, 25), radius=2, fill=(1, 10, 12, 245), outline=(alt if pulse < 3 else color) + (255,))
-        for x in range(panel_x0 + 3, panel_x1 - 1, 6):
-            draw.point((x, 7), fill=(alt if (x + i) % 12 else color) + (255,))
+        draw.line((panel_x0, 7, panel_x1, 7), fill=dim(alt, 0.65) + (255,))
+        draw.line((panel_x0, 25, panel_x1, 25), fill=dim(alt, 0.65) + (255,))
         bbox = draw.textbbox((0, 0), headline, font=title_font)
         title_x = panel_x0 + ((panel_x1 - panel_x0 + 1) - (bbox[2] - bbox[0])) // 2 - bbox[0]
         title_y = 8 - bbox[1]
-        for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
-            draw_sharp_text(image, (title_x + dx, title_y + dy), headline, (0, 4, 6), title_font)
+        for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1), (1, 1)):
+            draw_sharp_text(image, (title_x + dx, title_y + dy), headline, (0, 35, 18), title_font)
         draw_sharp_text(image, (title_x, title_y), headline, alt if pulse < 3 else (245, 248, 236), title_font)
         cbox = draw.textbbox((0, 0), subline, font=clock_font)
         clock_x = panel_x0 + ((panel_x1 - panel_x0 + 1) - (cbox[2] - cbox[0])) // 2 - cbox[0]
+        draw_sharp_text(image, (clock_x + 1, 20 - cbox[1]), subline, (0, 35, 18), clock_font)
         draw_sharp_text(image, (clock_x, 19 - cbox[1]), subline, color if pulse < 3 else alt, clock_font)
         if i > 7:
             _draw_whistle(draw, width - 18 if width >= 96 else width - 17, 5, color, alt)
@@ -882,7 +943,10 @@ def _render_soccer_timing_wall_frames(team, kind, default_label="FC"):
         bbox = draw.textbbox((0, 0), headline, font=title_font)
         x = max(18, (width - (bbox[2] - bbox[0])) // 2) - bbox[0]
         y = 12 - bbox[1]
-        draw.rectangle((max(16, x - 4), 9, min(width - 17, x + (bbox[2] - bbox[0]) + 4), 24), fill=(1, 10, 12, 235), outline=(alt if i % 2 else color) + (255,))
+        draw.line((max(16, x - 4), 9, min(width - 17, x + (bbox[2] - bbox[0]) + 4), 9), fill=(alt if i % 2 else color) + (255,))
+        draw.line((max(16, x - 4), 24, min(width - 17, x + (bbox[2] - bbox[0]) + 4), 24), fill=(alt if i % 2 else color) + (255,))
+        for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1), (1, 1)):
+            draw_sharp_text(image, (x + dx, y + dy), headline, (0, 35, 18), title_font)
         draw_sharp_text(image, (x, y), headline, alt if i % 2 else color, title_font)
         frames.append(image.convert("RGB"))
         durations.append(120)
