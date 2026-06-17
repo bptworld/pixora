@@ -219,6 +219,10 @@ def priority_graphic_key(card_id, team=None, kind="", width=64):
         str(team.get("logo") or ""),
         str(team.get("color") or ""),
         str(team.get("alternateColor") or ""),
+        str(team.get("playerName") or ""),
+        str(team.get("playerHeadshot") or ""),
+        str(team.get("playerFlag") or ""),
+        str(team.get("playerLogo") or ""),
     ]
     return "|".join(parts)
 

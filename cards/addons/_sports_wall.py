@@ -225,6 +225,33 @@ def _draw_badge(image, draw, team, color, default_label):
     draw_sharp_text(image, (13 - (bbox[2] - bbox[0]) // 2, 11), abbr, color, font)
 
 
+def _draw_scoring_edges(image, draw, team, color, alt, phase, default_label):
+    width = image.width
+    head_size = 24 if width >= 96 else 22
+    flag_size = 22 if width >= 96 else 16
+    edge = alt if phase % 2 else color
+    headshot = _fetch_headshot((team or {}).get("playerHeadshot"), head_size)
+    if headshot:
+        hx = 1
+        hy = max(4, (32 - headshot.height) // 2)
+        draw.rectangle((0, hy - 1, hx + headshot.width, hy + headshot.height), fill=(2, 8, 10, 240), outline=edge + (255,))
+        image.alpha_composite(headshot, (hx, hy))
+    else:
+        _draw_badge(image, draw, team, color, default_label)
+
+    flag_url = (team or {}).get("playerFlag") or (team or {}).get("playerLogo") or _team_logo_url(team or {})
+    flag = _fetch_logo(flag_url) if flag_url else None
+    if flag:
+        if flag.width != flag_size or flag.height != flag_size:
+            from PIL import Image
+
+            flag = flag.resize((flag_size, flag_size), Image.LANCZOS)
+        fx = width - flag.width - 1
+        fy = max(5, (32 - flag.height) // 2)
+        draw.rectangle((fx - 1, fy - 1, width - 1, fy + flag.height), fill=(2, 8, 10, 240), outline=edge + (255,))
+        image.alpha_composite(flag, (fx, fy))
+
+
 def _draw_flag_badge(draw, code):
     code = str(code or "").strip().upper()
     if code not in {
@@ -552,7 +579,7 @@ def _draw_baseball_player_plate(image, draw, width, team, phase, color, alt):
     name = _baseball_player_last_name(team)
     if not name:
         return
-    headshot = _fetch_headshot((team or {}).get("playerHeadshot"), 24 if width >= 96 else 20)
+    headshot = None
     label = str((team or {}).get("playerRole") or "").strip().upper()
     if not label:
         label = "BATTER" if str((team or {}).get("momentKind") or "").lower() == "now_batting" else "PLAYER"
@@ -594,14 +621,20 @@ def _render_baseball_wall_frames(team, kind="run", default_label="MLB"):
     frames = []
     durations = []
 
+    def ballpark_frame(phase):
+        image, draw = _draw_ballpark_frame(width, phase, color, alt)
+        if has_player and team.get("playerHeadshot"):
+            _draw_scoring_edges(image, draw, team, color, alt, phase, default_label)
+        return image, draw
+
     for frame_index in range(6):
-        image, draw = _draw_ballpark_frame(width, frame_index, color, alt)
+        image, draw = ballpark_frame(frame_index)
         _draw_sport_mark(draw, "baseball", max(8, width // 2 - 9), 20, color, alt, frame_index)
         frames.append(image.convert("RGB"))
         durations.append(120)
 
     for frame_index in range(52):
-        image, draw = _draw_ballpark_frame(width, frame_index, color, alt)
+        image, draw = ballpark_frame(frame_index)
         t = min(1, frame_index / 26)
         ball_x = 9 + ((width - 26) * t)
         ball_y = 24 - (17 * math.sin(t * math.pi))
@@ -654,7 +687,7 @@ def _render_baseball_wall_frames(team, kind="run", default_label="MLB"):
         durations.append(55)
 
     for frame_index in range(14):
-        image, draw = _draw_ballpark_frame(width, 52 + frame_index, color, alt)
+        image, draw = ballpark_frame(52 + frame_index)
         crack_font = fit_font("CRACK", 38, (8, 7, 6))
         _draw_sport_mark(draw, "baseball", width - 17, 7, color, alt, frame_index)
         _draw_firework(draw, int(width * 0.22), 10, 8 + (frame_index % 4), (245, 50, 64), alt, frame_index, width)
@@ -759,10 +792,26 @@ def render_wall_score_frames(team, kind="score", sport="score", default_label="T
     alt = readable_accent(color, hex_color(team.get("alternateColor"), (255, 255, 255)))
     headline = compact_headline(kind, sport) if width < 96 else kind_headline(kind, sport)
     is_win = str(kind or "").lower() in ("win", "wins", "winner", "final_win")
-    title_font = fit_font(headline, max(24, width - 38), (13, 12, 11, 10, 9, 8, 7))
+    kind_key = str(kind or "").lower()
+    non_scoring_kinds = {
+        "game_start", "game_end", "half_start", "half_end",
+        "quarter_start", "quarter_end", "period_start", "period_end",
+        "win", "wins", "winner", "final_win",
+    }
+    has_scoring_edges = kind_key not in non_scoring_kinds and bool(team.get("playerHeadshot"))
+    title_max_width = max(18, width - 50) if has_scoring_edges else max(24, width - 38)
+    title_font = fit_font(headline, title_max_width, (13, 12, 11, 10, 9, 8, 7))
     text_bbox = ImageDraw.Draw(Image.new("RGB", (1, 1))).textbbox((0, 0), headline, font=title_font)
     text_w = text_bbox[2] - text_bbox[0]
-    if width >= 96:
+    if has_scoring_edges:
+        left_limit = 28 if width >= 96 else 24
+        right_limit = width - (27 if width >= 96 else 18)
+        center_w = max(18, right_limit - left_limit)
+        panel_w = min(center_w, text_w + 8)
+        panel_x0 = left_limit + max(0, (center_w - panel_w) // 2)
+        panel_x1 = min(right_limit, panel_x0 + panel_w)
+        text_x = panel_x0 + max(0, (panel_w - text_w) // 2) - text_bbox[0]
+    elif width >= 96:
         panel_w = min(width - 4, text_w + 8)
         panel_x0 = max(2, (width - panel_w) // 2)
         panel_x1 = panel_x0 + panel_w
@@ -784,11 +833,14 @@ def render_wall_score_frames(team, kind="score", sport="score", default_label="T
         image = Image.new("RGBA", (width, 32), (0, 0, 0, 255))
         draw = ImageDraw.Draw(image)
         _draw_generic_arena_frame(image, draw, width, sport, phase, color, alt)
-        _draw_badge(image, draw, team, color, default_label)
+        if has_scoring_edges:
+            _draw_scoring_edges(image, draw, team, color, alt, phase, default_label)
+        else:
+            _draw_badge(image, draw, team, color, default_label)
         return image, draw
 
-    start_x = 30
-    end_x = width - 9
+    start_x = 26 if has_scoring_edges and width < 96 else 30
+    end_x = width - (19 if has_scoring_edges and width < 96 else 9)
     for i in range(14):
         t = i / 13
         image, draw = base_frame(i)

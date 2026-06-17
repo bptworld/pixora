@@ -338,11 +338,11 @@ def _play_score_for_competitor(play, competitor):
         return 0
 
 
-def _classify_latest_score(event, competitor, previous_score, current_score):
+def _latest_score_play(event, competitor, previous_score, current_score):
     try:
         summary = _fetch_summary(event.get("id"))
     except Exception:
-        return "score"
+        return None
     team = competitor.get("team", {})
     favorite = (team.get("abbreviation") or "").upper()
     candidates = []
@@ -358,7 +358,10 @@ def _classify_latest_score(event, competitor, previous_score, current_score):
         play_score = _play_score_for_competitor(play, competitor)
         if previous_score < play_score <= current_score:
             candidates.append(play)
-    play = candidates[-1] if candidates else None
+    return candidates[-1] if candidates else None
+
+
+def _classify_score_play(play):
     if not play:
         return "score"
     play_type = play.get("type") or {}
@@ -374,6 +377,39 @@ def _classify_latest_score(event, competitor, previous_score, current_score):
     if "safety" in text:
         return "safety"
     return "score"
+
+
+def _play_athlete(play):
+    preferred = ("scorer", "rusher", "receiver", "passer", "kicker", "returner")
+    participants = (play or {}).get("participants") or []
+    for wanted in preferred:
+        for participant in participants:
+            if str(participant.get("type") or "").lower() != wanted:
+                continue
+            athlete = participant.get("athlete") or participant
+            if isinstance(athlete, dict) and athlete.get("id"):
+                return athlete
+    for key in ("athlete", "scorer"):
+        athlete = (play or {}).get(key) or {}
+        if isinstance(athlete, dict) and athlete.get("id"):
+            return athlete
+    return {}
+
+
+def _scorer_for_play(play, team):
+    athlete = _play_athlete(play)
+    athlete_id = str(athlete.get("id") or "").strip()
+    headshot = athlete.get("headshot") or {}
+    if isinstance(headshot, dict):
+        headshot = headshot.get("href")
+    if not headshot and athlete_id:
+        headshot = f"https://a.espncdn.com/i/headshots/nfl/players/full/{athlete_id}.png"
+    name = athlete.get("shortName") or athlete.get("displayName") or athlete.get("fullName") or ""
+    return {
+        "playerName": name,
+        "playerHeadshot": str(headshot or "").strip(),
+        "playerLogo": _team_logo_url(team or {}),
+    } if headshot else {}
 
 
 def _maybe_score_animation(options):
@@ -439,7 +475,9 @@ def _maybe_score_animation(options):
         warm_priority_graphic(warm_key, lambda animation_team=animation_team: _render_score_animation(animation_team, "score"))
         if score > last_score and score > animated:
             _SCORE_STATE[key]["animated"] = score
-            kind = _classify_latest_score(event, competitor, last_score, score)
+            play = _latest_score_play(event, competitor, last_score, score)
+            kind = _classify_score_play(play)
+            animation_team = {**animation_team, **_scorer_for_play(play, team)}
             target = str((options or {}).get("scoreAnimationTarget") or "device").strip().lower()
             wall = target in ("group", "group_wall", "wall") or target.startswith("group:")
             cache_key = priority_graphic_key(CARD_ID, animation_team, kind, animation_team["_width"])

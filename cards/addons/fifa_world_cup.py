@@ -194,6 +194,45 @@ def _team_for_animation(team, width):
     }
 
 
+def _team_flag_url(team):
+    logos = (team or {}).get("logos") or []
+    return (team or {}).get("logo") or (logos[0].get("href") if logos else "")
+
+
+def _athlete_headshot(athlete):
+    headshot = (athlete or {}).get("headshot")
+    if isinstance(headshot, dict):
+        headshot = headshot.get("href")
+    if headshot:
+        return str(headshot).strip()
+    athlete_id = str((athlete or {}).get("id") or "").strip()
+    return f"https://a.espncdn.com/i/headshots/soccer/players/full/{athlete_id}.png" if athlete_id else ""
+
+
+def _scorer_for_goal(competition, competitor, score):
+    team = (competitor or {}).get("team") or {}
+    team_ids = {str(value) for value in (competitor.get("id"), team.get("id"), team.get("uid")) if value}
+    goals = []
+    for detail in (competition or {}).get("details") or []:
+        detail_team = detail.get("team") or {}
+        if not detail.get("scoringPlay") or str(detail_team.get("id") or "") not in team_ids:
+            continue
+        athletes = detail.get("athletesInvolved") or []
+        athlete = athletes[0] if athletes else {}
+        goals.append({
+            "playerName": athlete.get("shortName") or athlete.get("displayName") or athlete.get("fullName") or "",
+            "playerHeadshot": _athlete_headshot(athlete),
+            "playerFlag": _team_flag_url(team),
+        })
+    if not goals:
+        return {}
+    try:
+        index = max(0, min(len(goals) - 1, int(score) - 1))
+    except Exception:
+        index = len(goals) - 1
+    return goals[index]
+
+
 def _team_matches(team, favorite):
     favorite = str(favorite or "").strip().upper()
     if not favorite:
@@ -402,6 +441,8 @@ def _maybe_goal_animation(options):
         _GOAL_STATE[key] = {"score": score, "animated": animated, "seen": datetime.now(timezone.utc)}
         warm_priority_graphic(cache_key, lambda animation_team=animation_team: _render_goal_animation(animation_team))
         if score > last_score and score > animated:
+            animation_team = {**animation_team, **_scorer_for_goal(competition, competitor, score)}
+            cache_key = priority_graphic_key(CARD_ID, animation_team, "goal", width)
             _GOAL_STATE[key]["animated"] = score
             target = str(opts.get("goalAnimationTarget") or "device").strip().lower()
             wall = target in ("group", "group_wall", "wall") or target.startswith("group:")

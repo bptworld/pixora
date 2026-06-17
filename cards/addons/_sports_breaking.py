@@ -162,6 +162,62 @@ def _score_kind(delta, sport="score"):
     return "score"
 
 
+def _team_logo_url(team):
+    if (team or {}).get("logo"):
+        return team.get("logo")
+    logos = (team or {}).get("logos") or []
+    return logos[0].get("href") if logos else ""
+
+
+def _headshot_sport_path(sport):
+    sport = str(sport or "").lower()
+    if sport in ("basketball", "nba", "wnba"):
+        return "nba"
+    if sport == "lacrosse":
+        return "lacrosse"
+    return ""
+
+
+def _athlete_headshot(athlete, sport):
+    headshot = (athlete or {}).get("headshot")
+    if isinstance(headshot, dict):
+        headshot = headshot.get("href")
+    if headshot:
+        return str(headshot).strip()
+    athlete_id = str((athlete or {}).get("id") or "").strip()
+    sport_path = _headshot_sport_path(sport)
+    return f"https://a.espncdn.com/i/headshots/{sport_path}/players/full/{athlete_id}.png" if athlete_id and sport_path else ""
+
+
+def _scorer_for_score(competition, competitor, score, sport):
+    team = (competitor or {}).get("team") or {}
+    team_ids = {str(value) for value in (competitor.get("id"), team.get("id"), team.get("uid")) if value}
+    scoring = []
+    for detail in (competition or {}).get("details") or []:
+        detail_team = detail.get("team") or {}
+        if not detail.get("scoringPlay") or (team_ids and str(detail_team.get("id") or "") not in team_ids):
+            continue
+        athletes = detail.get("athletesInvolved") or detail.get("participants") or []
+        athlete = athletes[0] if athletes else detail.get("athlete") or {}
+        if isinstance(athlete, dict) and "athlete" in athlete:
+            athlete = athlete.get("athlete") or {}
+        headshot = _athlete_headshot(athlete, sport)
+        if not headshot:
+            continue
+        scoring.append({
+            "playerName": athlete.get("shortName") or athlete.get("displayName") or athlete.get("fullName") or "",
+            "playerHeadshot": headshot,
+            "playerLogo": _team_logo_url(team),
+        })
+    if not scoring:
+        return {}
+    try:
+        index = max(0, min(len(scoring) - 1, int(score) - 1))
+    except Exception:
+        index = len(scoring) - 1
+    return scoring[index]
+
+
 def competitor_won(competition, competitor):
     if not competitor:
         return False
@@ -493,6 +549,7 @@ def maybe_score_alert(options, card_id, url, cache, state, sport="score", defaul
         if score > last_score and score > animated:
             state[key]["animated"] = score
             kind = _score_kind(score - last_score, sport=sport)
+            animation_team = {**animation_team, **_scorer_for_score(competition, competitor, score, sport)}
             target = str((options or {}).get("scoreAnimationTarget") or "device").strip().lower()
             wall = target in ("group", "group_wall", "wall") or target.startswith("group:")
             cache_key = priority_graphic_key(card_id, animation_team, kind, animation_team["_width"])
