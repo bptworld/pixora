@@ -149,7 +149,7 @@ def _maybe_run_animation(options):
             wall = target in ("group", "group_wall", "wall") or target.startswith("group:")
             return {
                 "body": cached_priority_graphic(cache_key, lambda animation_team=animation_team: _render_run_animation(animation_team)),
-                "dwell_secs": 4,
+                "dwell_secs": 6,
                 "_stay": True,
                 "_no_replay": True,
                 "_priority": True,

@@ -12,7 +12,7 @@ from card_utils import (
     warm_priority_graphic,
 )
 
-from _sports_breaking import SCORE_ANIMATION_TEAMS_OPTION, animation_competitors, final_win_alert, soccer_moment_alert, with_soccer_moment_options
+from _sports_breaking import SCORE_ANIMATION_TEAMS_OPTION, animation_competitors, final_win_alert, render_score_alert_frames, soccer_moment_alert, with_soccer_moment_options
 from _sports_wall import render_wall_score_frames
 
 CARD_ID = "soccer"
@@ -219,7 +219,11 @@ def _draw_soccer_ball(draw, x, y):
 def _render_goal_animation_frames(team, kind="goal"):
     from PIL import Image, ImageDraw, ImageFont
 
-    return render_wall_score_frames(team, kind, sport="soccer", default_label="FC")
+    kind = str(kind or "goal").lower()
+    if (team or {}).get("_wall"):
+        return render_wall_score_frames(team, kind, sport="soccer", default_label="FC")
+    if kind not in ("goal",):
+        return render_score_alert_frames(team, kind)
 
     color = _hex_color(team.get("color"), _COLOR)
     alt = _hex_color(team.get("alternateColor"), (255, 255, 255))
@@ -388,7 +392,7 @@ def _maybe_goal_animation(options):
             wall = target in ("group", "group_wall", "wall") or target.startswith("group:")
             return {
                 "body": cached_priority_graphic(cache_key, lambda animation_team=animation_team: _render_goal_animation(animation_team)),
-                "dwell_secs": 4,
+                "dwell_secs": 6,
                 "_stay": True,
                 "_no_replay": True,
                 "_priority": True,

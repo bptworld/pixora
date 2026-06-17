@@ -199,7 +199,7 @@ def _maybe_score_animation(options):
             cache_key = priority_graphic_key(CARD_ID, animation_team, kind, animation_team["_width"])
             return {
                 "body": cached_priority_graphic(cache_key, lambda animation_team=animation_team, kind=kind: _render_score_animation(animation_team, kind)),
-                "dwell_secs": 5,
+                "dwell_secs": 6,
                 "_stay": True,
                 "_no_replay": True,
                 "_priority": True,

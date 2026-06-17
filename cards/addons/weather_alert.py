@@ -20,8 +20,8 @@ _TARGET_CHOICES = [
 CARD_OPTIONS = [
     {"key": "zipCode", "label": "ZIP Code", "type": "text", "default": "10001", "maxlength": 5, "inputmode": "numeric"},
     {"key": "severityLevels", "label": "Display Levels", "type": "multiselect", "default": "minor,moderate,severe,extreme,unknown", "size": 5, "choices": _SEVERITY_CHOICES},
-    {"key": "severeAlertTarget", "label": "Severe Wall Graphic", "type": "select", "default": "device", "choices": _TARGET_CHOICES},
-    {"key": "extremeAlertTarget", "label": "Extreme Wall Graphic", "type": "select", "default": "group_wall", "choices": _TARGET_CHOICES},
+    {"key": "severeAlertTarget", "label": "Severe Alert Graphic", "type": "select", "default": "device", "choices": _TARGET_CHOICES},
+    {"key": "extremeAlertTarget", "label": "Extreme Alert Graphic", "type": "select", "default": "group_wall", "choices": _TARGET_CHOICES},
 ]
 CARD_RULE_FIELDS = [
     {"id": "alert_count", "label": "Alert Count"},

@@ -264,7 +264,7 @@ def game_moment_alert(options, card_id, state, event, competition, animation_tea
     wall = target in ("group", "group_wall", "wall") or target.startswith("group:")
     return {
         "body": cached_priority_graphic(cache_key, lambda animation_team=animation_team, kind=kind: render_score_alert(animation_team, kind)),
-        "dwell_secs": 5,
+        "dwell_secs": 6,
         "_stay": True,
         "_no_replay": True,
         "_priority": True,
@@ -332,7 +332,7 @@ def soccer_moment_alert(options, card_id, state, event, competition, animation_t
     wall = target in ("group", "group_wall", "wall") or target.startswith("group:")
     return {
         "body": cached_priority_graphic(cache_key, lambda animation_team=animation_team, kind=kind: render(animation_team, kind)),
-        "dwell_secs": 5,
+        "dwell_secs": 6,
         "_stay": True,
         "_no_replay": True,
         "_priority": True,
@@ -384,7 +384,7 @@ def _kind_lines(kind):
 def render_score_alert_frames(team, kind="score"):
     from PIL import Image, ImageDraw, ImageFont
 
-    if (team or {}).get("_wall") or (team or {}).get("_sport"):
+    if (team or {}).get("_wall"):
         return render_wall_score_frames(team, kind, sport=(team or {}).get("_sport") or "score")
 
     try:
@@ -498,7 +498,7 @@ def maybe_score_alert(options, card_id, url, cache, state, sport="score", defaul
             cache_key = priority_graphic_key(card_id, animation_team, kind, animation_team["_width"])
             return {
                 "body": cached_priority_graphic(cache_key, lambda animation_team=animation_team, kind=kind: render_score_alert(animation_team, kind)),
-                "dwell_secs": 5,
+                "dwell_secs": 6,
                 "_stay": True,
                 "_no_replay": True,
                 "_priority": True,

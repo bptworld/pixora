@@ -10,7 +10,7 @@ from card_utils import (
     render_text_webp,
     warm_priority_graphic,
 )
-from _sports_breaking import SCORE_ANIMATION_TEAMS_OPTION, animation_competitors, final_win_alert, soccer_moment_alert, with_soccer_moment_options
+from _sports_breaking import SCORE_ANIMATION_TEAMS_OPTION, animation_competitors, final_win_alert, render_score_alert_frames, soccer_moment_alert, with_soccer_moment_options
 from _sports_wall import render_wall_score_frames
 
 CARD_ID = "fifa_world_cup"
@@ -222,7 +222,10 @@ def _resolve_team_for_test(favorite, width=64):
 
 
 def _render_goal_animation_frames(team, kind="goal"):
-    return render_wall_score_frames(team, kind or "goal", sport="soccer", default_label="FC")
+    kind = str(kind or "goal").lower()
+    if (team or {}).get("_wall"):
+        return render_wall_score_frames(team, kind, sport="soccer", default_label="FC")
+    return render_score_alert_frames(team, kind)
 
 
 def _render_goal_animation(team, kind="goal"):
@@ -404,7 +407,7 @@ def _maybe_goal_animation(options):
             wall = target in ("group", "group_wall", "wall") or target.startswith("group:")
             return {
                 "body": cached_priority_graphic(cache_key, lambda animation_team=animation_team: _render_goal_animation(animation_team)),
-                "dwell_secs": 4,
+                "dwell_secs": 6,
                 "_stay": True,
                 "_no_replay": True,
                 "_priority": True,

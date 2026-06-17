@@ -289,6 +289,68 @@ def _render_now_batting_frames(team):
     return [image.convert("RGB")], [5000]
 
 
+def _render_rbi_card(team, kind="rbi"):
+    from PIL import Image, ImageDraw
+
+    color = _hex_color(team.get("color"), _COLOR)
+    alt = _hex_color(team.get("alternateColor"), (255, 255, 255))
+    if alt == (255, 255, 255):
+        alt = (255, 224, 96)
+    try:
+        width = int(team.get("_width") or 64)
+    except Exception:
+        width = 64
+    width = max(64, min(512, width))
+
+    image = Image.new("RGBA", (width, 32), (1, 5, 8, 255))
+    draw = ImageDraw.Draw(image)
+    for y in range(0, 32, 2):
+        shade = 8 + (y // 2)
+        draw.line((0, y, width - 1, y), fill=(1, shade, 13, 255))
+    draw.rectangle((0, 0, width - 1, 2), fill=color + (255,))
+    draw.line((0, 31, width - 1, 31), fill=tuple(max(12, c // 3) for c in color) + (255,))
+
+    headshot = _fetch_headshot(team.get("playerHeadshot"), 24) if width >= 96 else None
+    if headshot:
+        hx = 2
+        hy = 6
+        draw.rounded_rectangle((hx - 1, hy - 1, hx + headshot.width, hy + headshot.height), radius=2, fill=(3, 9, 13, 255), outline=color + (255,))
+        image.alpha_composite(headshot, (hx, hy))
+        text_left = hx + headshot.width + 4
+    elif width >= 96:
+        _draw_logo_or_fallback(image, draw, team, color)
+        text_left = 27
+    else:
+        text_left = 2
+
+    text_right = width - 2
+    text_width = max(28, text_right - text_left)
+    headline = "RBI" if str(kind or "").lower() in ("rbi", "scoring_play", "scoring-play") else "RUN"
+    name = _display_player_name(team.get("playerName"), width)
+    if not team.get("playerName"):
+        name = "Scoring Play"
+    stats = _format_batting_stats(team.get("playerStats"), width)
+    if stats == "AT BAT":
+        stats = "RUN SCORED"
+
+    headline_font = _font_from_file("PixelifySans-Bold.ttf", 12 if width >= 96 else 13)
+    name_font = _fit_regular_font(name, text_width, (10, 9, 8, 7))
+    stats_font = _fit_regular_font(stats, text_width, (7, 6, 5))
+    headline_bbox = draw.textbbox((0, 0), headline, font=headline_font)
+    name_bbox = draw.textbbox((0, 0), name, font=name_font)
+    stats_bbox = draw.textbbox((0, 0), stats, font=stats_font)
+    headline_x = text_left + max(0, (text_width - (headline_bbox[2] - headline_bbox[0])) // 2)
+    name_x = text_left + max(0, (text_width - (name_bbox[2] - name_bbox[0])) // 2)
+    stats_x = text_left + max(0, (text_width - (stats_bbox[2] - stats_bbox[0])) // 2)
+    draw_sharp_text(image, (headline_x, 2 - headline_bbox[1]), headline, alt, headline_font)
+    draw_sharp_text(image, (name_x, 15 - name_bbox[1]), name, (245, 248, 250), name_font)
+    draw_sharp_text(image, (stats_x, 24 - stats_bbox[1]), stats, (255, 255, 255), stats_font)
+
+    out = BytesIO()
+    image.convert("RGB").save(out, "WEBP", lossless=True, quality=100)
+    return out.getvalue()
+
+
 def _render_run_animation_frames(team, kind="run"):
     from PIL import Image, ImageDraw, ImageFont
 
@@ -301,7 +363,8 @@ def _render_run_animation_frames(team, kind="run"):
     width = max(64, min(512, width))
     if str(kind or "").lower() == "now_batting":
         return _render_now_batting_frames(team)
-    return render_wall_score_frames(team, kind, sport="baseball", default_label="MLB")
+    if (team or {}).get("_wall"):
+        return render_wall_score_frames(team, kind, sport="baseball", default_label="MLB")
     frames = []
     durations = []
     try:
@@ -362,6 +425,9 @@ def _render_run_animation_frames(team, kind="run"):
 
 
 def _render_run_animation(team, kind="run"):
+    kind_key = str(kind or "run").lower()
+    if kind_key in ("rbi", "scoring_play", "scoring-play"):
+        return _render_rbi_card(team, kind_key)
     frames, durations = _render_run_animation_frames(team, kind)
     out = BytesIO()
     frames[0].save(
@@ -640,6 +706,15 @@ def _mlb_animation_cache_key(card_kind, animation_team, player=None):
     return priority_graphic_key(CARD_ID, animation_team, card_kind, width) + player_sig
 
 
+def _mlb_moment_dwell(kind):
+    kind = str(kind or "run").lower()
+    if kind == "now_batting":
+        return 5
+    if kind in ("grand_slam", "win", "walk_off"):
+        return 7
+    return 6
+
+
 def _queue_mlb_animation(card_kind, options, team, player=None, dwell_secs=6, stay=False):
     animation_team = _player_animation_team(team, player, card_kind)
     animation_team["_width"] = _run_animation_width(options)
@@ -903,11 +978,11 @@ def _maybe_run_animation(options):
                     log(f"[mlb] run detected {team_key} {last_score}->{score} kind={kind} target={target} wall={wall} device={device_id}")
                 except Exception:
                     pass
-            player_sig = f"|player:{player.get('id') or animation_team.get('playerName') or ''}|head:{animation_team.get('playerHeadshot') or ''}"
-            cache_key = priority_graphic_key(CARD_ID, animation_team, kind, animation_team["_width"]) + player_sig
+            dwell_secs = _mlb_moment_dwell(kind)
+            cache_key = _mlb_animation_cache_key(kind, animation_team, player)
             return {
                 "body": cached_priority_graphic(cache_key, lambda animation_team=animation_team, kind=kind: _render_run_animation(animation_team, kind)),
-                "dwell_secs": 5 if kind in ("home_run", "grand_slam") else 4,
+                "dwell_secs": dwell_secs,
                 "_stay": False,
                 "_no_replay": True,
                 "_priority": True,
@@ -916,7 +991,7 @@ def _maybe_run_animation(options):
                     "renderer": "_render_run_animation_frames",
                     "team": animation_team,
                     "kind": kind,
-                    "dwell_secs": 7 if kind == "grand_slam" else 6,
+                    "dwell_secs": dwell_secs,
                 } if wall else None,
             }
     return None

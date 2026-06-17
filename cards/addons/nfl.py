@@ -13,7 +13,7 @@ from card_utils import (
     warm_priority_graphic,
 )
 
-from _sports_breaking import SCORE_ANIMATION_TEAMS_OPTION, animation_competitors, final_win_alert, game_moment_alert, graphic_target_option
+from _sports_breaking import SCORE_ANIMATION_TEAMS_OPTION, animation_competitors, final_win_alert, game_moment_alert, graphic_target_option, render_score_alert_frames
 from _sports_wall import render_wall_score_frames
 
 CARD_ID = "nfl"
@@ -199,9 +199,12 @@ def _draw_endzone(draw, color):
 def _render_score_animation_frames(team, kind="touchdown"):
     from PIL import Image, ImageDraw, ImageFont
 
-    return render_wall_score_frames(team, kind, sport="football", default_label="NFL")
-
     kind = str(kind or "score").lower()
+    if (team or {}).get("_wall"):
+        return render_wall_score_frames(team, kind, sport="football", default_label="NFL")
+    if kind in ("win", "wins", "winner", "final_win", "quarter_start", "quarter_end", "period_start", "period_end"):
+        return render_score_alert_frames(team, kind)
+
     color = _hex_color(team.get("color"), _COLOR)
     alt = _hex_color(team.get("alternateColor"), (255, 255, 255))
     text_color = alt if alt != (255, 255, 255) else color
@@ -442,7 +445,7 @@ def _maybe_score_animation(options):
             cache_key = priority_graphic_key(CARD_ID, animation_team, kind, animation_team["_width"])
             return {
                 "body": cached_priority_graphic(cache_key, lambda animation_team=animation_team, kind=kind: _render_score_animation(animation_team, kind)),
-                "dwell_secs": 5,
+                "dwell_secs": 6,
                 "_stay": True,
                 "_no_replay": True,
                 "_priority": True,
