@@ -170,7 +170,7 @@ def _render_goal_animation_frames(team, kind="goal"):
     if (team or {}).get("_wall"):
         return render_wall_score_frames(team, kind, sport="hockey", default_label="NHL")
     if kind not in ("goal",):
-        return render_score_alert_frames(team, kind)
+        return render_score_alert_frames({**(team or {}), "_sport": "hockey"}, kind)
 
     color = _hex_color(team.get("color"), _COLOR)
     alt = _hex_color(team.get("alternateColor"), (255, 255, 255))

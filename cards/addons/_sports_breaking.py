@@ -484,6 +484,95 @@ def _draw_soccer_device_pitch(draw, width, phase, color):
     draw.rectangle((0, 30, width - 1, 31), fill=tuple(max(0, c // 2) for c in color))
 
 
+def _draw_timing_surface(draw, width, phase, color, sport):
+    sport = str(sport or "score").lower()
+    if sport == "soccer":
+        _draw_soccer_device_pitch(draw, width, phase, color)
+        return
+    if sport in ("football", "nfl", "ufl", "cfl"):
+        grass_a = (8, 78, 40)
+        grass_b = (10, 102, 48)
+        line = (230, 244, 226)
+        draw.rectangle((0, 0, width - 1, 31), fill=grass_a)
+        for x in range(0, width, 12):
+            if ((x // 12) + phase) % 2 == 0:
+                draw.rectangle((x, 3, min(width - 1, x + 6), 29), fill=grass_b)
+            draw.line((x, 5, x, 29), fill=line)
+        draw.line((0, 17, width - 1, 17), fill=line)
+        draw.rectangle((0, 0, width - 1, 2), fill=color)
+        draw.rectangle((0, 30, width - 1, 31), fill=tuple(max(0, c // 2) for c in color))
+        return
+    if sport in ("basketball", "nba", "wnba"):
+        court = (174, 101, 47)
+        stripe = (202, 130, 65)
+        line = (248, 224, 184)
+        paint = tuple(max(0, c // 2) for c in color)
+        draw.rectangle((0, 0, width - 1, 31), fill=court)
+        for x in range(-width, width, 9):
+            draw.line((x + phase % 9, 31, x + 22 + phase % 9, 0), fill=stripe)
+        draw.line((width // 2, 3, width // 2, 30), fill=line)
+        draw.ellipse((width // 2 - 9, 11, width // 2 + 9, 29), outline=line)
+        draw.rectangle((0, 13, 14, 31), outline=line, fill=paint)
+        draw.rectangle((width - 15, 13, width - 1, 31), outline=line, fill=paint)
+        draw.rectangle((0, 0, width - 1, 2), fill=color)
+        return
+    if sport in ("hockey", "nhl"):
+        ice = (185, 228, 240)
+        line = (245, 250, 255)
+        blue = (42, 132, 210)
+        red = (220, 40, 52)
+        draw.rectangle((0, 0, width - 1, 31), fill=ice)
+        draw.rectangle((0, 0, width - 1, 3), fill=line)
+        draw.line((width // 2, 3, width // 2, 31), fill=red)
+        draw.line((max(0, width // 4), 3, max(0, width // 4), 31), fill=blue)
+        draw.line((min(width - 1, width * 3 // 4), 3, min(width - 1, width * 3 // 4), 31), fill=blue)
+        draw.ellipse((width // 2 - 9, 13, width // 2 + 9, 31), outline=blue)
+        draw.rectangle((2, 19, 8, 28), outline=red)
+        draw.rectangle((width - 9, 19, width - 3, 28), outline=red)
+        draw.rectangle((0, 0, width - 1, 2), fill=color)
+        return
+    if sport in ("baseball", "mlb", "college_baseball"):
+        grass = (10, 82, 44)
+        dirt = (148, 90, 46)
+        line = (248, 238, 210)
+        draw.rectangle((0, 0, width - 1, 31), fill=grass)
+        cx = width // 2
+        draw.polygon(((cx, 8), (width - 7, 24), (cx, 31), (7, 24)), fill=dirt, outline=line)
+        draw.line((cx, 8, cx, 31), fill=(180, 116, 58))
+        draw.line((7, 24, width - 7, 24), fill=(180, 116, 58))
+        for x, y in ((cx, 9), (width - 10, 24), (cx, 29), (10, 24)):
+            draw.rectangle((x - 1, y - 1, x + 1, y + 1), fill=line)
+        draw.rectangle((0, 0, width - 1, 2), fill=color)
+        draw.rectangle((0, 30, width - 1, 31), fill=tuple(max(0, c // 2) for c in color))
+        return
+    if sport == "lacrosse":
+        turf_a = (9, 72, 42)
+        turf_b = (14, 96, 54)
+        line = (230, 244, 226)
+        draw.rectangle((0, 0, width - 1, 31), fill=turf_a)
+        for x in range(-width, width, 10):
+            draw.line((x + phase % 10, 31, x + 30 + phase % 10, 0), fill=turf_b)
+        draw.rectangle((3, 5, width - 4, 29), outline=line)
+        draw.line((width // 2, 5, width // 2, 29), fill=line)
+        draw.ellipse((width // 2 - 7, 15, width // 2 + 7, 29), outline=line)
+        draw.rectangle((0, 0, width - 1, 2), fill=color)
+        draw.rectangle((0, 30, width - 1, 31), fill=tuple(max(0, c // 2) for c in color))
+        return
+    if sport == "volleyball":
+        court = (188, 112, 52)
+        line = (248, 232, 190)
+        draw.rectangle((0, 0, width - 1, 31), fill=court)
+        draw.rectangle((3, 5, width - 4, 29), outline=line)
+        draw.line((width // 2, 5, width // 2, 29), fill=(40, 44, 54))
+        for y in range(7, 28, 4):
+            draw.point((width // 2, y), fill=line)
+        draw.rectangle((0, 0, width - 1, 2), fill=color)
+        return
+    bg = tuple(max(0, c // 7) for c in color)
+    draw.rectangle((0, 0, width - 1, 31), fill=bg)
+    draw.rectangle((0, 0, width - 1, 2), fill=color)
+
+
 def _soccer_timing_text(kind):
     kind = str(kind or "").lower()
     if kind == "game_start":
@@ -494,6 +583,34 @@ def _soccer_timing_text(kind):
         return "2ND", "HALF"
     if kind == "half_end":
         return "HALF", "TIME"
+    return _kind_lines(kind)
+
+
+def _timing_text(kind, sport):
+    sport = str(sport or "").lower()
+    if sport == "soccer":
+        return _soccer_timing_text(kind)
+    kind = str(kind or "").lower()
+    if kind == "game_start":
+        return "GAME", "ON"
+    if kind == "game_end":
+        return "FINAL", ""
+    if kind == "quarter_start":
+        return "START", "QTR"
+    if kind == "quarter_end":
+        return "END", "QTR"
+    if kind == "period_start":
+        return "START", "PERIOD"
+    if kind == "period_end":
+        return "END", "PERIOD"
+    if kind == "half_start":
+        return "START", "HALF"
+    if kind == "half_end":
+        return "END", "HALF"
+    if kind == "inning_start":
+        return "START", "INNING"
+    if kind == "inning_end":
+        return "END", "INNING"
     return _kind_lines(kind)
 
 
@@ -569,13 +686,69 @@ def _render_soccer_timing_device_frames(team, kind):
     return frames, durations
 
 
+def _is_timing_kind(kind):
+    return str(kind or "").lower() in (
+        "game_start", "game_end",
+        "half_start", "half_end",
+        "quarter_start", "quarter_end",
+        "period_start", "period_end",
+        "inning_start", "inning_end",
+    )
+
+
+def _render_sport_timing_device_frames(team, kind):
+    from PIL import Image, ImageDraw, ImageFont
+
+    sport = str((team or {}).get("_sport") or "score").lower()
+    if sport == "soccer":
+        return _render_soccer_timing_device_frames(team, kind)
+    try:
+        width = int((team or {}).get("_width") or 64)
+    except Exception:
+        width = 64
+    width = max(64, min(512, width))
+    color = _hex_color((team or {}).get("color"), (117, 231, 214))
+    alt = _hex_color((team or {}).get("alternateColor"), (245, 250, 255))
+    try:
+        small = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
+        big = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 10)
+    except Exception:
+        small = big = ImageFont.load_default()
+    abbr = str((team or {}).get("abbreviation") or (team or {}).get("shortDisplayName") or "TEAM").upper()[:5]
+    line1, line2 = _timing_text(kind, sport)
+    line1 = _fit_device_text(ImageDraw.Draw(Image.new("RGB", (1, 1))), line1, big, max(26, width - 8))
+    line2 = _fit_device_text(ImageDraw.Draw(Image.new("RGB", (1, 1))), line2, small, max(26, width - 8))
+    frames = []
+    durations = []
+    for step in range(10):
+        image = Image.new("RGB", (width, 32), (0, 0, 0))
+        draw = ImageDraw.Draw(image)
+        _draw_timing_surface(draw, width, step, color, sport)
+        if width >= 96:
+            abbr_w = draw.textbbox((0, 0), abbr, font=small)[2]
+            draw.rectangle((1, 3, 3 + abbr_w, 10), fill=(0, 20, 28) if sport in ("hockey", "nhl") else (0, 32, 18))
+            draw_sharp_text(image, (2, 0), abbr, alt, small)
+        for text, y, font, fill in ((line1, 4, big, (230, 36, 48)), (line2, 17, small, color if sport not in ("hockey", "nhl") else (20, 80, 160))):
+            if not text:
+                continue
+            text_w = draw.textbbox((0, 0), text, font=font)[2]
+            x = (width - text_w) // 2
+            shadow = (0, 28, 18) if sport not in ("hockey", "nhl", "basketball", "nba", "wnba", "volleyball") else (42, 24, 16) if sport in ("basketball", "nba", "wnba", "volleyball") else (224, 246, 255)
+            for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                draw_sharp_text(image, (x + dx, y + dy), text, shadow, font)
+            draw_sharp_text(image, (x, y), text, fill, font)
+        frames.append(image)
+        durations.append(130 if step % 2 == 0 else 90)
+    return frames, durations
+
+
 def render_score_alert_frames(team, kind="score"):
     from PIL import Image, ImageDraw, ImageFont
 
     if (team or {}).get("_wall"):
         return render_wall_score_frames(team, kind, sport=(team or {}).get("_sport") or "score")
-    if str((team or {}).get("_sport") or "").lower() == "soccer" and str(kind or "").lower() in ("game_start", "game_end", "half_start", "half_end"):
-        return _render_soccer_timing_device_frames(team, kind)
+    if _is_timing_kind(kind) and str((team or {}).get("_sport") or "").lower() in ("soccer", "football", "basketball", "hockey", "lacrosse", "volleyball", "baseball", "nfl", "nhl", "nba", "wnba", "ufl", "cfl", "mlb", "college_baseball"):
+        return _render_sport_timing_device_frames(team, kind)
 
     try:
         width = int((team or {}).get("_width") or 64)

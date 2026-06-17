@@ -202,8 +202,13 @@ def _render_score_animation_frames(team, kind="touchdown"):
     kind = str(kind or "score").lower()
     if (team or {}).get("_wall"):
         return render_wall_score_frames(team, kind, sport="football", default_label="NFL")
-    if kind in ("win", "wins", "winner", "final_win", "quarter_start", "quarter_end", "period_start", "period_end"):
-        return render_score_alert_frames(team, kind)
+    if kind in (
+        "win", "wins", "winner", "final_win",
+        "game_start", "game_end",
+        "quarter_start", "quarter_end",
+        "period_start", "period_end",
+    ):
+        return render_score_alert_frames({**(team or {}), "_sport": "football"}, kind)
 
     color = _hex_color(team.get("color"), _COLOR)
     alt = _hex_color(team.get("alternateColor"), (255, 255, 255))

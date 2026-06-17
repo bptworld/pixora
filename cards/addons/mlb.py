@@ -14,7 +14,7 @@ from card_utils import (
     warm_priority_graphic,
 )
 
-from _sports_breaking import SCORE_ANIMATION_TEAMS_OPTION, animation_competitors, graphic_target_option
+from _sports_breaking import SCORE_ANIMATION_TEAMS_OPTION, animation_competitors, graphic_target_option, render_score_alert_frames
 from _sports_wall import _fetch_headshot, fit_font as wall_fit_font, render_wall_score_frames
 
 CARD_ID = "mlb"
@@ -365,6 +365,8 @@ def _render_run_animation_frames(team, kind="run"):
         return _render_now_batting_frames(team)
     if (team or {}).get("_wall"):
         return render_wall_score_frames(team, kind, sport="baseball", default_label="MLB")
+    if str(kind or "").lower() in ("game_start", "game_end", "inning_start", "inning_end"):
+        return render_score_alert_frames({**(team or {}), "_sport": "baseball"}, kind)
     frames = []
     durations = []
     try:
