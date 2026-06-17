@@ -7,8 +7,9 @@ from card_utils import draw_sharp_text
 
 
 _LOGO_CACHE = {}
+_HEADSHOT_CACHE = {}
 _ASSETS_DIR = Path(__file__).resolve().parents[1] / "assets"
-WALL_RENDER_VERSION = "sports-scenes-v1"
+WALL_RENDER_VERSION = "sports-scenes-player-v2"
 
 
 def hex_color(value, fallback=(117, 231, 214)):
@@ -59,6 +60,12 @@ def kind_headline(kind, sport="score"):
         return "GRAND SLAM"
     if kind in ("home_run", "homerun", "homer", "hr"):
         return "HOME RUN"
+    if kind in ("rbi", "scoring_play", "scoring-play"):
+        return "RBI"
+    if kind in ("now_batting", "now-batting"):
+        return "NOW BATTING"
+    if kind in ("walk_off", "walk-off"):
+        return "WALK OFF"
     if kind == "run":
         return "RUN SCORED"
     if kind == "touchdown":
@@ -101,6 +108,12 @@ def compact_headline(kind, sport="score"):
         return "SLAM"
     if kind in ("home_run", "homerun", "homer", "hr"):
         return "HR"
+    if kind in ("rbi", "scoring_play", "scoring-play"):
+        return "RBI"
+    if kind in ("now_batting", "now-batting"):
+        return "BAT"
+    if kind in ("walk_off", "walk-off"):
+        return "WALK"
     if kind == "run":
         return "RUN"
     if kind == "touchdown":
@@ -167,6 +180,34 @@ def _fetch_logo(url):
         _LOGO_CACHE[url] = canvas
         return canvas
     except Exception:
+        return None
+
+
+def _fetch_headshot(url, size=24):
+    url = str(url or "").strip()
+    if not url:
+        return None
+    key = f"{url}|{size}"
+    if key in _HEADSHOT_CACHE:
+        return _HEADSHOT_CACHE[key]
+    try:
+        from PIL import Image
+        request = urllib.request.Request(url, headers={"User-Agent": "Pixora/0.1"})
+        with urllib.request.urlopen(request, timeout=4) as response:
+            data = response.read()
+        image = Image.open(BytesIO(data)).convert("RGBA")
+        side = min(image.width, image.height)
+        if side > 0:
+            left = max(0, (image.width - side) // 2)
+            top = max(0, (image.height - side) // 3)
+            image = image.crop((left, top, left + side, top + side))
+        image.thumbnail((size, size), Image.LANCZOS)
+        canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+        canvas.alpha_composite(image, ((size - image.width) // 2, (size - image.height) // 2))
+        _HEADSHOT_CACHE[key] = canvas
+        return canvas
+    except Exception:
+        _HEADSHOT_CACHE[key] = None
         return None
 
 
@@ -464,10 +505,10 @@ def _draw_ballpark_frame(width, phase, color, alt):
     return image, draw
 
 
-def _draw_baseball_wall_text(image, draw, width, headline, phase, color, alt, reveal=1):
+def _draw_baseball_wall_text(image, draw, width, headline, phase, color, alt, reveal=1, kind="run"):
     headline = str(headline or "RUN SCORED").upper()
     if width < 96:
-        headline = compact_headline("home_run" if headline == "HOME RUN" else "run", "baseball")
+        headline = compact_headline(kind, "baseball")
     max_text_width = max(28, width - (10 if width >= 128 else 32))
     font = fit_font(headline, max_text_width, (30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8))
     words = headline.split() if width >= 96 else [headline]
@@ -499,6 +540,45 @@ def _draw_baseball_wall_text(image, draw, width, headline, phase, color, alt, re
         draw.rectangle((cover_x, panel_y0 - 1, panel_x1 + 1, panel_y1 + 1), fill=(0, 4, 9, 255))
 
 
+def _baseball_player_last_name(team):
+    name = str((team or {}).get("playerName") or "").strip()
+    if not name:
+        return ""
+    parts = [part for part in name.replace(".", "").split() if part]
+    return (parts[-1] if parts else name).upper()
+
+
+def _draw_baseball_player_plate(image, draw, width, team, phase, color, alt):
+    name = _baseball_player_last_name(team)
+    if not name:
+        return
+    headshot = _fetch_headshot((team or {}).get("playerHeadshot"), 24 if width >= 96 else 20)
+    label = str((team or {}).get("playerRole") or "").strip().upper()
+    if not label:
+        label = "BATTER" if str((team or {}).get("momentKind") or "").lower() == "now_batting" else "PLAYER"
+    plate_h = 12
+    y0 = 18
+    if width < 96:
+        x0 = 30
+        x1 = width - 2
+        label = ""
+    else:
+        x0 = max(2, width // 2 - 44)
+        x1 = min(width - 3, width // 2 + 44)
+    draw.rectangle((x0, y0, x1, y0 + plate_h), fill=(1, 7, 10, 235), outline=(alt if phase % 2 else color) + (255,))
+    text_left = x0 + 3
+    if headshot and width >= 96:
+        image.alpha_composite(headshot, (x0 + 2, 6))
+        draw.rectangle((x0 + 1, 5, x0 + 27, 31), outline=(alt if phase % 2 else color) + (255,))
+        text_left = x0 + 30
+    max_w = max(12, x1 - text_left - 3)
+    display = f"{label} {name}".strip() if width >= 128 and label else name
+    font = fit_font(display, max_w, (9, 8, 7, 6))
+    box = draw.textbbox((0, 0), display, font=font)
+    y = y0 + 2 - box[1]
+    draw_sharp_text(image, (text_left, y), display, (245, 248, 236) if phase % 2 else alt, font)
+
+
 def _render_baseball_wall_frames(team, kind="run", default_label="MLB"):
     team = team or {}
     try:
@@ -510,6 +590,7 @@ def _render_baseball_wall_frames(team, kind="run", default_label="MLB"):
     alt = readable_accent(color, hex_color(team.get("alternateColor"), (255, 255, 255)))
     kind_key = str(kind or "run").lower()
     headline = kind_headline(kind_key, "baseball")
+    has_player = bool(_baseball_player_last_name(team))
     frames = []
     durations = []
 
@@ -551,7 +632,9 @@ def _render_baseball_wall_frames(team, kind="run", default_label="MLB"):
             _draw_sport_mark(draw, "baseball", int(ball_x), int(ball_y), color, alt, frame_index)
         reveal = max(0, min(1, (frame_index - 14) / 13))
         if reveal > 0:
-            _draw_baseball_wall_text(image, draw, width, headline, frame_index, color, alt, reveal=reveal)
+            _draw_baseball_wall_text(image, draw, width, headline, frame_index, color, alt, reveal=reveal, kind=kind_key)
+            if has_player and frame_index > 26:
+                _draw_baseball_player_plate(image, draw, width, team, frame_index, color, alt)
         if frame_index > 23:
             boom_font = fit_font("BOOM", 34, (10, 9, 8))
             crack_font = fit_font("CRACK", 38, (8, 7, 6))
@@ -564,7 +647,9 @@ def _render_baseball_wall_frames(team, kind="run", default_label="MLB"):
             if width >= 128:
                 draw_sharp_text(image, (width - 52, 18), "BOOM", (38, 160, 255) if frame_index % 4 < 2 else (245, 248, 236), boom_font)
             if reveal > 0:
-                _draw_baseball_wall_text(image, draw, width, headline, frame_index, color, alt, reveal=reveal)
+                _draw_baseball_wall_text(image, draw, width, headline, frame_index, color, alt, reveal=reveal, kind=kind_key)
+                if has_player:
+                    _draw_baseball_player_plate(image, draw, width, team, frame_index, color, alt)
         frames.append(image.convert("RGB"))
         durations.append(55)
 
@@ -579,7 +664,9 @@ def _render_baseball_wall_frames(team, kind="run", default_label="MLB"):
         if width >= 128:
             boom_font = fit_font("BOOM", 34, (10, 9, 8))
             draw_sharp_text(image, (width - 52, 18), "BOOM", (38, 160, 255) if frame_index % 2 else (245, 248, 236), boom_font)
-        _draw_baseball_wall_text(image, draw, width, headline, frame_index, color, alt, reveal=1)
+        _draw_baseball_wall_text(image, draw, width, headline, frame_index, color, alt, reveal=1, kind=kind_key)
+        if has_player:
+            _draw_baseball_player_plate(image, draw, width, team, frame_index, color, alt)
         frames.append(image.convert("RGB"))
         durations.append(90)
 
@@ -663,7 +750,10 @@ def render_wall_score_frames(team, kind="score", sport="score", default_label="T
     except Exception:
         width = 64
     width = max(64, min(512, width))
-    if str(sport or "").lower() in ("baseball", "mlb", "softball") and str(kind or "").lower() in ("run", "home_run", "homerun", "homer", "hr", "grand_slam", "grand slam", "slam"):
+    if str(sport or "").lower() in ("baseball", "mlb", "softball") and str(kind or "").lower() in (
+        "run", "home_run", "homerun", "homer", "hr", "grand_slam", "grand slam", "slam",
+        "rbi", "scoring_play", "scoring-play", "now_batting", "now-batting", "walk_off", "walk-off", "win",
+    ):
         return _render_baseball_wall_frames(team, kind, default_label=default_label)
     color = hex_color(team.get("color"), (117, 231, 214))
     alt = readable_accent(color, hex_color(team.get("alternateColor"), (255, 255, 255)))

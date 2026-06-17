@@ -162,6 +162,7 @@ def _maybe_run_animation(options):
                 "dwell_secs": 4,
                 "_stay": True,
                 "_no_replay": True,
+                "_priority": True,
                 "_group_wall": {"type": "run", "renderer": "_render_run_animation_frames", "team": dict(animation_team), "dwell_secs": 6} if wall else None,
             }
     return None

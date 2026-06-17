@@ -235,6 +235,7 @@ def _maybe_severity_animation(options, alert, zip_code):
         "dwell_secs": 8,
         "_stay": True,
         "_no_replay": True,
+        "_priority": True,
         "_group_wall": {
             "type": severity,
             "renderer": "_render_weather_alert_frames",

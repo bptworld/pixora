@@ -202,6 +202,7 @@ def _maybe_score_animation(options):
                 "dwell_secs": 5,
                 "_stay": True,
                 "_no_replay": True,
+                "_priority": True,
                 "_group_wall": {"type": "score", "renderer": "_render_score_animation_frames", "team": dict(animation_team), "kind": kind, "dwell_secs": 6} if wall else None,
             }
     return None

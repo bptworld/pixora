@@ -407,6 +407,7 @@ def _maybe_goal_animation(options):
                 "dwell_secs": 4,
                 "_stay": True,
                 "_no_replay": True,
+                "_priority": True,
                 "_group_wall": {
                     "type": "goal",
                     "kind": "goal",

@@ -14,8 +14,8 @@ from card_utils import (
     warm_priority_graphic,
 )
 
-from _sports_breaking import SCORE_ANIMATION_TEAMS_OPTION, animation_competitors, final_win_alert, graphic_target_option
-from _sports_wall import render_wall_score_frames
+from _sports_breaking import SCORE_ANIMATION_TEAMS_OPTION, animation_competitors, graphic_target_option
+from _sports_wall import _fetch_headshot, fit_font as wall_fit_font, render_wall_score_frames
 
 CARD_ID = "mlb"
 CARD_NAME = "MLB Scores"
@@ -71,6 +71,10 @@ CARD_OPTIONS = [
     }
 ]
 CARD_OPTIONS.append(graphic_target_option("gameStartAnimationTarget", "Start of Game Graphic"))
+CARD_OPTIONS.append(graphic_target_option("scoringPlayAnimationTarget", "RBI / Scoring Play Graphic"))
+CARD_OPTIONS.append(graphic_target_option("homeRunAnimationTarget", "Home Run Graphic"))
+CARD_OPTIONS.append(graphic_target_option("walkOffAnimationTarget", "Walk-Off / Game Winner Graphic"))
+CARD_OPTIONS.append(graphic_target_option("nowBattingAnimationTarget", "Now Batting Graphic"))
 CARD_OPTIONS.append(dict(SCORE_ANIMATION_TEAMS_OPTION))
 
 _URL = "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard"
@@ -79,6 +83,8 @@ _SUMMARY_CACHE = {}
 _COLOR = (117, 231, 214)
 _RUN_STATE = {}
 _GAME_STATE = {}
+_BATTING_STATE = {}
+_BATTING_PREWARM_STATE = {}
 _LOGO_CACHE = {}
 
 
@@ -177,6 +183,112 @@ def _run_animation_text(kind):
     return "RUN", "SCORED"
 
 
+def _compact_player_name(name, fallback="BATTER"):
+    parts = [part for part in str(name or "").replace(".", "").split() if part]
+    if not parts:
+        return fallback
+    if len(parts) == 1:
+        return parts[0].upper()
+    return parts[-1].upper()
+
+
+def _display_player_name(name, width):
+    name = str(name or "").strip()
+    if not name:
+        return "Batter"
+    if width <= 72:
+        return _compact_player_name(name).title()
+    return name
+
+
+def _font_from_file(filename, size):
+    from PIL import ImageFont
+
+    try:
+        return ImageFont.truetype(f"cards/assets/fonts/{filename}", size)
+    except Exception:
+        return ImageFont.load_default()
+
+
+def _fit_regular_font(text, max_width, sizes):
+    from PIL import Image, ImageDraw
+
+    probe = ImageDraw.Draw(Image.new("RGB", (1, 1)))
+    fallback = _font_from_file("PixelifySans.ttf", sizes[-1] if sizes else 8)
+    for size in sizes:
+        font = _font_from_file("PixelifySans.ttf", size)
+        bbox = probe.textbbox((0, 0), str(text or ""), font=font)
+        if bbox[2] - bbox[0] <= max_width:
+            return font
+    return fallback
+
+
+def _format_batting_stats(stats, width):
+    stats = stats if isinstance(stats, dict) else {}
+    h_ab = str(stats.get("H-AB") or "").strip()
+    avg = str(stats.get("AVG") or "").strip()
+    rbi = str(stats.get("RBI") or "").strip()
+    hr = str(stats.get("HR") or "").strip()
+    parts = []
+    if h_ab:
+        parts.append(h_ab)
+    if rbi and rbi not in ("0", "0.0"):
+        parts.append(f"RBI {rbi}")
+    if hr and hr not in ("0", "0.0") and width >= 100:
+        parts.append(f"HR {hr}")
+    if avg:
+        parts.append(f"AVG {avg}" if width >= 96 else avg)
+    return "  ".join(parts) or "AT BAT"
+
+
+def _render_now_batting_frames(team):
+    from PIL import Image, ImageDraw
+
+    color = _hex_color(team.get("color"), _COLOR)
+    alt = _hex_color(team.get("alternateColor"), (255, 255, 255))
+    if alt == (255, 255, 255):
+        alt = (255, 224, 96)
+    try:
+        width = int(team.get("_width") or 64)
+    except Exception:
+        width = 64
+    width = max(64, min(512, width))
+
+    image = Image.new("RGBA", (width, 32), (1, 5, 8, 255))
+    draw = ImageDraw.Draw(image)
+    for y in range(0, 32, 2):
+        shade = 8 + (y // 2)
+        draw.line((0, y, width - 1, y), fill=(1, shade, 13, 255))
+    draw.rectangle((0, 0, width - 1, 2), fill=color + (255,))
+    draw.line((0, 31, width - 1, 31), fill=tuple(max(12, c // 3) for c in color) + (255,))
+
+    headshot = _fetch_headshot(team.get("playerHeadshot"), 25 if width >= 96 else 20)
+    if headshot:
+        hx = 2
+        hy = 5 if width >= 96 else 8
+        draw.rounded_rectangle((hx - 1, hy - 1, hx + headshot.width, hy + headshot.height), radius=2, fill=(3, 9, 13, 255), outline=color + (255,))
+        image.alpha_composite(headshot, (hx, hy))
+        text_left = hx + headshot.width + 4
+    else:
+        _draw_logo_or_fallback(image, draw, team, color)
+        text_left = 27
+
+    text_right = width - 2
+    text_width = max(28, text_right - text_left)
+    name = _display_player_name(team.get("playerName"), width)
+    stats = _format_batting_stats(team.get("playerStats"), width)
+    name_font = _fit_regular_font(name, text_width, (12, 11, 10, 9, 8))
+    stats_font = _fit_regular_font(stats, text_width, (8, 7, 6, 5))
+    name_bbox = draw.textbbox((0, 0), name, font=name_font)
+    stats_bbox = draw.textbbox((0, 0), stats, font=stats_font)
+    name_x = text_left + max(0, (text_width - (name_bbox[2] - name_bbox[0])) // 2)
+    stats_x = text_left + max(0, (text_width - (stats_bbox[2] - stats_bbox[0])) // 2)
+    draw_sharp_text(image, (name_x, 6 - name_bbox[1]), name, (245, 248, 250), name_font)
+    draw_sharp_text(image, (stats_x, 19 - stats_bbox[1]), stats, (255, 255, 255), stats_font)
+
+    return [image.convert("RGB")], [5000]
+
+
 def _render_run_animation_frames(team, kind="run"):
     from PIL import Image, ImageDraw, ImageFont
 
@@ -187,6 +299,8 @@ def _render_run_animation_frames(team, kind="run"):
     except Exception:
         width = 64
     width = max(64, min(512, width))
+    if str(kind or "").lower() == "now_batting":
+        return _render_now_batting_frames(team)
     return render_wall_score_frames(team, kind, sport="baseball", default_label="MLB")
     frames = []
     durations = []
@@ -350,11 +464,113 @@ def _play_is_bookkeeping(play):
     } or type_id in {"1", "59", "60", "99"}
 
 
-def _classify_latest_run(event, competitor, previous_score, current_score):
+def _athlete_id(value):
+    athlete = (value or {}).get("athlete") if isinstance(value, dict) else {}
+    if isinstance(athlete, dict):
+        athlete_id = athlete.get("id")
+        if athlete_id:
+            return str(athlete_id).strip()
+    if isinstance(value, dict) and value.get("id"):
+        return str(value.get("id")).strip()
+    return ""
+
+
+def _participant_athlete_id(play, role="batter"):
+    role = str(role or "").lower()
+    for participant in (play or {}).get("participants") or []:
+        if str(participant.get("type") or "").lower() == role:
+            return _athlete_id(participant)
+    return ""
+
+
+def _athlete_index(summary):
+    index = {}
+    for group in ((summary or {}).get("boxscore") or {}).get("players") or []:
+        team = group.get("team") or {}
+        for stat_group in group.get("statistics") or []:
+            labels = [str(label or "").strip() for label in (stat_group.get("labels") or stat_group.get("names") or [])]
+            if labels and not {"H-AB", "AVG", "OBP", "SLG"} & set(labels):
+                continue
+            for item in stat_group.get("athletes") or []:
+                athlete = item.get("athlete") or {}
+                athlete_id = str(athlete.get("id") or "").strip()
+                if not athlete_id:
+                    continue
+                headshot = athlete.get("headshot") or {}
+                values = [str(value or "").strip() for value in (item.get("stats") or [])]
+                batting_stats = {label: values[index] for index, label in enumerate(labels) if label and index < len(values)}
+                index[athlete_id] = {
+                    "id": athlete_id,
+                    "displayName": athlete.get("displayName") or athlete.get("fullName") or athlete.get("shortName") or "",
+                    "shortName": athlete.get("shortName") or athlete.get("displayName") or "",
+                    "headshot": str(headshot.get("href") or "").strip() if isinstance(headshot, dict) else "",
+                    "teamId": str(team.get("id") or "").strip(),
+                    "teamAbbreviation": str(team.get("abbreviation") or "").strip().upper(),
+                    "battingStats": batting_stats,
+                }
+    for roster_group in (summary or {}).get("rosters") or []:
+        team = roster_group.get("team") or {}
+        for item in roster_group.get("roster") or roster_group.get("athletes") or []:
+            athlete = item.get("athlete") or item
+            if not isinstance(athlete, dict):
+                continue
+            athlete_id = str(athlete.get("id") or "").strip()
+            if not athlete_id or athlete_id in index:
+                continue
+            headshot = athlete.get("headshot") or {}
+            index[athlete_id] = {
+                "id": athlete_id,
+                "displayName": athlete.get("displayName") or athlete.get("fullName") or athlete.get("shortName") or "",
+                "shortName": athlete.get("shortName") or athlete.get("displayName") or "",
+                "headshot": str(headshot.get("href") or "").strip() if isinstance(headshot, dict) else "",
+                "teamId": str(team.get("id") or "").strip(),
+                "teamAbbreviation": str(team.get("abbreviation") or "").strip().upper(),
+            }
+    return index
+
+
+def _player_from_play(play, summary, role="batter"):
+    athlete_id = _participant_athlete_id(play, role)
+    if not athlete_id:
+        return {}
+    player = dict(_athlete_index(summary).get(athlete_id) or {})
+    player["id"] = athlete_id
+    if not player.get("headshot"):
+        player["headshot"] = f"https://a.espncdn.com/i/headshots/mlb/players/full/{athlete_id}.png"
+    if not player.get("displayName"):
+        player["displayName"] = str((play or {}).get("text") or "").split(" pitches to ")[-1].strip()
+    return player
+
+
+def _player_from_id(athlete_id, summary):
+    athlete_id = str(athlete_id or "").strip()
+    if not athlete_id:
+        return {}
+    player = dict(_athlete_index(summary).get(athlete_id) or {})
+    player["id"] = athlete_id
+    if not player.get("headshot"):
+        player["headshot"] = f"https://a.espncdn.com/i/headshots/mlb/players/full/{athlete_id}.png"
+    return player
+
+
+def _player_animation_team(team, player, kind):
+    animation_team = dict(team or {})
+    player = player or {}
+    if player.get("displayName") or player.get("shortName"):
+        role = "BATTER" if kind == "now_batting" else "HITTER" if kind in ("home_run", "grand_slam") else "RBI"
+        animation_team["playerName"] = player.get("displayName") or player.get("shortName")
+        animation_team["playerHeadshot"] = player.get("headshot") or ""
+        animation_team["playerStats"] = player.get("battingStats") or {}
+        animation_team["playerRole"] = role
+        animation_team["momentKind"] = kind
+    return animation_team
+
+
+def _latest_run_play(event, competitor, previous_score, current_score):
     try:
         summary = _fetch_summary(event.get("id"))
     except Exception:
-        return "run"
+        return {}, {}
     plays = list(summary.get("scoringPlays") or [])
     if not plays:
         plays = []
@@ -376,7 +592,14 @@ def _classify_latest_run(event, competitor, previous_score, current_score):
             score_candidates.append(play)
     play = (matched_candidates or score_candidates)[-1] if (matched_candidates or score_candidates) else None
     if not play:
-        return "run"
+        return {}, summary
+    return play, summary
+
+
+def _classify_latest_run(event, competitor, previous_score, current_score):
+    play, summary = _latest_run_play(event, competitor, previous_score, current_score)
+    if not play:
+        return {"kind": "run", "play": {}, "player": {}}
     delta = max(0, int(current_score or 0) - int(previous_score or 0))
     play_type = play.get("type") or {}
     text = " ".join([
@@ -384,11 +607,195 @@ def _classify_latest_run(event, competitor, previous_score, current_score):
         str(play_type.get("abbreviation", "")),
         str(play.get("text", "")),
     ]).lower()
+    player = _player_from_play(play, summary, "batter")
     if "grand slam" in text:
-        return "grand_slam"
+        return {"kind": "grand_slam", "play": play, "player": player}
     if "homered" in text or "home run" in text or " homer" in f" {text}":
-        return "grand_slam" if delta >= 4 else "home_run"
-    return "run"
+        return {"kind": "grand_slam" if delta >= 4 else "home_run", "play": play, "player": player}
+    return {"kind": "rbi" if player else "run", "play": play, "player": player}
+
+
+def _target_for_kind(options, kind):
+    kind = str(kind or "run").lower()
+    key = "runAnimationTarget"
+    if kind in ("home_run", "grand_slam"):
+        key = "homeRunAnimationTarget"
+    elif kind in ("rbi", "scoring_play"):
+        key = "scoringPlayAnimationTarget"
+    elif kind in ("win", "walk_off"):
+        key = "walkOffAnimationTarget"
+    elif kind == "now_batting":
+        key = "nowBattingAnimationTarget"
+    value = str((options or {}).get(key) or "").strip().lower()
+    if value:
+        return value
+    return str((options or {}).get("runAnimationTarget") or "device").strip().lower() if key == "runAnimationTarget" else "device"
+
+
+def _mlb_animation_cache_key(card_kind, animation_team, player=None):
+    width = animation_team.get("_width") or 64
+    stats = animation_team.get("playerStats") if isinstance(animation_team.get("playerStats"), dict) else {}
+    stats_sig = "|stats:" + ",".join(f"{key}={stats.get(key, '')}" for key in ("H-AB", "RBI", "HR", "AVG"))
+    player_sig = f"|player:{(player or {}).get('id') or animation_team.get('playerName') or ''}|head:{animation_team.get('playerHeadshot') or ''}{stats_sig}"
+    return priority_graphic_key(CARD_ID, animation_team, card_kind, width) + player_sig
+
+
+def _queue_mlb_animation(card_kind, options, team, player=None, dwell_secs=6, stay=False):
+    animation_team = _player_animation_team(team, player, card_kind)
+    animation_team["_width"] = _run_animation_width(options)
+    target = _target_for_kind(options, card_kind)
+    wall = target in ("group", "group_wall", "wall") or target.startswith("group:")
+    cache_key = _mlb_animation_cache_key(card_kind, animation_team, player)
+    return {
+        "body": cached_priority_graphic(cache_key, lambda animation_team=animation_team, card_kind=card_kind: _render_run_animation(animation_team, card_kind)),
+        "dwell_secs": dwell_secs,
+        "_stay": stay,
+        "_no_replay": True,
+        "_priority": True,
+        "_group_wall": {
+            "type": card_kind,
+            "renderer": "_render_run_animation_frames",
+            "team": dict(animation_team),
+            "kind": card_kind,
+            "dwell_secs": dwell_secs,
+        } if wall else None,
+    }
+
+
+def _team_for_player(player, competitors):
+    team_id = str((player or {}).get("teamId") or "").strip()
+    team_abbr = str((player or {}).get("teamAbbreviation") or "").strip().upper()
+    for competitor in competitors or []:
+        team = competitor.get("team") or {}
+        values = {
+            str(team.get("id") or "").strip(),
+            str(team.get("abbreviation") or "").strip().upper(),
+            str(team.get("shortDisplayName") or "").strip().upper(),
+        }
+        if (team_id and team_id in values) or (team_abbr and team_abbr in values):
+            return team
+    return (competitors[0].get("team") if competitors else {}) or {}
+
+
+def _prewarm_now_batting(options, event, competition, summary, competitors):
+    target = _target_for_kind(options, "now_batting")
+    if target not in ("device", ""):
+        return
+    game_id = str(event.get("id") or competition.get("id") or datetime.now().strftime("%Y%m%d"))
+    device_id = str((options or {}).get("_device_id") or "local")
+    width = _run_animation_width(options)
+    warm_key = f"{device_id}:{game_id}:{width}:now_batting"
+    warmed = _BATTING_PREWARM_STATE.setdefault(warm_key, set())
+    if len(_BATTING_PREWARM_STATE) > 80:
+        _BATTING_PREWARM_STATE.clear()
+
+    candidate_ids = []
+    for item in ((summary.get("situation") or {}).get("dueUp") or []):
+        athlete_id = str(item.get("playerId") or item.get("id") or "").strip()
+        if athlete_id and athlete_id not in candidate_ids:
+            candidate_ids.append(athlete_id)
+    if len(candidate_ids) < 3:
+        for play in reversed(summary.get("plays") or []):
+            if str(((play.get("type") or {}).get("type") or "")).lower() != "start-batterpitcher":
+                continue
+            athlete_id = _participant_athlete_id(play, "batter")
+            if athlete_id and athlete_id not in candidate_ids:
+                candidate_ids.append(athlete_id)
+            if len(candidate_ids) >= 3:
+                break
+
+    for athlete_id in candidate_ids[:3]:
+        if athlete_id in warmed:
+            continue
+        player = _player_from_id(athlete_id, summary)
+        if not player or not (player.get("displayName") or player.get("shortName")):
+            continue
+        team = _team_for_player(player, competitors)
+        animation_team = _player_animation_team(team, player, "now_batting")
+        animation_team["_width"] = width
+        cache_key = _mlb_animation_cache_key("now_batting", animation_team, player)
+        warm_priority_graphic(cache_key, lambda animation_team=animation_team: _render_run_animation(animation_team, "now_batting"))
+        warmed.add(athlete_id)
+
+
+def _mlb_log(options, message):
+    log = (options or {}).get("_log")
+    if callable(log):
+        try:
+            log(message)
+        except Exception:
+            pass
+
+
+def _maybe_now_batting_animation(options, event, competition, competitors, favorite):
+    state = str(((competition.get("status") or {}).get("type") or {}).get("state") or "").lower()
+    if state != "in":
+        _mlb_log(options, f"[mlb] now batting skipped state={state or 'unknown'}")
+        return None
+    try:
+        summary = _fetch_summary(event.get("id"))
+    except Exception as error:
+        _mlb_log(options, f"[mlb] now batting summary unavailable: {error}")
+        return None
+    _prewarm_now_batting(options, event, competition, summary, competitors)
+    competitor_ids = {str((item.get("team") or {}).get("id") or "").strip() for item in competitors or []}
+    plays = [
+        play for play in (summary.get("plays") or [])
+        if str(((play.get("type") or {}).get("type") or "")).lower() == "start-batterpitcher"
+    ]
+    if not plays:
+        _mlb_log(options, "[mlb] now batting skipped: no start-batterpitcher plays")
+        return None
+    play = plays[-1]
+    player = _player_from_play(play, summary, "batter")
+    if not player:
+        _mlb_log(options, f"[mlb] now batting skipped: no batter participant play={play.get('id') or ''}")
+        return None
+    team_id = str(player.get("teamId") or (play.get("team") or {}).get("id") or "").strip()
+    if competitor_ids and team_id and team_id not in competitor_ids:
+        _mlb_log(options, f"[mlb] now batting skipped: batter team {team_id} not in game teams {sorted(competitor_ids)}")
+        return None
+    game_id = str(event.get("id") or competition.get("id") or datetime.now().strftime("%Y%m%d"))
+    device_id = (options or {}).get("_device_id", "local")
+    key = f"{device_id}:{game_id}:now_batting"
+    signature = f"{play.get('id') or ''}:{player.get('id') or ''}"
+    previous = _BATTING_STATE.get(key)
+    _BATTING_STATE[key] = {"signature": signature, "seen": datetime.now(timezone.utc)}
+    if previous is not None and previous.get("signature") == signature:
+        _mlb_log(options, f"[mlb] now batting unchanged player={player.get('displayName') or player.get('id')}")
+        return None
+    team = {}
+    for competitor in competitors or []:
+        if str((competitor.get("team") or {}).get("id") or "").strip() == team_id:
+            team = competitor.get("team") or {}
+            break
+    if not team:
+        team = (competitors[0].get("team") if competitors else {}) or {}
+    target = _target_for_kind(options, "now_batting")
+    _mlb_log(options, f"[mlb] now batting queued player={player.get('displayName') or player.get('id')} team={team.get('abbreviation') or team_id} target={target} device={(options or {}).get('_device_id', 'local')}")
+    return _queue_mlb_animation("now_batting", options, team, player, dwell_secs=5, stay=True)
+
+
+def _maybe_final_winner_animation(options, state, key, competition, competitor, team, previous):
+    if previous is None or (state.get(key) or {}).get("win_animated"):
+        return None
+    try:
+        score = int(competitor.get("score", 0) or 0)
+    except Exception:
+        score = 0
+    if not score:
+        return None
+    others = [item for item in (competition or {}).get("competitors") or [] if item is not competitor]
+    other_scores = []
+    for other in others:
+        try:
+            other_scores.append(int(other.get("score", 0) or 0))
+        except Exception:
+            pass
+    if competitor.get("winner") is not True and (not other_scores or score <= max(other_scores)):
+        return None
+    state[key] = {**(state.get(key) or {}), "win_animated": True, "seen": datetime.now(timezone.utc)}
+    return _queue_mlb_animation("win", options, team, None, dwell_secs=7, stay=True)
 
 
 def _maybe_game_start_animation(options, event, competition, competitors, favorite):
@@ -414,6 +821,7 @@ def _maybe_game_start_animation(options, event, competition, competitors, favori
         "dwell_secs": 6,
         "_stay": True,
         "_no_replay": True,
+        "_priority": True,
         "_group_wall": {
             "type": "game_start",
             "renderer": "_render_run_animation_frames",
@@ -436,13 +844,19 @@ def _maybe_run_animation(options):
 
     competition = event.get("competitions", [{}])[0]
     state = competition.get("status", {}).get("type", {}).get("state")
+    game_competitors = [item for item in competition.get("competitors", []) if item.get("team")]
     competitors = animation_competitors(event, favorite, options)
-    if not competitors:
+    if not competitors and not game_competitors:
         return None
 
-    game_start = _maybe_game_start_animation(options, event, competition, competitors, favorite)
+    game_start = _maybe_game_start_animation(options, event, competition, competitors or game_competitors, favorite)
     if game_start:
         return game_start
+    now_batting = _maybe_now_batting_animation(options, event, competition, game_competitors or competitors, favorite)
+    if now_batting:
+        return now_batting
+    if not competitors:
+        return None
 
     game_id = str(event.get("id") or competition.get("id") or datetime.now().strftime("%Y%m%d"))
     device_id = (options or {}).get("_device_id", "local")
@@ -462,12 +876,7 @@ def _maybe_run_animation(options):
         previous = _RUN_STATE.get(key)
         if state != "in":
             if str(state or "").lower() == "post":
-                win = final_win_alert(
-                    CARD_ID, _RUN_STATE, key, competition, competitor, animation_team,
-                    sport="baseball", render=_render_run_animation,
-                    target=(options or {}).get("runAnimationTarget") or "device", dwell_secs=7,
-                    renderer_name="_render_run_animation_frames",
-                )
+                win = _maybe_final_winner_animation(options, _RUN_STATE, key, competition, competitor, animation_team, previous)
                 if win and previous is not None:
                     return win
             _RUN_STATE[key] = {**(_RUN_STATE.get(key) or {}), "score": score, "animated": score, "seen": datetime.now(timezone.utc)}
@@ -483,20 +892,25 @@ def _maybe_run_animation(options):
         warm_priority_graphic(cache_key, lambda animation_team=animation_team: _render_run_animation(animation_team))
         if score > last_score and score > animated:
             _RUN_STATE[key]["animated"] = score
-            kind = _classify_latest_run(event, competitor, last_score, score)
-            target = str((options or {}).get("runAnimationTarget") or "device").strip().lower()
+            run_info = _classify_latest_run(event, competitor, last_score, score)
+            kind = run_info.get("kind") or "run"
+            player = run_info.get("player") or {}
+            animation_team = _player_animation_team(animation_team, player, kind)
+            target = _target_for_kind(options, kind)
             wall = target in ("group", "group_wall", "wall") or target.startswith("group:")
             if callable(log):
                 try:
                     log(f"[mlb] run detected {team_key} {last_score}->{score} kind={kind} target={target} wall={wall} device={device_id}")
                 except Exception:
                     pass
-            cache_key = priority_graphic_key(CARD_ID, animation_team, kind, animation_team["_width"])
+            player_sig = f"|player:{player.get('id') or animation_team.get('playerName') or ''}|head:{animation_team.get('playerHeadshot') or ''}"
+            cache_key = priority_graphic_key(CARD_ID, animation_team, kind, animation_team["_width"]) + player_sig
             return {
                 "body": cached_priority_graphic(cache_key, lambda animation_team=animation_team, kind=kind: _render_run_animation(animation_team, kind)),
                 "dwell_secs": 5 if kind in ("home_run", "grand_slam") else 4,
                 "_stay": False,
                 "_no_replay": True,
+                "_priority": True,
                 "_group_wall": {
                     "type": kind,
                     "renderer": "_render_run_animation_frames",

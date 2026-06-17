@@ -198,6 +198,7 @@ def final_win_alert(card_id, state, key, competition, competitor, animation_team
         "dwell_secs": dwell_secs,
         "_stay": True,
         "_no_replay": True,
+        "_priority": True,
         "_group_wall": {
             "type": "win",
             "renderer": renderer_name,
@@ -266,6 +267,7 @@ def game_moment_alert(options, card_id, state, event, competition, animation_tea
         "dwell_secs": 5,
         "_stay": True,
         "_no_replay": True,
+        "_priority": True,
         "_group_wall": {
             "type": kind,
             "renderer": "_render_score_alert_frames",
@@ -333,6 +335,7 @@ def soccer_moment_alert(options, card_id, state, event, competition, animation_t
         "dwell_secs": 5,
         "_stay": True,
         "_no_replay": True,
+        "_priority": True,
         "_group_wall": {
             "type": kind,
             "renderer": renderer_name,
@@ -498,6 +501,7 @@ def maybe_score_alert(options, card_id, url, cache, state, sport="score", defaul
                 "dwell_secs": 5,
                 "_stay": True,
                 "_no_replay": True,
+                "_priority": True,
                 "_group_wall": {
                     "type": kind,
                     "renderer": "_render_score_alert_frames",

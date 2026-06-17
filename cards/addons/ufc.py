@@ -857,6 +857,7 @@ def _queue_moment(kind, options, event, competition):
         "dwell_secs": 7,
         "_stay": True,
         "_no_replay": True,
+        "_priority": True,
         "_group_wall": {
             "type": kind,
             "renderer": "_render_moment_animation_frames",

@@ -327,6 +327,7 @@ def _maybe_goal_animation(options):
                 "dwell_secs": 4,
                 "_stay": True,
                 "_no_replay": True,
+                "_priority": True,
                 "_group_wall": {"type": "goal", "renderer": "_render_goal_animation_frames", "team": dict(animation_team), "dwell_secs": 6} if wall else None,
             }
     return None
