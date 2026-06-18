@@ -1,12 +1,12 @@
 dist/
 build/
 releases/*
+!releases/server/
+releases/server/*
+!releases/server/PixoraSetup-v1.3.86.exe
 !releases/cloud-server/
 releases/cloud-server/*
 !releases/cloud-server/PixoraCloudSetup-v1.3.85.exe
-!releases/server/
-releases/server/*
-!releases/server/PixoraSetup-v1.3.85.exe
 !releases/firmware/
 releases/firmware/*
 !releases/firmware/*-ota-firmware.bin
@@ -52,6 +52,7 @@ firmware/main/setup_pages.h
 /event_sport_utils.py
 /index.html
 /how-it-works.html
+/mobile.html
 /pixora_server.py
 /registry.json
 /requirements.txt
