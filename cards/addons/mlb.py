@@ -475,13 +475,13 @@ def _selected_competitor(event, favorite):
     return None
 
 
-def _fetch_summary(event_id):
+def _fetch_summary(event_id, force=False):
     event_id = str(event_id or "").strip()
     if not event_id:
         return {}
     now = datetime.now(timezone.utc)
     cached = _SUMMARY_CACHE.get(event_id)
-    if cached and cached.get("expires", now) > now:
+    if not force and cached and cached.get("expires", now) > now:
         return cached.get("body") or {}
     url = f"https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/summary?event={event_id}"
     data = fetch_json_url(url, {}, seconds=0)
@@ -634,9 +634,9 @@ def _player_animation_team(team, player, kind):
     return animation_team
 
 
-def _latest_run_play(event, competitor, previous_score, current_score):
+def _latest_run_play(event, competitor, previous_score, current_score, force_summary=False):
     try:
-        summary = _fetch_summary(event.get("id"))
+        summary = _fetch_summary(event.get("id"), force=force_summary)
     except Exception:
         return {}, {}
     plays = list(summary.get("scoringPlays") or [])
@@ -665,20 +665,23 @@ def _latest_run_play(event, competitor, previous_score, current_score):
 
 
 def _classify_latest_run(event, competitor, previous_score, current_score):
-    play, summary = _latest_run_play(event, competitor, previous_score, current_score)
+    play, summary = _latest_run_play(event, competitor, previous_score, current_score, force_summary=True)
     if not play:
         return {"kind": "run", "play": {}, "player": {}}
     delta = max(0, int(current_score or 0) - int(previous_score or 0))
     play_type = play.get("type") or {}
+    play_type_key = str(play_type.get("type", ""))
     text = " ".join([
+        play_type_key,
         str(play_type.get("text", "")),
         str(play_type.get("abbreviation", "")),
         str(play.get("text", "")),
-    ]).lower()
+    ]).replace("-", " ").lower()
+    tokens = {part.strip(" .,:;!?()[]{}") for part in text.split()}
     player = _player_from_play(play, summary, "batter")
     if "grand slam" in text:
         return {"kind": "grand_slam", "play": play, "player": player}
-    if "homered" in text or "home run" in text or " homer" in f" {text}":
+    if "homered" in text or "home run" in text or "homer" in tokens or "homers" in tokens or "hr" in tokens:
         return {"kind": "grand_slam" if delta >= 4 else "home_run", "play": play, "player": player}
     return {"kind": "rbi" if player else "run", "play": play, "player": player}
 
