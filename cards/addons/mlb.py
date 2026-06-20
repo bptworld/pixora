@@ -1005,14 +1005,5 @@ def _maybe_run_animation(options):
 def render(options=None):
     animation = _maybe_run_animation(options or {})
     if animation:
-        normal_card = render_sport_card(options, _URL, _CACHE, _COLOR, "NO MLB")
-        if animation.get("_group_wall"):
-            if normal_card:
-                animation["body"] = normal_card
-                animation["dwell_secs"] = (options or {}).get("_dwell", 10)
-                animation["_no_replay"] = False
-            return animation
-        if normal_card:
-            animation["_replay_body"] = normal_card
         return animation
     return render_sport_card(options, _URL, _CACHE, _COLOR, "NO MLB")

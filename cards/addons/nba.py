@@ -72,20 +72,8 @@ def render(options=None):
             team = {**(competitor.get("team") or {})}
             animation = game_moment_alert(opts, CARD_ID, _SCORE_STATE, event, competition, team, sport="basketball", unit="quarter", default_label="NBA")
             if animation:
-                if animation.get("_group_wall"):
-                    normal_card = render_sport_card(opts, _URL, _CACHE, _COLOR, "NO NBA")
-                    if normal_card:
-                        animation["body"] = normal_card
-                        animation["dwell_secs"] = opts.get("_dwell", 10)
-                        animation["_no_replay"] = False
                 return animation
     animation = maybe_score_alert(opts, CARD_ID, _URL, _CACHE, _SCORE_STATE, sport="basketball", default_label="NBA")
     if animation:
-        if animation.get("_group_wall"):
-            normal_card = render_sport_card(opts, _URL, _CACHE, _COLOR, "NO NBA")
-            if normal_card:
-                animation["body"] = normal_card
-                animation["dwell_secs"] = opts.get("_dwell", 10)
-                animation["_no_replay"] = False
         return animation
     return render_sport_card(opts, _URL, _CACHE, _COLOR, "NO NBA")

@@ -172,11 +172,5 @@ def render(options=None):
     opts = options or {}
     animation = _maybe_run_animation(opts)
     if animation:
-        if animation.get("_group_wall"):
-            normal_card = render_sport_card(opts, _URL, _CACHE, _COLOR, "NO CBASE")
-            if normal_card:
-                animation["body"] = normal_card
-                animation["dwell_secs"] = opts.get("_dwell", 10)
-                animation["_no_replay"] = False
         return animation
     return render_sport_card(opts, _URL, _CACHE, _COLOR, "NO CBASE")

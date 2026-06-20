@@ -316,9 +316,5 @@ def render(options=None):
         if animation:
             break
     if animation:
-        if animation.get("_group_wall"):
-            animation["body"] = normal_body
-            animation["dwell_secs"] = opts.get("_dwell", 10)
-            animation["_no_replay"] = False
         return animation
     return normal_body

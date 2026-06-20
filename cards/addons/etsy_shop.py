@@ -560,6 +560,5 @@ def render(options=None):
             "dwell_secs": 6,
             "_stay": False,
             "_no_replay": True,
-            "_replay_body": body,
         }
     return body

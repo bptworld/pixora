@@ -57,11 +57,5 @@ def render(options=None):
     opts = options or {}
     animation = maybe_score_alert(opts, CARD_ID, _URL, _CACHE, _SCORE_STATE, sport="volleyball", default_label="WVB")
     if animation:
-        if animation.get("_group_wall"):
-            normal_card = render_sport_card(opts, _URL, _CACHE, _COLOR, "NO WVB")
-            if normal_card:
-                animation["body"] = normal_card
-                animation["dwell_secs"] = opts.get("_dwell", 10)
-                animation["_no_replay"] = False
         return animation
     return render_sport_card(opts, _URL, _CACHE, _COLOR, "NO WVB")

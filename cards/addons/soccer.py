@@ -441,12 +441,6 @@ def render(options=None):
     opts = options or {}
     animation = _maybe_goal_animation(opts)
     if animation:
-        if animation.get("_group_wall"):
-            normal_card = render_sport_card(opts, _scoreboard_url(opts), _CACHE, _COLOR, "NO SOCCER")
-            if normal_card:
-                animation["body"] = normal_card
-                animation["dwell_secs"] = opts.get("_dwell", 10)
-                animation["_no_replay"] = False
         return animation
     url = _scoreboard_url(opts)
     return render_sport_card(opts, url, _CACHE, _COLOR, "NO SOCCER")

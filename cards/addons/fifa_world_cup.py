@@ -563,18 +563,6 @@ def render(options=None):
     opts = options or {}
     animation = _maybe_goal_animation(opts)
     if animation:
-        if animation.get("_group_wall"):
-            try:
-                data = _scoreboard(seconds=15)
-                favorite = str(opts.get("favoriteTeam") or "").strip().upper()
-                event = _pick_event(_events_for_today(data.get("events") or [], favorite), favorite)
-                normal_card = _render_event(event, 128 if opts.get("_target") == "matrixportal-s3-128x32" else 64) if event else None
-            except Exception:
-                normal_card = None
-            if normal_card:
-                animation["body"] = normal_card
-                animation["dwell_secs"] = opts.get("_dwell", 10)
-                animation["_no_replay"] = False
         return animation
     favorite = str(opts.get("favoriteTeam") or "").strip().upper()
     try:
