@@ -10,7 +10,7 @@ from card_utils import cached_priority_graphic, draw_sharp_text, fetch_json_url,
 CARD_ID = "ufc"
 CARD_NAME = "UFC"
 CARD_DETAIL = "Live ESPN UFC fight card"
-WALL_RENDER_VERSION = "ufc-moments-winner-headshot-flag-v1"
+WALL_RENDER_VERSION = "ufc-moments-winner-headshot-flag-v2"
 
 
 def _graphic_target_option(key, label, default="group_wall"):
@@ -67,6 +67,12 @@ _MOMENT_TARGET_KEYS = {
     "submission": "submissionAnimationTarget",
     "decision": "decisionAnimationTarget",
     "win": "winAnimationTarget",
+}
+
+_TEST_RESULT_FIGHTER = {
+    "winnerName": "PEREIRA",
+    "winnerHeadshot": "https://a.espncdn.com/i/headshots/mma/players/full/4705658.png",
+    "winnerFlag": "BRA",
 }
 
 
@@ -148,7 +154,85 @@ def _flag_url(competitor):
     flag = athlete.get("flag") or {}
     if isinstance(flag, dict) and flag.get("href"):
         return str(flag.get("href") or "").strip()
+    country = athlete.get("country") or athlete.get("citizenship") or athlete.get("birthPlace") or {}
+    if isinstance(country, dict):
+        code = country.get("abbreviation") or country.get("code") or country.get("country")
+        if code:
+            return str(code).strip().upper()
     return ""
+
+
+def _draw_flag_code(code, size):
+    code = str(code or "").strip().upper()
+    if code not in {"AUS", "BRA", "CAN", "ENG", "FRA", "IRL", "MEX", "NGA", "NZL", "POL", "RUS", "UK", "USA"}:
+        return None
+    from PIL import Image, ImageDraw
+
+    image = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    x0, y0, x1, y1 = 1, max(1, size // 5), size - 2, size - max(2, size // 5)
+    red = (200, 22, 45, 255)
+    blue = (0, 56, 168, 255)
+    dark_blue = (0, 38, 84, 255)
+    green = (0, 122, 61, 255)
+    yellow = (255, 205, 0, 255)
+    white = (245, 245, 245, 255)
+
+    def hstripe(colors):
+        height = y1 - y0 + 1
+        stripe_h = max(1, height // len(colors))
+        y = y0
+        for index, fill in enumerate(colors):
+            bottom = y1 if index == len(colors) - 1 else min(y1, y + stripe_h - 1)
+            draw.rectangle((x0, y, x1, bottom), fill=fill)
+            y = bottom + 1
+
+    def vstripe(colors):
+        width = x1 - x0 + 1
+        stripe_w = max(1, width // len(colors))
+        x = x0
+        for index, fill in enumerate(colors):
+            right = x1 if index == len(colors) - 1 else min(x1, x + stripe_w - 1)
+            draw.rectangle((x, y0, right, y1), fill=fill)
+            x = right + 1
+
+    draw.rectangle((x0, y0, x1, y1), fill=white)
+    if code == "USA":
+        hstripe([red, white, red, white, red])
+        draw.rectangle((x0, y0, x0 + max(4, size // 3), y0 + max(3, size // 4)), fill=dark_blue)
+        draw.point((x0 + 2, y0 + 2), fill=white)
+        draw.point((x0 + 4, y0 + 4), fill=white)
+    elif code == "BRA":
+        draw.rectangle((x0, y0, x1, y1), fill=(0, 156, 59, 255))
+        draw.polygon([(size // 2, y0 + 1), (x1 - 1, size // 2), (size // 2, y1 - 1), (x0 + 1, size // 2)], fill=yellow)
+        draw.ellipse((size // 2 - 3, size // 2 - 3, size // 2 + 3, size // 2 + 3), fill=blue)
+    elif code == "CAN":
+        vstripe([red, white, red])
+    elif code in ("ENG", "UK"):
+        draw.rectangle((size // 2 - 1, y0, size // 2 + 1, y1), fill=red)
+        draw.rectangle((x0, size // 2 - 1, x1, size // 2 + 1), fill=red)
+    elif code == "FRA":
+        vstripe([(0, 35, 149, 255), white, (237, 41, 57, 255)])
+    elif code == "IRL":
+        vstripe([(22, 155, 98, 255), white, (255, 136, 62, 255)])
+    elif code == "MEX":
+        vstripe([green, white, red])
+    elif code == "NGA":
+        vstripe([green, white, green])
+    elif code == "NZL":
+        draw.rectangle((x0, y0, x1, y1), fill=(0, 0, 139, 255))
+        draw.point((x1 - 4, y0 + 4), fill=red)
+        draw.point((x1 - 7, y0 + 8), fill=red)
+    elif code == "POL":
+        hstripe([white, (220, 20, 60, 255)])
+    elif code == "RUS":
+        hstripe([white, blue, red])
+    elif code == "AUS":
+        draw.rectangle((x0, y0, x1, y1), fill=(0, 0, 139, 255))
+        draw.point((x1 - 4, y0 + 4), fill=white)
+        draw.point((x1 - 7, y0 + 8), fill=white)
+    draw.rectangle((x0, y0, x1, y1), outline=(210, 220, 226, 255))
+    return image
 
 
 def _fetch_flag(url, size=22):
@@ -158,6 +242,10 @@ def _fetch_flag(url, size=22):
     key = f"{url}|{size}"
     if key in _FLAG_CACHE:
         return _FLAG_CACHE[key]
+    code_flag = _draw_flag_code(url, size)
+    if code_flag:
+        _FLAG_CACHE[key] = code_flag
+        return code_flag
     try:
         from PIL import Image
 
@@ -626,40 +714,52 @@ def _draw_moment_text(image, draw, label, width, color, alt, phase, reveal=1.0):
         draw.rectangle((cover_x, 4, panel_x1 + 1, 24), fill=(5, 5, 8))
 
 
-def _draw_winner_text(image, draw, winner_name, width, color, alt, phase, headshot_url="", flag_url=""):
+def _draw_winner_text(image, draw, winner_name, moment_label, width, color, alt, phase, headshot_url="", flag_url=""):
     winner_name = str(winner_name or "").strip().upper()
     if not winner_name:
         return
-    headshot = _fetch_headshot(headshot_url, 26) if width >= 96 else None
-    flag = _fetch_flag(flag_url, 24) if width >= 96 else None
+    moment_label = str(moment_label or "WINNER").strip().upper()
+    head_size = 26 if width >= 96 else 18
+    flag_size = 24 if width >= 96 else 16
+    headshot = _fetch_headshot(headshot_url, head_size)
+    flag = _fetch_flag(flag_url, flag_size)
     if width < 96:
-        lines = ["WINNER", winner_name]
-        sizes = (9, 8, 7, 6)
-        y_values = (5, 16)
+        name_sizes = (9, 8, 7, 6)
+        label_sizes = (7, 6, 5)
+        y_values = (7, 18)
     else:
-        lines = [f"WINNER - {winner_name}"]
-        sizes = (17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7)
-        y_values = (8,)
-    draw.rectangle((1, 4, width - 2, 25), fill=(5, 5, 8), outline=alt if phase % 2 else color)
-    text_left = 30 if headshot else 0
-    text_right = width - 30 if flag else width
+        name_sizes = (14, 13, 12, 11, 10, 9, 8, 7)
+        label_sizes = (10, 9, 8, 7)
+        y_values = (5, 18)
+    draw.rectangle((1, 3, width - 2, 28), fill=(5, 5, 8), outline=alt if phase % 2 else color)
+    text_left = 4
+    text_right = width - 4
     if headshot:
-        image.paste(headshot, (2, 3), headshot)
-        draw.rectangle((1, 3, 28, 29), outline=alt if phase % 2 else color)
+        hx = 2
+        hy = max(3, (32 - headshot.height) // 2)
+        image.paste(headshot, (hx, hy), headshot)
+        draw.rectangle((1, hy - 1, hx + headshot.width + 1, hy + headshot.height), outline=alt if phase % 2 else color)
+        text_left = hx + headshot.width + 4
     if flag:
-        flag_x = width - 27
-        image.paste(flag, (flag_x + 1, 4), flag)
-        draw.rectangle((flag_x, 3, width - 2, 28), outline=alt if phase % 2 else color)
-    for line, y_base in zip(lines, y_values):
-        text_width = max(8, text_right - text_left - 4)
+        fx = width - flag.width - 2
+        fy = max(4, (32 - flag.height) // 2)
+        image.paste(flag, (fx, fy), flag)
+        draw.rectangle((fx - 1, fy - 1, width - 2, fy + flag.height), outline=alt if phase % 2 else color)
+        text_right = fx - 3
+    lines = (
+        (winner_name, name_sizes, y_values[0], alt if phase % 2 else color),
+        (moment_label, label_sizes, y_values[1], color if phase % 2 else alt),
+    )
+    for line, sizes, y_base, fill in lines:
+        text_width = max(8, text_right - text_left)
         font = _fit_font(draw, line, text_width, sizes)
         box = draw.textbbox((0, 0), line, font=font)
         text_w = box[2] - box[0]
-        x = max(text_left + 1, text_left + ((text_width - text_w) // 2)) - box[0]
+        x = text_left + max(0, (text_width - text_w) // 2) - box[0]
         y = y_base - box[1]
         for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
             draw_sharp_text(image, (x + dx, y + dy), line, (70, 0, 8), font)
-        draw_sharp_text(image, (x, y), line, alt if phase % 2 else color, font)
+        draw_sharp_text(image, (x, y), line, fill, font)
 
 
 def _render_moment_animation_frames(team=None, kind="knockout"):
@@ -691,6 +791,8 @@ def _render_moment_animation_frames(team=None, kind="knockout"):
         frames.append(image)
         durations.append(55)
 
+    use_winner_wall_layout = bool(winner_name)
+
     for step in range(16):
         image = Image.new("RGB", (width, 32), (3, 4, 7) if step % 2 else (22, 2, 6))
         draw = ImageDraw.Draw(image)
@@ -713,7 +815,10 @@ def _render_moment_animation_frames(team=None, kind="knockout"):
                 draw.line((width // 2 - 8, 16, width // 2 + 8, 16), fill=(255, 210, 70))
             else:
                 _draw_burst(draw, width // 2, 16, 6 + (step % 4), color, alt, step, width)
-        _draw_moment_text(image, draw, label, width, color, alt, step, min(1, (step + 1) / 8))
+        if use_winner_wall_layout:
+            _draw_winner_text(image, draw, winner_name, label, width, color, alt, step, winner_headshot, winner_flag)
+        else:
+            _draw_moment_text(image, draw, label, width, color, alt, step, min(1, (step + 1) / 8))
         frames.append(image)
         durations.append(75)
 
@@ -724,7 +829,10 @@ def _render_moment_animation_frames(team=None, kind="knockout"):
         _draw_octagon(draw, width, step + 26, color)
         for burst_x in (max(11, width // 5), width // 2, min(width - 12, width * 4 // 5)):
             _draw_burst(draw, burst_x, 8 + ((step + burst_x) % 12), 5 + (step % 5), color, alt, step + burst_x, width)
-        _draw_moment_text(image, draw, label, width, color, alt, step, 1)
+        if use_winner_wall_layout:
+            _draw_winner_text(image, draw, winner_name, label, width, color, alt, step, winner_headshot, winner_flag)
+        else:
+            _draw_moment_text(image, draw, label, width, color, alt, step, 1)
         frames.append(image)
         durations.append(110)
 
@@ -736,7 +844,7 @@ def _render_moment_animation_frames(team=None, kind="knockout"):
             _draw_octagon(draw, width, step + 38, color)
             for burst_x in (max(11, width // 4), min(width - 12, width * 3 // 4)):
                 _draw_burst(draw, burst_x, 9 + ((step + burst_x) % 10), 5 + (step % 5), color, alt, step + burst_x, width)
-            _draw_winner_text(image, draw, winner_name, width, color, alt, step, winner_headshot, winner_flag)
+            _draw_winner_text(image, draw, winner_name, label, width, color, alt, step, winner_headshot, winner_flag)
             frames.append(image)
             durations.append(120)
 
@@ -833,11 +941,53 @@ def _winner_flag_url(competition):
     return ""
 
 
+def _sample_result_fighter(competition):
+    competitors = (competition or {}).get("competitors") or []
+    for competitor in competitors:
+        if competitor.get("winner"):
+            return competitor
+    return competitors[0] if competitors else None
+
+
+def _result_test_payload(competition):
+    competitor = _sample_result_fighter(competition)
+    if not competitor:
+        return dict(_TEST_RESULT_FIGHTER)
+    payload = {
+        "winnerName": _fighter_name(competitor),
+        "winnerHeadshot": _headshot_url(competitor),
+        "winnerFlag": _flag_url(competitor),
+    }
+    if not payload["winnerName"] or not payload["winnerHeadshot"]:
+        return dict(_TEST_RESULT_FIGHTER)
+    if not payload["winnerFlag"]:
+        payload["winnerFlag"] = _TEST_RESULT_FIGHTER["winnerFlag"]
+    return payload
+
+
+def _warm_moment_test_graphics(base_team, competition):
+    result_payload = _result_test_payload(competition)
+    for kind in _MOMENT_TARGET_KEYS:
+        test_team = dict(base_team)
+        if kind in ("knockout", "submission", "decision", "win"):
+            test_team.update(result_payload)
+        warm_priority_graphic(
+            priority_graphic_key(CARD_ID, base_team, kind, base_team["_width"]),
+            lambda test_team=test_team, kind=kind: _render_moment_animation(test_team, kind),
+        )
+
+
 def _queue_moment(kind, options, event, competition):
     width = _animation_width(options)
-    winner_name = _winner_last_name(competition) if kind in ("knockout", "submission", "decision", "win") else ""
-    winner_headshot = _winner_headshot_url(competition) if winner_name else ""
-    winner_flag = _winner_flag_url(competition) if winner_name else ""
+    if kind in ("knockout", "submission", "decision", "win"):
+        winner_name = _winner_last_name(competition)
+        winner_headshot = _winner_headshot_url(competition) if winner_name else ""
+        winner_flag = _winner_flag_url(competition) if winner_name else ""
+    else:
+        result_payload = _result_test_payload(competition)
+        winner_name = result_payload.get("winnerName") or ""
+        winner_headshot = result_payload.get("winnerHeadshot") or ""
+        winner_flag = result_payload.get("winnerFlag") or ""
     team = {
         "abbreviation": "UFC",
         "shortDisplayName": "UFC",
@@ -851,7 +1001,7 @@ def _queue_moment(kind, options, event, competition):
     }
     target = _target_for_moment(kind, options)
     wall = target in ("group", "group_wall", "wall") or target.startswith("group:")
-    cache_key = f"{priority_graphic_key(CARD_ID, team, kind, width)}|winner:{winner_name}|head:{winner_headshot}|flag:{winner_flag}"
+    cache_key = f"{priority_graphic_key(CARD_ID, team, kind, width)}|{WALL_RENDER_VERSION}|winner:{winner_name}|head:{winner_headshot}|flag:{winner_flag}"
     return {
         "body": cached_priority_graphic(cache_key, lambda: _render_moment_animation(team, kind)),
         "dwell_secs": 7,
@@ -887,7 +1037,7 @@ def _maybe_moment_animation(options, event, competition):
     _MOMENT_STATE[key] = {**signature, "seen": datetime.now(timezone.utc)}
 
     team = {"abbreviation": "UFC", "color": "FF4646", "alternateColor": "FFF2A8", "_width": _animation_width(options)}
-    warm_priority_graphic(priority_graphic_key(CARD_ID, team, "knockout", team["_width"]), lambda: _render_moment_animation(team, "knockout"))
+    _warm_moment_test_graphics(team, competition)
     if previous is None:
         return None
     if has_result and not previous.get("result"):
@@ -913,6 +1063,8 @@ def render(options=None):
     events = data.get("events") or []
     event, competition = _pick_fight(events, opts)
     if not event:
+        team = {"abbreviation": "UFC", "color": "FF4646", "alternateColor": "FFF2A8", "_width": _animation_width(opts)}
+        _warm_moment_test_graphics(team, {})
         return None
     animation = _maybe_moment_animation(opts, event, competition)
     if animation:
