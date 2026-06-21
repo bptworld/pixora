@@ -383,20 +383,35 @@ def _draw_rocket(draw, x, y, color, flame=True):
         draw.line((x + 4, y + 23, x + 4, y + 30), fill=(255, 80, 45))
 
 
-def _draw_flying_rocket(draw, x, y, frame):
+def _draw_flying_rocket(draw, x, y, frame, direction="left"):
     body = (214, 226, 234)
     nose = (255, 160, 65)
     fin = (128, 154, 180)
     smoke = (92, 104, 118)
     flame = (255, 187, 56)
     flame_hot = (255, 80, 45)
+
+    wiggle = frame % 2
+    if direction == "right":
+        draw.polygon([(x + 56, y + 7), (x + 48, y + 2), (x + 34, y + 2), (x + 34, y + 12), (x + 48, y + 12)], fill=body)
+        draw.polygon([(x + 56, y + 7), (x + 48, y + 2), (x + 48, y + 12)], fill=nose)
+        draw.rectangle((x + 42, y + 5, x + 46, y + 9), fill=(35, 80, 120))
+        draw.polygon([(x + 39, y + 2), (x + 33, y - 2), (x + 35, y + 4)], fill=fin)
+        draw.polygon([(x + 39, y + 12), (x + 33, y + 16), (x + 35, y + 10)], fill=fin)
+        draw.polygon([(x + 34, y + 4), (x + 25 - wiggle, y + 7), (x + 34, y + 10)], fill=flame)
+        draw.polygon([(x + 34, y + 6), (x + 28 - wiggle, y + 7), (x + 34, y + 8)], fill=flame_hot)
+        for i in range(5):
+            sx = x + 27 - (i * 6) - ((frame + i) % 3)
+            sy = y + 4 + ((frame + i) % 5)
+            r = 1 + (i % 2)
+            draw.rectangle((sx - r, sy - r, sx + r, sy + r), fill=smoke)
+        return
+
     draw.polygon([(x, y + 7), (x + 8, y + 2), (x + 22, y + 2), (x + 22, y + 12), (x + 8, y + 12)], fill=body)
     draw.polygon([(x, y + 7), (x + 8, y + 2), (x + 8, y + 12)], fill=nose)
     draw.rectangle((x + 10, y + 5, x + 14, y + 9), fill=(35, 80, 120))
     draw.polygon([(x + 17, y + 2), (x + 23, y - 2), (x + 21, y + 4)], fill=fin)
     draw.polygon([(x + 17, y + 12), (x + 23, y + 16), (x + 21, y + 10)], fill=fin)
-
-    wiggle = frame % 2
     draw.polygon([(x + 22, y + 4), (x + 31 + wiggle, y + 7), (x + 22, y + 10)], fill=flame)
     draw.polygon([(x + 22, y + 6), (x + 28 + wiggle, y + 7), (x + 22, y + 8)], fill=flame_hot)
     for i in range(5):
@@ -445,12 +460,12 @@ def _shake_frames(launch, opts):
     return [_draw_launch_page(launch, opts, rocket_offset=offset) for offset in offsets], [85] * len(offsets)
 
 
-def _draw_liftoff_page(width, x=None, y=7, frame=0):
+def _draw_liftoff_page(width, x=None, y=7, frame=0, direction="left"):
     from PIL import Image, ImageDraw
 
     image = Image.new("RGB", (width, 32), (0, 0, 0))
     if x is not None:
-        _draw_flying_rocket(ImageDraw.Draw(image), x, y, frame)
+        _draw_flying_rocket(ImageDraw.Draw(image), x, y, frame, direction=direction)
     return image
 
 
@@ -466,6 +481,11 @@ def _liftoff_frames(launch, opts):
         x = width + 5 - int((width + 34) * frame / (steps - 1))
         y = 7 + ((frame % 3) - 1)
         frames.append(_draw_liftoff_page(width, x=x, y=y, frame=frame))
+        durations.append(65)
+    for frame in range(steps):
+        x = -61 + int((width + 66) * frame / (steps - 1))
+        y = 7 + (((frame + 1) % 3) - 1)
+        frames.append(_draw_liftoff_page(width, x=x, y=y, frame=frame, direction="right"))
         durations.append(65)
     return frames, durations
 
