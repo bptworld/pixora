@@ -211,18 +211,26 @@ def _fetch_headshot(url, size=24):
         return None
 
 
-def _draw_badge(image, draw, team, color, default_label):
+def _draw_badge(image, draw, team, color, default_label, side="left", size=22):
+    width = image.width
+    size = max(14, min(22, int(size or 22)))
+    x0 = 0 if side != "right" else max(0, width - size - 2)
+    y0 = max(4, (32 - size) // 2)
     logo = _fetch_logo(_team_logo_url(team or {}))
     if logo:
-        image.alpha_composite(logo, (0, 5))
+        if logo.width != size or logo.height != size:
+            from PIL import Image
+
+            logo = logo.resize((size, size), Image.LANCZOS)
+        image.alpha_composite(logo, (x0 + 1, y0))
         return
     if _draw_flag_badge(draw, (team or {}).get("flagCode")):
         return
-    draw.rounded_rectangle((0, 4, 25, 28), radius=2, outline=color, width=2, fill=(4, 7, 9, 255))
+    draw.rounded_rectangle((x0, y0 - 1, x0 + size + 1, y0 + size + 1), radius=2, outline=color, width=2, fill=(4, 7, 9, 255))
     abbr = str((team or {}).get("abbreviation") or (team or {}).get("shortDisplayName") or default_label).upper()[:3]
-    font = fit_font(abbr, 21, (9, 8, 7, 6))
+    font = fit_font(abbr, size - 1, (9, 8, 7, 6))
     bbox = draw.textbbox((0, 0), abbr, font=font)
-    draw_sharp_text(image, (13 - (bbox[2] - bbox[0]) // 2, 11), abbr, color, font)
+    draw_sharp_text(image, (x0 + size // 2 - (bbox[2] - bbox[0]) // 2 + 1, y0 + size // 2 - 4), abbr, color, font)
 
 
 def _draw_scoring_edges(image, draw, team, color, alt, phase, default_label):
@@ -250,6 +258,8 @@ def _draw_scoring_edges(image, draw, team, color, alt, phase, default_label):
         fy = max(5, (32 - flag.height) // 2)
         draw.rectangle((fx - 1, fy - 1, width - 1, fy + flag.height), fill=(2, 8, 10, 240), outline=edge + (255,))
         image.alpha_composite(flag, (fx, fy))
+    else:
+        _draw_badge(image, draw, team, color, default_label, side="right", size=flag_size)
 
 
 def _draw_flag_badge(draw, code):
@@ -606,6 +616,41 @@ def _draw_baseball_player_plate(image, draw, width, team, phase, color, alt):
     draw_sharp_text(image, (text_left, y), display, (245, 248, 236) if phase % 2 else alt, font)
 
 
+def _draw_baseball_home_run_center(image, draw, width, team, headline, phase, color, alt, reveal=1, kind="home_run"):
+    edge_size = 24 if width >= 96 else 22
+    left_x = edge_size + 5 if width >= 96 else edge_size + 3
+    right_x = width - edge_size - 5
+    lane_w = max(14, right_x - left_x)
+    name = _baseball_player_last_name(team)
+    event_text = str(headline or kind_headline(kind, "baseball")).upper()
+    if width < 96:
+        event_text = compact_headline(kind, "baseball")
+        name = name[:7]
+    event_font = fit_font(event_text, lane_w, (14, 13, 12, 11, 10, 9, 8, 7, 6))
+    name_font = fit_font(name, lane_w, (8, 7, 6, 5))
+    event_box = draw.textbbox((0, 0), event_text, font=event_font)
+    event_w = event_box[2] - event_box[0]
+    event_x = left_x + max(0, (lane_w - event_w) // 2)
+    panel_x0 = max(1, left_x - 2)
+    panel_x1 = min(width - 2, right_x + 2)
+    draw.rectangle((panel_x0, 4, panel_x1, 27), fill=(2, 10, 13, 225), outline=dim(color, 0.58) + (255,))
+    if name:
+        name_box = draw.textbbox((0, 0), name, font=name_font)
+        name_w = name_box[2] - name_box[0]
+        name_x = left_x + max(0, (lane_w - name_w) // 2)
+        draw_sharp_text(image, (name_x, 5 - name_box[1]), name, (245, 248, 236), name_font)
+        event_y = 17 - event_box[1]
+    else:
+        event_y = 11 - event_box[1]
+    fill = alt if phase % 6 < 3 else (245, 248, 236)
+    for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+        draw_sharp_text(image, (event_x + dx, event_y + dy), event_text, (40, 8, 6), event_font)
+    draw_sharp_text(image, (event_x, event_y), event_text, fill, event_font)
+    if reveal < 1:
+        cover_x = int(panel_x0 + ((panel_x1 - panel_x0 + 1) * reveal))
+        draw.rectangle((cover_x, 3, panel_x1 + 1, 28), fill=(0, 4, 9, 255))
+
+
 def _render_baseball_wall_frames(team, kind="run", default_label="MLB"):
     team = team or {}
     try:
@@ -618,12 +663,13 @@ def _render_baseball_wall_frames(team, kind="run", default_label="MLB"):
     kind_key = str(kind or "run").lower()
     headline = kind_headline(kind_key, "baseball")
     has_player = bool(_baseball_player_last_name(team))
+    is_home_run = kind_key in ("home_run", "homerun", "homer", "hr", "grand_slam", "grand slam", "slam")
     frames = []
     durations = []
 
     def ballpark_frame(phase):
         image, draw = _draw_ballpark_frame(width, phase, color, alt)
-        if has_player and team.get("playerHeadshot"):
+        if is_home_run or (has_player and team.get("playerHeadshot")):
             _draw_scoring_edges(image, draw, team, color, alt, phase, default_label)
         return image, draw
 
@@ -665,8 +711,11 @@ def _render_baseball_wall_frames(team, kind="run", default_label="MLB"):
             _draw_sport_mark(draw, "baseball", int(ball_x), int(ball_y), color, alt, frame_index)
         reveal = max(0, min(1, (frame_index - 14) / 13))
         if reveal > 0:
-            _draw_baseball_wall_text(image, draw, width, headline, frame_index, color, alt, reveal=reveal, kind=kind_key)
-            if has_player and frame_index > 26:
+            if is_home_run:
+                _draw_baseball_home_run_center(image, draw, width, team, headline, frame_index, color, alt, reveal=reveal, kind=kind_key)
+            else:
+                _draw_baseball_wall_text(image, draw, width, headline, frame_index, color, alt, reveal=reveal, kind=kind_key)
+            if has_player and frame_index > 26 and not is_home_run:
                 _draw_baseball_player_plate(image, draw, width, team, frame_index, color, alt)
         if frame_index > 23:
             boom_font = fit_font("BOOM", 34, (10, 9, 8))
@@ -676,12 +725,16 @@ def _render_baseball_wall_frames(team, kind="run", default_label="MLB"):
             _draw_firework(draw, int(width * 0.74), 9, 5 + ((phase + 3) % 8), color, (255, 96, 200), phase + 2, width)
             if frame_index > 30:
                 _draw_firework(draw, width - 20, 8, 4 + ((phase + 5) % 7), (38, 160, 255), alt, phase + 4, width)
-            draw_sharp_text(image, (5, 10), "CRACK", (245, 50, 64) if frame_index % 4 < 2 else (245, 248, 236), crack_font)
-            if width >= 128:
+            if not is_home_run:
+                draw_sharp_text(image, (5, 10), "CRACK", (245, 50, 64) if frame_index % 4 < 2 else (245, 248, 236), crack_font)
+            if width >= 128 and not is_home_run:
                 draw_sharp_text(image, (width - 52, 18), "BOOM", (38, 160, 255) if frame_index % 4 < 2 else (245, 248, 236), boom_font)
             if reveal > 0:
-                _draw_baseball_wall_text(image, draw, width, headline, frame_index, color, alt, reveal=reveal, kind=kind_key)
-                if has_player:
+                if is_home_run:
+                    _draw_baseball_home_run_center(image, draw, width, team, headline, frame_index, color, alt, reveal=reveal, kind=kind_key)
+                else:
+                    _draw_baseball_wall_text(image, draw, width, headline, frame_index, color, alt, reveal=reveal, kind=kind_key)
+                if has_player and not is_home_run:
                     _draw_baseball_player_plate(image, draw, width, team, frame_index, color, alt)
         frames.append(image.convert("RGB"))
         durations.append(55)
@@ -693,12 +746,16 @@ def _render_baseball_wall_frames(team, kind="run", default_label="MLB"):
         _draw_firework(draw, int(width * 0.22), 10, 8 + (frame_index % 4), (245, 50, 64), alt, frame_index, width)
         _draw_firework(draw, int(width * 0.74), 9, 9 + ((frame_index + 2) % 4), color, (255, 96, 200), frame_index + 2, width)
         _draw_firework(draw, width - 20, 8, 7 + ((frame_index + 1) % 4), (38, 160, 255), alt, frame_index + 4, width)
-        draw_sharp_text(image, (5, 10), "CRACK", (245, 50, 64) if frame_index % 2 else (245, 248, 236), crack_font)
-        if width >= 128:
+        if not is_home_run:
+            draw_sharp_text(image, (5, 10), "CRACK", (245, 50, 64) if frame_index % 2 else (245, 248, 236), crack_font)
+        if width >= 128 and not is_home_run:
             boom_font = fit_font("BOOM", 34, (10, 9, 8))
             draw_sharp_text(image, (width - 52, 18), "BOOM", (38, 160, 255) if frame_index % 2 else (245, 248, 236), boom_font)
-        _draw_baseball_wall_text(image, draw, width, headline, frame_index, color, alt, reveal=1, kind=kind_key)
-        if has_player:
+        if is_home_run:
+            _draw_baseball_home_run_center(image, draw, width, team, headline, frame_index, color, alt, reveal=1, kind=kind_key)
+        else:
+            _draw_baseball_wall_text(image, draw, width, headline, frame_index, color, alt, reveal=1, kind=kind_key)
+        if has_player and not is_home_run:
             _draw_baseball_player_plate(image, draw, width, team, frame_index, color, alt)
         frames.append(image.convert("RGB"))
         durations.append(90)

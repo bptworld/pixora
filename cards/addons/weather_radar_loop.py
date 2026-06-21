@@ -88,9 +88,10 @@ def _radar_frames(zip_code, width):
             "source": "RainViewer",
         }
 
-    # Keep the matrix loop light while still showing movement. A lat/lon tile
-    # keeps the chosen ZIP centered without doing map math locally.
-    selected = timeline[-6:] if len(timeline) >= 6 else timeline
+    # Keep the matrix loop light while showing enough radar history to feel
+    # like a real loop. A lat/lon tile keeps the chosen ZIP centered without
+    # doing map math locally.
+    selected = timeline[-10:] if len(timeline) >= 10 else timeline
     tile_size = 256
     zoom = 7
     color = 2
@@ -272,8 +273,8 @@ def _render_animation(info, width, dwell_secs):
 
     dwell_ms = max(3000, min(60000, int(dwell_secs or 10) * 1000))
     source_frames = info.get("frames") or []
-    frame_count = len(source_frames) if source_frames else max(6, min(12, int(round(dwell_ms / 800))))
-    frame_duration = max(45, int(round(dwell_ms / frame_count)))
+    frame_count = len(source_frames) if source_frames else max(10, min(24, int(round(dwell_ms / 240))))
+    frame_duration = 180 if source_frames else 120
     try:
         font = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
         bold = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)

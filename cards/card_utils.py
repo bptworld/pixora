@@ -1257,6 +1257,7 @@ def render_sport_card(options, url, cache, status_color, fallback_text):
         status = baseball_status_without_clock(status)
     outs = baseball_outs(competition) if is_baseball and state == "in" else None
     batting_side = baseball_batting_side(status) if is_baseball and state == "in" else None
+    bases = baseball_bases(competition) if is_baseball and state == "in" else None
 
     if (options or {}).get("_target") == "matrixportal-s3-128x32":
         compact_logo_text = str(fallback_text or "").upper()
@@ -1264,7 +1265,7 @@ def render_sport_card(options, url, cache, status_color, fallback_text):
         logo_size = 24 if compact_basketball else 28
         score_pad = 1 if compact_basketball else 6
         return _render_sport_card_128(
-            away, home, away_team, home_team, status, score, status_color, competition.get("series"), outs, batting_side, logo_size, score_pad, compact_basketball
+            away, home, away_team, home_team, status, score, status_color, competition.get("series"), outs, batting_side, bases, logo_size, score_pad, compact_basketball
         )
 
     image = Image.new("RGB", (64, 32), (5, 7, 10))
@@ -1311,8 +1312,10 @@ def render_sport_card(options, url, cache, status_color, fallback_text):
     away_abb_w = draw.textbbox((0, 0), away_abbrev, font=small)[2]
     away_abb_x = 2
     home_abb_x = 63 - habb_w
-    draw_sharp_text(image, (2, 15), away_abbrev, (255, 255, 255), small)
-    draw_sharp_text(image, (home_abb_x, 15), home_abbrev, (255, 255, 255), small)
+    if batting_side != "away":
+        draw_sharp_text(image, (2, 15), away_abbrev, (255, 255, 255), small)
+    if batting_side != "home":
+        draw_sharp_text(image, (home_abb_x, 15), home_abbrev, (255, 255, 255), small)
 
     series = competition.get("series")
     away_rec = get_team_record(away, series)[:7]
@@ -1329,10 +1332,11 @@ def render_sport_card(options, url, cache, status_color, fallback_text):
     if home_logo:
         image.paste(home_logo, (52, 7), home_logo)
     if batting_side == "away":
-        draw_baseball_bat_marker(draw, away_abb_x + away_abb_w // 2, 12, "away")
+        draw_baseball_bat_marker(draw, 10, 12, "away")
+        draw_baseball_diamond(draw, 10, 19, bases, size=3)
     elif batting_side == "home":
-        draw_baseball_bat_marker(draw, home_abb_x + habb_w // 2, 12, "home")
-
+        draw_baseball_bat_marker(draw, 54, 12, "home")
+        draw_baseball_diamond(draw, 54, 19, bases, size=3)
     out = BytesIO()
     image.save(out, "WEBP", lossless=True, quality=100)
     return out.getvalue()
@@ -1349,6 +1353,48 @@ def baseball_outs(competition):
         return max(0, min(3, int(raw)))
     except Exception:
         return None
+
+
+def _base_occupied(situation, *keys):
+    for key in keys:
+        if key not in situation:
+            continue
+        value = situation.get(key)
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, (int, float)):
+            return value > 0
+        if isinstance(value, dict):
+            return bool(value)
+        if isinstance(value, str):
+            return value.strip().lower() in ("1", "true", "yes", "on", "occupied")
+        if value:
+            return True
+    return False
+
+
+def baseball_bases(competition):
+    situation = (competition or {}).get("situation") or {}
+    if not isinstance(situation, dict):
+        return {"first": False, "second": False, "third": False}
+    bases = {
+        "first": _base_occupied(situation, "onFirst", "first", "firstBase", "runnerOnFirst"),
+        "second": _base_occupied(situation, "onSecond", "second", "secondBase", "runnerOnSecond"),
+        "third": _base_occupied(situation, "onThird", "third", "thirdBase", "runnerOnThird"),
+    }
+    runners = situation.get("runnersOnBase") or situation.get("runners") or []
+    if isinstance(runners, dict):
+        runners = runners.values()
+    for runner in runners if isinstance(runners, (list, tuple, set, dict)) else []:
+        base = runner.get("base") if isinstance(runner, dict) else runner
+        label = str(base or "").strip().lower()
+        if label in ("1", "1b", "first", "first base"):
+            bases["first"] = True
+        elif label in ("2", "2b", "second", "second base"):
+            bases["second"] = True
+        elif label in ("3", "3b", "third", "third base"):
+            bases["third"] = True
+    return bases
 
 
 def baseball_status_without_clock(status):
@@ -1382,6 +1428,26 @@ def draw_baseball_out_dots(draw, cx, cy, outs, size=1):
             draw.ellipse(box, fill=(232, 54, 62))
         else:
             draw.ellipse(box, outline=(92, 111, 130))
+
+
+def draw_baseball_diamond(draw, cx, cy, bases=None, size=4):
+    bases = bases if isinstance(bases, dict) else {}
+    cx = int(cx)
+    cy = int(cy)
+    size = max(3, int(size or 4))
+    line = (96, 118, 136)
+    fill = (245, 248, 236)
+    empty = (8, 18, 28)
+
+    def diamond(x, y, occupied):
+        points = [(x, y - size), (x + size, y), (x, y + size), (x - size, y)]
+        draw.polygon(points, fill=fill if occupied else empty, outline=line)
+
+    diamond(cx, cy - size, bool(bases.get("second")))
+    diamond(cx - size, cy, bool(bases.get("third")))
+    diamond(cx + size, cy, bool(bases.get("first")))
+    plate_w = max(2, size - 1)
+    draw.line((cx - plate_w, cy + size + 2, cx + plate_w, cy + size + 2), fill=line)
 
 
 def draw_baseball_bat_marker(draw, cx, y, side):
@@ -1418,7 +1484,7 @@ def draw_baseball_bat_marker(draw, cx, y, side):
     draw.line((left + 2, y - 1, right - 2, y - 1), fill=highlight)
 
 
-def _render_sport_card_128(away, home, away_team, home_team, status, score, status_color, series=None, outs=None, batting_side=None, logo_size=28, score_pad=6, regular_triple_score=False):
+def _render_sport_card_128(away, home, away_team, home_team, status, score, status_color, series=None, outs=None, batting_side=None, bases=None, logo_size=28, score_pad=6, regular_triple_score=False):
     from PIL import Image, ImageDraw, ImageFont
 
     def text_ink_bbox(text, font):
@@ -1514,12 +1580,18 @@ def _render_sport_card_128(away, home, away_team, home_team, status, score, stat
     home_ink = text_ink_bbox(home_abbrev, small)
     away_x = bx1 - 1 - away_w
     home_x = bx2 + 3 - home_ink[0]
-    draw_compact_text(away_abbrev, away_x, 10, (255, 255, 255), small)
-    draw_compact_text(home_abbrev, home_x, 10, (255, 255, 255), small)
     if batting_side == "away":
-        draw_baseball_bat_marker(draw, away_x + away_w // 2, 8, "away")
-    elif batting_side == "home":
-        draw_baseball_bat_marker(draw, home_x + compact_text_width(home_abbrev, small) // 2, 8, "home")
+        away_active_x = max(18, away_x + away_w // 2)
+        draw_baseball_bat_marker(draw, away_active_x, 8, "away")
+        draw_baseball_diamond(draw, away_active_x, 16, bases, size=3)
+    else:
+        draw_compact_text(away_abbrev, away_x, 10, (255, 255, 255), small)
+    if batting_side == "home":
+        home_active_x = min(110, home_x + compact_text_width(home_abbrev, small) // 2)
+        draw_baseball_bat_marker(draw, home_active_x, 8, "home")
+        draw_baseball_diamond(draw, home_active_x, 16, bases, size=3)
+    else:
+        draw_compact_text(home_abbrev, home_x, 10, (255, 255, 255), small)
 
     out = BytesIO()
     image.save(out, "WEBP", lossless=True, quality=100)

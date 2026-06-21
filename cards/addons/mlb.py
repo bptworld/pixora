@@ -157,21 +157,29 @@ def _draw_big_run(draw, x, y, color):
         cursor += len(pattern[0]) * scale + gap
 
 
-def _draw_logo_or_fallback(image, draw, team, color):
+def _draw_logo_or_fallback(image, draw, team, color, side="left", size=22):
+    width = image.width
+    size = max(14, min(22, int(size or 22)))
+    x = 1 if side != "right" else max(1, width - size - 1)
+    y = max(4, (32 - size) // 2)
     logo = _fetch_big_logo(team.get("logo", ""))
     if logo:
-        image.alpha_composite(logo, (1, 5))
+        if logo.width != size or logo.height != size:
+            from PIL import Image
+
+            logo = logo.resize((size, size), Image.LANCZOS)
+        image.alpha_composite(logo, (x, y))
         return
-    draw.ellipse((1, 6, 22, 27), outline=color, width=2)
+    draw.ellipse((x, y, x + size - 1, y + size - 1), outline=color, width=2)
     abbr = (team.get("abbreviation") or team.get("shortDisplayName") or "MLB")[:3].upper()
     try:
         from PIL import ImageFont
-        font = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
+        font = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8 if size >= 20 else 6)
     except Exception:
         from PIL import ImageFont
         font = ImageFont.load_default()
     bbox = draw.textbbox((0, 0), abbr, font=font)
-    draw_sharp_text(image, (12 - (bbox[2] - bbox[0]) // 2, 11), abbr, color, font)
+    draw_sharp_text(image, (x + size // 2 - (bbox[2] - bbox[0]) // 2, y + size // 2 - 4), abbr, color, font)
 
 
 def _run_animation_text(kind):
@@ -181,6 +189,51 @@ def _run_animation_text(kind):
     if kind in ("home_run", "homerun", "homer", "hr"):
         return "HOME", "RUN"
     return "RUN", "SCORED"
+
+
+def _home_run_headline(kind):
+    kind = str(kind or "").lower()
+    if kind in ("grand_slam", "grand slam", "slam"):
+        return "GRAND SLAM"
+    return "HOME RUN"
+
+
+def _draw_home_run_frame_layout(image, draw, team, kind, color, alt, flash=False):
+    width = image.width
+    edge_size = 22 if width >= 96 else 16
+    headshot = _fetch_headshot(team.get("playerHeadshot"), edge_size)
+    left_edge = 2
+    if headshot:
+        hy = max(4, (32 - headshot.height) // 2)
+        draw.rounded_rectangle((1, hy - 1, 2 + headshot.width, hy + headshot.height), radius=2, fill=(3, 9, 13, 255), outline=(alt if flash else color) + (255,))
+        image.alpha_composite(headshot, (2, hy))
+        left_edge = 4 + headshot.width
+    _draw_logo_or_fallback(image, draw, team, color, side="right", size=edge_size)
+    right_edge = max(left_edge + 14, width - edge_size - 4)
+    return left_edge, right_edge
+
+
+def _draw_home_run_middle_text(image, draw, team, kind, color, alt, show_player=True):
+    width = image.width
+    edge_size = 22 if width >= 96 else 16
+    left_edge = edge_size + 5 if team.get("playerHeadshot") else 2
+    right_edge = width - edge_size - 5
+    lane_w = max(10, right_edge - left_edge)
+    event_text = _home_run_headline(kind)
+    player_name = _compact_player_name(team.get("playerName"), "")
+    event_display = "HR" if width < 96 and event_text == "HOME RUN" else "SLAM" if width < 96 and event_text == "GRAND SLAM" else event_text
+    name_display = player_name[:8] if width < 96 else player_name
+    event_font = _fit_regular_font(event_display, lane_w, (10, 9, 8, 7, 6))
+    name_font = _fit_regular_font(name_display, lane_w, (8, 7, 6, 5))
+    event_bbox = draw.textbbox((0, 0), event_display, font=event_font)
+    event_x = left_edge + max(0, (lane_w - (event_bbox[2] - event_bbox[0])) // 2)
+    if show_player and name_display:
+        name_bbox = draw.textbbox((0, 0), name_display, font=name_font)
+        name_x = left_edge + max(0, (lane_w - (name_bbox[2] - name_bbox[0])) // 2)
+        draw_sharp_text(image, (name_x, 4 - name_bbox[1]), name_display, (245, 248, 236), name_font)
+        draw_sharp_text(image, (event_x, 17 - event_bbox[1]), event_display, alt if alt != (255, 255, 255) else color, event_font)
+    else:
+        draw_sharp_text(image, (event_x, 10 - event_bbox[1]), event_display, alt if alt != (255, 255, 255) else color, event_font)
 
 
 def _compact_player_name(name, fallback="BATTER"):
@@ -374,12 +427,17 @@ def _render_run_animation_frames(team, kind="run"):
         run_font = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 9)
     except Exception:
         font = run_font = ImageFont.load_default()
+    kind_key = str(kind or "run").lower()
+    is_home_run = kind_key in ("home_run", "homerun", "homer", "hr", "grand_slam", "grand slam", "slam")
 
     for i in range(20):
         t = i / 19
         image = Image.new("RGBA", (width, 32), (0, 0, 0, 255))
         draw = ImageDraw.Draw(image)
-        _draw_logo_or_fallback(image, draw, team, color)
+        if is_home_run:
+            _draw_home_run_frame_layout(image, draw, team, kind_key, color, alt, flash=bool(i % 2))
+        else:
+            _draw_logo_or_fallback(image, draw, team, color)
         draw.line((0, 31, width - 1, 31), fill=tuple(max(0, c // 3) for c in color) + (255,))
 
         travel = max(56, width - 8)
@@ -403,9 +461,14 @@ def _render_run_animation_frames(team, kind="run"):
     for step in range(3):
         image = Image.new("RGBA", (width, 32), (0, 0, 0, 255))
         draw = ImageDraw.Draw(image)
-        _draw_logo_or_fallback(image, draw, team, color)
-        _draw_baseball(draw, ball_x, ball_y, ball_size)
-        draw_sharp_text(image, (line1_x, 4), line1, color, run_font)
+        if is_home_run:
+            _draw_home_run_frame_layout(image, draw, team, kind_key, color, alt, flash=bool(step % 2))
+            _draw_baseball(draw, max(2, width - 27), ball_y, ball_size)
+            _draw_home_run_middle_text(image, draw, team, kind_key, color, alt, show_player=step > 0)
+        else:
+            _draw_logo_or_fallback(image, draw, team, color)
+            _draw_baseball(draw, ball_x, ball_y, ball_size)
+            draw_sharp_text(image, (line1_x, 4), line1, color, run_font)
         frames.append(image.convert("RGB"))
         durations.append(170)
 
@@ -415,11 +478,17 @@ def _render_run_animation_frames(team, kind="run"):
     for show in (True, False, True, False, True, False, True, False, True):
         image = Image.new("RGBA", (width, 32), (0, 0, 0, 255))
         draw = ImageDraw.Draw(image)
-        _draw_logo_or_fallback(image, draw, team, color)
-        _draw_baseball(draw, ball_x, ball_y, ball_size)
-        draw_sharp_text(image, (line1_x, 4), line1, color, run_font)
-        if show:
-            draw_sharp_text(image, (line2_x, 16), line2, scored_color, font)
+        if is_home_run:
+            _draw_home_run_frame_layout(image, draw, team, kind_key, color, alt, flash=show)
+            _draw_baseball(draw, max(2, width - 27), ball_y, ball_size)
+            if show:
+                _draw_home_run_middle_text(image, draw, team, kind_key, color, alt, show_player=True)
+        else:
+            _draw_logo_or_fallback(image, draw, team, color)
+            _draw_baseball(draw, ball_x, ball_y, ball_size)
+            draw_sharp_text(image, (line1_x, 4), line1, color, run_font)
+            if show:
+                draw_sharp_text(image, (line2_x, 16), line2, scored_color, font)
         frames.append(image.convert("RGB"))
         durations.append(220 if show else 160)
 
@@ -667,21 +736,33 @@ def _latest_run_play(event, competitor, previous_score, current_score, force_sum
 def _classify_latest_run(event, competitor, previous_score, current_score):
     play, summary = _latest_run_play(event, competitor, previous_score, current_score, force_summary=True)
     if not play:
-        return {"kind": "run", "play": {}, "player": {}}
+        return {"kind": "run", "play": {}, "player": {}, "pending": True}
     delta = max(0, int(current_score or 0) - int(previous_score or 0))
     play_type = play.get("type") or {}
-    play_type_key = str(play_type.get("type", ""))
     text = " ".join([
-        play_type_key,
+        str(play_type.get("type", "")),
         str(play_type.get("text", "")),
         str(play_type.get("abbreviation", "")),
         str(play.get("text", "")),
-    ]).replace("-", " ").lower()
+        str(play.get("shortText", "")),
+        str(play.get("detail", "")),
+        str(play.get("description", "")),
+    ]).replace("-", " ").replace("/", " ").lower()
     tokens = {part.strip(" .,:;!?()[]{}") for part in text.split()}
     player = _player_from_play(play, summary, "batter")
     if "grand slam" in text:
         return {"kind": "grand_slam", "play": play, "player": player}
-    if "homered" in text or "home run" in text or "homer" in tokens or "homers" in tokens or "hr" in tokens:
+    home_run_terms = {"homer", "homers", "homered", "hr", "hrs"}
+    home_run_phrases = (
+        "home run",
+        "solo shot",
+        "two run shot",
+        "three run shot",
+        "3 run shot",
+        "2 run shot",
+        "go ahead shot",
+    )
+    if any(term in tokens for term in home_run_terms) or any(phrase in text for phrase in home_run_phrases):
         return {"kind": "grand_slam" if delta >= 4 else "home_run", "play": play, "player": player}
     return {"kind": "rbi" if player else "run", "play": play, "player": player}
 
@@ -718,6 +799,22 @@ def _mlb_moment_dwell(kind):
     if kind in ("grand_slam", "win", "walk_off"):
         return 7
     return 6
+
+
+def _pending_mlb_run_ready(previous):
+    if not previous:
+        return False
+    try:
+        pending_seen = previous.get("pending_seen")
+        if not pending_seen:
+            return False
+        if isinstance(pending_seen, str):
+            pending_seen = datetime.fromisoformat(pending_seen)
+        if pending_seen.tzinfo is None:
+            pending_seen = pending_seen.replace(tzinfo=timezone.utc)
+        return (datetime.now(timezone.utc) - pending_seen).total_seconds() >= 5
+    except Exception:
+        return False
 
 
 def _queue_mlb_animation(card_kind, options, team, player=None, dwell_secs=6, stay=False):
@@ -878,6 +975,25 @@ def _maybe_final_winner_animation(options, state, key, competition, competitor, 
     return _queue_mlb_animation("win", options, team, None, dwell_secs=7, stay=True)
 
 
+def _queue_mlb_scoring_animation(kind, options, animation_team, player, target, dwell_secs):
+    wall = target in ("group", "group_wall", "wall") or target.startswith("group:")
+    cache_key = _mlb_animation_cache_key(kind, animation_team, player)
+    return {
+        "body": cached_priority_graphic(cache_key, lambda animation_team=animation_team, kind=kind: _render_run_animation(animation_team, kind)),
+        "dwell_secs": dwell_secs,
+        "_stay": False,
+        "_no_replay": True,
+        "_priority": True,
+        "_group_wall": {
+            "type": kind,
+            "renderer": "_render_run_animation_frames",
+            "team": animation_team,
+            "kind": kind,
+            "dwell_secs": dwell_secs,
+        } if wall else None,
+    }
+
+
 def _maybe_game_start_animation(options, event, competition, competitors, favorite):
     game_id = str(event.get("id") or competition.get("id") or datetime.now().strftime("%Y%m%d"))
     device_id = (options or {}).get("_device_id", "local")
@@ -968,37 +1084,57 @@ def _maybe_run_animation(options):
 
         last_score = int(previous.get("score", score) or 0)
         animated = int(previous.get("animated", last_score) or 0)
-        _RUN_STATE[key] = {"score": score, "animated": animated, "seen": datetime.now(timezone.utc)}
+        pending_score = int(previous.get("pending_score", 0) or 0)
+        pending_last_score = int(previous.get("pending_last_score", last_score) or 0)
+        _RUN_STATE[key] = {
+            "score": score,
+            "animated": animated,
+            "seen": datetime.now(timezone.utc),
+            **({"pending_score": pending_score, "pending_last_score": pending_last_score, "pending_seen": previous.get("pending_seen")} if pending_score > animated else {}),
+        }
         warm_priority_graphic(cache_key, lambda animation_team=animation_team: _render_run_animation(animation_team))
-        if score > last_score and score > animated:
-            _RUN_STATE[key]["animated"] = score
-            run_info = _classify_latest_run(event, competitor, last_score, score)
+
+        score_to_animate = 0
+        score_before_animation = last_score
+        if pending_score > animated and score >= pending_score:
+            score_to_animate = pending_score
+            score_before_animation = pending_last_score
+        elif score > last_score and score > animated:
+            score_to_animate = score
+            score_before_animation = last_score
+
+        if score_to_animate:
+            run_info = _classify_latest_run(event, competitor, score_before_animation, score_to_animate)
+            pending = bool(run_info.get("pending"))
+            if pending and not _pending_mlb_run_ready(previous):
+                pending_seen = previous.get("pending_seen") if pending_score == score_to_animate else datetime.now(timezone.utc)
+                _RUN_STATE[key] = {
+                    "score": score,
+                    "animated": animated,
+                    "pending_score": score_to_animate,
+                    "pending_last_score": score_before_animation,
+                    "pending_seen": pending_seen,
+                    "seen": datetime.now(timezone.utc),
+                }
+                if callable(log):
+                    try:
+                        log(f"[mlb] run pending classification {team_key} {score_before_animation}->{score_to_animate} device={device_id}")
+                    except Exception:
+                        pass
+                continue
             kind = run_info.get("kind") or "run"
             player = run_info.get("player") or {}
             animation_team = _player_animation_team(animation_team, player, kind)
             target = _target_for_kind(options, kind)
             wall = target in ("group", "group_wall", "wall") or target.startswith("group:")
+            _RUN_STATE[key] = {"score": score, "animated": score_to_animate, "seen": datetime.now(timezone.utc)}
             if callable(log):
                 try:
-                    log(f"[mlb] run detected {team_key} {last_score}->{score} kind={kind} target={target} wall={wall} device={device_id}")
+                    log(f"[mlb] run detected {team_key} {score_before_animation}->{score_to_animate} kind={kind} target={target} wall={wall} device={device_id}")
                 except Exception:
                     pass
             dwell_secs = _mlb_moment_dwell(kind)
-            cache_key = _mlb_animation_cache_key(kind, animation_team, player)
-            return {
-                "body": cached_priority_graphic(cache_key, lambda animation_team=animation_team, kind=kind: _render_run_animation(animation_team, kind)),
-                "dwell_secs": dwell_secs,
-                "_stay": False,
-                "_no_replay": True,
-                "_priority": True,
-                "_group_wall": {
-                    "type": kind,
-                    "renderer": "_render_run_animation_frames",
-                    "team": animation_team,
-                    "kind": kind,
-                    "dwell_secs": dwell_secs,
-                } if wall else None,
-            }
+            return _queue_mlb_scoring_animation(kind, options, animation_team, player, target, dwell_secs)
     return None
 
 
