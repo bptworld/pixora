@@ -124,7 +124,7 @@ Add-on cards for the [Pixora](https://github.com/bptworld/pixora) display system
 | Disney Showtimes | Today's Disney showtimes |
 | Disney Wait Times | Live Disney park waits |
 | Flight Tracker | Flightradar24 live and summary tracking |
-| Flights Overhead | Live flights above you |
+| Flights Overhead | Free live ADS-B flights above you |
 | Gas Price Local | AAA local gas average |
 | NASA / SpaceX Launch | Next rocket launch countdown |
 | Universal Park Hours | Today's Universal park hours |
