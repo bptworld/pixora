@@ -1,5 +1,8 @@
 from io import BytesIO
+import hashlib
 import json
+import threading
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -20,6 +23,7 @@ CARD_OPTIONS = [
     {"key": "showBusinessJets", "label": "Business jets", "type": "checkbox", "default": True},
     {"key": "showHelicopters", "label": "Helicopters",    "type": "checkbox", "default": True},
     {"key": "showSmallProps",  "label": "Small / prop",   "type": "checkbox", "default": False},
+    {"key": "skipNoData",      "label": "Skip if no data", "type": "checkbox", "default": False},
     {
         "key": "source",
         "label": "Live Source",
@@ -35,7 +39,12 @@ CARD_OPTIONS = [
 
 _SOURCE_CACHE_SECONDS = 20
 _ROUTE_CACHE_SECONDS = 3600
+_SNAPSHOT_TTL_SECONDS = 20
+_EMPTY_SNAPSHOT_TTL_SECONDS = 15
 _ROUTE_CACHE = {}
+_SNAPSHOT_CACHE = {}
+_SNAPSHOT_PENDING = set()
+_SNAPSHOT_LOCK = threading.RLock()
 _ICAO_TO_IATA = {
     "AAL": "AA", "UAL": "UA", "DAL": "DL", "SWA": "WN", "ASA": "AS",
     "JBU": "B6", "FFT": "F9", "NKS": "NK", "HAL": "HA", "BAW": "BA",
@@ -52,6 +61,14 @@ _AIRLINER_TYPES = {
 
 def _is_wide(options):
     return (options or {}).get("_target") == "matrixportal-s3-128x32"
+
+
+def _truthy(value):
+    return value is True or str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _skip_no_data(options):
+    return _truthy((options or {}).get("skipNoData"))
 
 
 def _zip_latlon(zip_code):
@@ -115,8 +132,10 @@ def _route_for_callsign(callsign):
 
 
 def _fetch_source(url):
+    request = urllib.request.Request(url, headers={"User-Agent": "Pixora/0.1", "Accept": "application/json"})
     try:
-        return _extract_aircraft(fetch_json_request(url, seconds=_SOURCE_CACHE_SECONDS))
+        with urllib.request.urlopen(request, timeout=3) as response:
+            return _extract_aircraft(json.loads(response.read().decode("utf-8")))
     except urllib.error.HTTPError as err:
         if err.code in (400, 404):
             return []
@@ -317,6 +336,9 @@ def _aircraft_bucket(row):
     category = _clean(row.get("category") or row.get("categoryDescription") or "")
     callsign = _clean(row.get("flight") or row.get("callsign") or "")
     airline = lookup_airline(callsign)
+    helicopter_type_codes = {"H53", "H53S", "H64", "HUCO", "SUCO", "UH1Y", "V22"}
+    if type_code in helicopter_type_codes:
+        return "helicopter"
     if category in ("A5", "A6"):
         return "heavy"
     if category == "A4":
@@ -459,9 +481,16 @@ def _save_cycle(frames):
     }
 
 
-def render(options=None):
-    opts = options or {}
-    wide = _is_wide(opts)
+def _snapshot_key(opts):
+    keys = [
+        "zipCode", "radiusMiles", "source", "showAirliners", "showRegionalJets",
+        "showBusinessJets", "showHelicopters", "showSmallProps",
+    ]
+    payload = {key: str((opts or {}).get(key) or "") for key in keys}
+    return hashlib.sha1(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def _build_snapshot(opts):
     zip_code = (opts.get("zipCode") or "10001").strip()
     radius = max(10, min(500, int(opts.get("radiusMiles") or 50)))
     source = str(opts.get("source") or "auto").lower()
@@ -484,13 +513,62 @@ def render(options=None):
         if dist <= radius:
             flights.append((dist, row))
     flights.sort(key=lambda x: x[0])
-
-    if not flights:
-        return _render_message(f"No flights within {radius} mi", wide)
-
-    if wide:
-        rows = [_flight_row(lat, lon, item, index + 1) for index, item in enumerate(flights[:5])]
-        return _render_wide_list(rows)
-
     rows = [_flight_row(lat, lon, item, index + 1) for index, item in enumerate(flights[:5])]
-    return _render_64_list(rows)
+    return {"rows": rows, "radius": radius, "updated": time.time()}
+
+
+def _refresh_snapshot(key, opts):
+    try:
+        now = time.time()
+        try:
+            snapshot = _build_snapshot(opts)
+            expires = now + (_SNAPSHOT_TTL_SECONDS if snapshot.get("rows") else _EMPTY_SNAPSHOT_TTL_SECONDS)
+            snapshot["expires"] = expires
+        except Exception as exc:
+            snapshot = {"rows": [], "radius": max(10, min(500, int((opts or {}).get("radiusMiles") or 50))), "error": str(exc), "updated": now, "expires": now + _EMPTY_SNAPSHOT_TTL_SECONDS}
+        with _SNAPSHOT_LOCK:
+            current = _SNAPSHOT_CACHE.get(key)
+            if snapshot.get("rows") or not (current and current.get("rows")):
+                _SNAPSHOT_CACHE[key] = snapshot
+            else:
+                current["expires"] = now + _SNAPSHOT_TTL_SECONDS
+                current["error"] = snapshot.get("error") or ""
+    finally:
+        with _SNAPSHOT_LOCK:
+            _SNAPSHOT_PENDING.discard(key)
+
+
+def _queue_snapshot_refresh(key, opts):
+    now = time.time()
+    with _SNAPSHOT_LOCK:
+        snapshot = _SNAPSHOT_CACHE.get(key)
+        stale = not snapshot or snapshot.get("expires", 0) <= now
+        if not stale or key in _SNAPSHOT_PENDING:
+            return snapshot
+        _SNAPSHOT_PENDING.add(key)
+    thread = threading.Thread(target=_refresh_snapshot, args=(key, dict(opts)), name="pixora-flights-overhead-refresh", daemon=True)
+    thread.start()
+    return snapshot
+
+
+def _render_snapshot(snapshot, opts, wide):
+    rows = (snapshot or {}).get("rows") or []
+    if rows:
+        return _render_wide_list(rows) if wide else _render_64_list(rows)
+    if _skip_no_data(opts):
+        return None
+    radius = (snapshot or {}).get("radius") or max(10, min(500, int((opts or {}).get("radiusMiles") or 50)))
+    if (snapshot or {}).get("error"):
+        return _render_message("Updating flights", wide)
+    return _render_message(f"No flights within {radius} mi", wide)
+
+
+def render(options=None):
+    opts = options or {}
+    wide = _is_wide(opts)
+    snapshot = _queue_snapshot_refresh(_snapshot_key(opts), opts)
+    if not snapshot:
+        if _skip_no_data(opts):
+            return None
+        return _render_message("Updating flights", wide)
+    return _render_snapshot(snapshot, opts, wide)

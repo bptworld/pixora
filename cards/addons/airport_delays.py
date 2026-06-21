@@ -10,6 +10,7 @@ CARD_NAME = "Airport Delays"
 CARD_DETAIL = "FAA delay status"
 CARD_OPTIONS = [
     {"key": "airports", "label": "Airports", "type": "text", "default": "BOS", "maxlength": 32},
+    {"key": "skipNoData", "label": "Skip if no data", "type": "checkbox", "default": False},
 ]
 
 _CACHE = {"expires": datetime.min.replace(tzinfo=timezone.utc), "events": []}
@@ -91,6 +92,14 @@ def _is_wide(options):
     return (options or {}).get("_target") == "matrixportal-s3-128x32"
 
 
+def _truthy(value):
+    return value is True or str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _skip_no_data(options):
+    return _truthy((options or {}).get("skipNoData"))
+
+
 def _render_text_image(text, color, width=64):
     from PIL import Image, ImageDraw, ImageFont
 
@@ -161,10 +170,14 @@ def render(options=None):
     if codes:
         matches = [e for e in events if e["airport"] in codes]
         if not matches:
+            if _skip_no_data(opts):
+                return None
             return _render_ok_image(codes[0], width)
     else:
         matches = events[:3]
         if not matches:
+            if _skip_no_data(opts):
+                return None
             return _render_ok_image("FAA", width)
 
     image = Image.new("RGB", (width, 32), (2, 8, 16))
@@ -199,4 +212,3 @@ def render(options=None):
     out = BytesIO()
     image.save(out, "WEBP", lossless=True, quality=100)
     return out.getvalue()
-

@@ -522,36 +522,45 @@ def _draw_matchup_card(image, draw, fonts, matchup, header, bottom="", show_reco
         ew = draw.textbbox((0, 0), bottom, font=tiny)[2]
         draw_sharp_text(image, ((width - ew) // 2, 21), bottom, (150, 165, 180), tiny)
         mid = width // 2
+        head_size = 22
+        left_head_x = 1
+        right_head_x = width - head_size - 1
+        vs_left = mid - 12
+        vs_right = mid + 12
+        left_text_x = left_head_x + head_size + 2
+        left_text_right = vs_left - 3
+        right_text_x = vs_right + 3
+        right_text_right = right_head_x - 3
         left_head = _fetch_headshot(matchup.get("leftHeadshot"), 22)
         right_head = _fetch_headshot(matchup.get("rightHeadshot"), 22)
         vs = "WIN" if left_winner or right_winner else "VS"
         vw = draw.textbbox((0, 0), vs, font=small)[2]
-        draw.rounded_rectangle((mid - 12, 9, mid + 12, 20), radius=2, fill=(5, 5, 8), outline=(70, 8, 12))
+        draw.rounded_rectangle((vs_left, 9, vs_right, 20), radius=2, fill=(5, 5, 8), outline=(70, 8, 12))
         draw_sharp_text(image, ((width - vw) // 2, 9), vs, _COLOR, small)
-        left_text = _fit_text(draw, left_name, bold, 45)
-        right_text = _fit_text(draw, right_name, bold, 45)
-        draw.rectangle((2, 8, 57, 18), fill=(4, 5, 8))
-        draw.rectangle((71, 8, 126, 18), fill=(4, 5, 8))
-        draw_sharp_text(image, (14, 8), left_text, _ALT if not left_winner else (255, 225, 95), bold)
-        rw = draw.textbbox((0, 0), right_text, font=bold)[2]
-        draw_sharp_text(image, (114 - rw, 8), right_text, _ALT if not right_winner else (255, 225, 95), bold)
+        left_text = _fit_text(draw, left_name, bold, max(8, left_text_right - left_text_x))
+        right_text = _fit_text(draw, right_name, bold, max(8, right_text_right - right_text_x))
+        draw.rectangle((2, 8, left_text_right + 1, 18), fill=(4, 5, 8))
+        draw.rectangle((right_text_x - 1, 8, width - 3, 18), fill=(4, 5, 8))
+        lw = draw.textbbox((0, 0), left_text, font=bold)[2]
+        draw_sharp_text(image, (max(left_text_x, left_text_right - lw), 8), left_text, _ALT if not left_winner else (255, 225, 95), bold)
+        draw_sharp_text(image, (right_text_x, 8), right_text, _ALT if not right_winner else (255, 225, 95), bold)
         if left_head:
-            image.paste(left_head, (1, 8), left_head)
+            image.paste(left_head, (left_head_x, 8), left_head)
         else:
-            draw.rectangle((1, 8, 22, 29), fill=(10, 12, 16), outline=(70, 8, 12))
+            draw.rectangle((left_head_x, 8, left_head_x + head_size - 1, 29), fill=(10, 12, 16), outline=(70, 8, 12))
         if right_head:
-            image.paste(right_head, (105, 8), right_head)
+            image.paste(right_head, (right_head_x, 8), right_head)
         else:
-            draw.rectangle((105, 8, 126, 29), fill=(10, 12, 16), outline=(70, 8, 12))
+            draw.rectangle((right_head_x, 8, right_head_x + head_size - 1, 29), fill=(10, 12, 16), outline=(70, 8, 12))
     else:
         left_text = _fit_text(draw, left_name, small, 29)
-        right_text = _fit_text(draw, right_name, small, 29)
+        right_x = 35
+        right_text = _fit_text(draw, right_name, small, 63 - right_x)
         draw_sharp_text(image, (1, 8), left_text, _ALT if not left_winner else (255, 225, 95), small)
-        rw = draw.textbbox((0, 0), right_text, font=small)[2]
-        draw_sharp_text(image, (63 - rw, 8), right_text, _ALT if not right_winner else (255, 225, 95), small)
         vs = "W" if left_winner or right_winner else "VS"
         vw = draw.textbbox((0, 0), vs, font=tiny)[2]
         draw_sharp_text(image, ((64 - vw) // 2, 9), vs, _COLOR, tiny)
+        draw_sharp_text(image, (right_x, 8), right_text, _ALT if not right_winner else (255, 225, 95), small)
         bottom = _fit_text(draw, str(bottom or "UFC").upper(), tiny, 62)
         bw = draw.textbbox((0, 0), bottom, font=tiny)[2]
         draw_sharp_text(image, ((64 - bw) // 2, 21), bottom, (150, 165, 180), tiny)
@@ -763,9 +772,7 @@ def _render_result_wall_frames(team, kind="knockout"):
     winner_headshot = str(team.get("winnerHeadshot") or "").strip()
     winner_flag = str(team.get("winnerFlag") or "").strip()
     if not winner_name:
-        winner_name = str(_TEST_RESULT_FIGHTER.get("winnerName") or "UFC").strip().upper()
-        winner_headshot = winner_headshot or _TEST_RESULT_FIGHTER.get("winnerHeadshot") or ""
-        winner_flag = winner_flag or _TEST_RESULT_FIGHTER.get("winnerFlag") or ""
+        return [], []
     frames = []
     durations = []
     for step in range(18):
@@ -839,14 +846,17 @@ def _result_kind(event, competition):
         text += " " + str(notes)
     details = competition.get("details")
     if isinstance(details, list):
-        text += " " + " ".join(
-            str(((item or {}).get("type") or {}).get("text") or (item or {}).get("text") or "")
-            for item in details
-        )
+        result_details = []
+        for item in details:
+            detail_text = str(((item or {}).get("type") or {}).get("text") or (item or {}).get("text") or "")
+            lower_detail = detail_text.lower()
+            if "winner" in lower_detail or lower_detail.startswith("result"):
+                result_details.append(detail_text)
+        text += " " + " ".join(result_details)
     text = text.lower()
-    if "submission" in text or "sub" in text:
+    if re.search(r"\bsubmission\b|\bsub\b", text):
         return "submission"
-    if "ko" in text or "tko" in text or "knockout" in text:
+    if re.search(r"\bko\b|\btko\b|\bko/tko\b|\bkotko\b|\bknockout\b", text):
         return "knockout"
     if "decision" in text or status.get("completed"):
         return "decision"
@@ -861,32 +871,30 @@ def _target_for_moment(kind, options):
 
 
 def _winner_last_name(competition):
-    for competitor in (competition or {}).get("competitors") or []:
-        if competitor.get("winner"):
-            return _fighter_name(competitor)
-    return ""
+    winner = _winner_competitor(competition)
+    return _fighter_name(winner) if winner else ""
 
 
 def _winner_headshot_url(competition):
-    for competitor in (competition or {}).get("competitors") or []:
-        if competitor.get("winner"):
-            return _headshot_url(competitor)
-    return ""
+    winner = _winner_competitor(competition)
+    return _headshot_url(winner) if winner else ""
 
 
 def _winner_flag_url(competition):
+    winner = _winner_competitor(competition)
+    return _flag_url(winner) if winner else ""
+
+
+def _winner_competitor(competition):
     for competitor in (competition or {}).get("competitors") or []:
-        if competitor.get("winner"):
-            return _flag_url(competitor)
-    return ""
+        if competitor.get("winner") is True:
+            return competitor
+    return None
 
 
 def _sample_result_fighter(competition):
     competitors = (competition or {}).get("competitors") or []
-    for competitor in competitors:
-        if competitor.get("winner"):
-            return competitor
-    return competitors[0] if competitors else None
+    return _winner_competitor(competition) or (competitors[0] if competitors else None)
 
 
 def _result_test_payload(competition):
@@ -942,6 +950,11 @@ def _queue_moment(kind, options, event, competition):
         winner_name = _winner_last_name(competition)
         winner_headshot = _winner_headshot_url(competition) if winner_name else ""
         winner_flag = _winner_flag_url(competition) if winner_name else ""
+        if not winner_name:
+            logger = (options or {}).get("_log")
+            if callable(logger):
+                logger(f"[ufc] skipped {kind} graphic: ESPN result has no winner for competition {(competition or {}).get('id') or (event or {}).get('id') or 'unknown'}")
+            return None
     elif kind in ("round_start", "round_end"):
         winner_name = ""
         winner_headshot = ""
@@ -997,7 +1010,8 @@ def _maybe_moment_animation(options, event, competition):
     period = int((competition.get("status") or {}).get("period") or 0)
     display_clock = str((competition.get("status") or {}).get("displayClock") or "").strip()
     result_kind = _result_kind(event, competition)
-    has_result = completed or any(c.get("winner") for c in competition.get("competitors") or []) or result_kind in ("knockout", "submission", "decision")
+    winner_ready = _winner_competitor(competition) is not None
+    result_ready = winner_ready and (completed or result_kind in ("knockout", "submission", "decision", "win"))
     key = _moment_key(options, event, competition)
     previous = _MOMENT_STATE.get(key)
     signature = {
@@ -1005,8 +1019,8 @@ def _maybe_moment_animation(options, event, competition):
         "completed": completed,
         "period": period,
         "clock": display_clock,
-        "result": result_kind if has_result else "",
-        "winner": any(c.get("winner") for c in competition.get("competitors") or []),
+        "result": result_kind if result_ready else "",
+        "winner": winner_ready,
     }
     _MOMENT_STATE[key] = {**signature, "seen": datetime.now(timezone.utc)}
 
@@ -1014,7 +1028,7 @@ def _maybe_moment_animation(options, event, competition):
     _warm_moment_test_graphics(team, competition)
     if previous is None:
         return None
-    if has_result and not previous.get("result"):
+    if result_ready and not previous.get("result"):
         return _queue_moment(result_kind, options, event, competition)
     if signature["winner"] and not previous.get("winner"):
         return _queue_moment("win", options, event, competition)

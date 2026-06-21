@@ -390,6 +390,38 @@ def _flight():
     return _webp(image)
 
 
+def _helicopter_tracker():
+    image = Image.new("RGB", (64, 32), (3, 12, 16))
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((0, 0, 35, 31), fill=(8, 22, 19), outline=(32, 70, 88))
+    draw.polygon([(0, 18), (10, 14), (20, 16), (31, 9), (35, 10), (35, 31), (0, 31)], fill=(14, 45, 31))
+    draw.polygon([(0, 0), (15, 0), (8, 6), (0, 8)], fill=(10, 32, 48))
+    for road in ([(1, 27), (11, 22), (22, 17), (35, 13)], [(7, 2), (16, 10), (25, 19), (32, 31)], [(33, 2), (28, 12), (22, 25)]):
+        for idx in range(1, len(road)):
+            draw.line((road[idx - 1][0], road[idx - 1][1], road[idx][0], road[idx][1]), fill=(74, 74, 58))
+    draw.line((18, 9, 18, 30), fill=(22, 50, 58))
+    draw.line((1, 16, 34, 16), fill=(22, 50, 58))
+    draw.line((16, 16, 20, 16), fill=(255, 220, 90))
+    draw.line((18, 14, 18, 18), fill=(255, 220, 90))
+    trail = [(3, 27), (9, 24), (15, 20), (22, 15), (28, 10), (31, 5)]
+    for idx in range(1, len(trail)):
+        color = (36, 128, 112) if idx < len(trail) - 2 else (65, 235, 180)
+        draw.line((trail[idx - 1][0], trail[idx - 1][1], trail[idx][0], trail[idx][1]), fill=color)
+    x, y = trail[-1]
+    draw.line((x - 4, y - 5, x + 4, y - 3), fill=(255, 126, 38))
+    draw.line((x, y - 4, x, y - 2), fill=(255, 214, 120))
+    draw.rectangle((x - 2, y - 2, x + 2, y + 1), fill=(255, 126, 38), outline=(35, 18, 8))
+    draw.line((x + 2, y, x + 6, y - 2), fill=(255, 126, 38))
+    draw.rectangle((37, 1, 63, 21), fill=(7, 15, 22), outline=(68, 96, 110))
+    draw.line((38, 9, 62, 9), fill=(66, 190, 185))
+    draw_sharp_text(image, (39, -2), "N262", (245, 250, 255), FONT)
+    draw_sharp_text(image, (39, 8), "R22", (180, 205, 220), FONT)
+    draw_sharp_text(image, (39, 16), "1075", (160, 210, 255), FONT)
+    draw.rectangle((0, 23, 63, 31), fill=(0, 12, 28))
+    draw_sharp_text(image, (4, 23), "3.2E DRACUT", (255, 220, 90), FONT)
+    return _webp(image)
+
+
 def _airport():
     image, draw = _simple_header("AIRPORT", (80, 220, 170))
     _center(image, "BOS", 7, (245, 250, 255), BOLD)
@@ -698,6 +730,7 @@ CUSTOM = {
     "package_watch": _package,
     "mega_millions": _mega_millions,
     "megabucks": _megabucks,
+    "helicopter_tracker": _helicopter_tracker,
     "sports_standings": _standings,
     "fantasy_matchup": lambda: _fantasy("MATCHUP", "FANTASY", (117, 231, 214)),
     "fantasy_lineup": lambda: _fantasy("LINEUP", "FANTASY", (117, 231, 214)),

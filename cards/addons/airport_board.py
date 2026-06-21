@@ -79,6 +79,7 @@ CARD_OPTIONS = [
             {"value": "60", "label": "60 minutes"},
         ],
     },
+    {"key": "skipNoData", "label": "Skip if no data", "type": "checkbox", "default": False},
     {"key": "apiKey", "label": "Flightradar24 API Token", "type": "text", "default": ""},
 ]
 
@@ -93,6 +94,14 @@ def _clean(value):
 
 def _is_wide(options):
     return (options or {}).get("_target") == "matrixportal-s3-128x32"
+
+
+def _truthy(value):
+    return value is True or str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _skip_no_data(options):
+    return _truthy((options or {}).get("skipNoData"))
 
 
 def _parse_int(value, default, lo, hi):
@@ -538,5 +547,7 @@ def render(options=None):
         return render_text_webp(error, (255, 210, 80))
     if not rows:
         _safe_log(opts, f"[airport_board] {opts.get('_device_id', '')} no upcoming rows for {airport} {board_type}")
+        if _skip_no_data(opts):
+            return None
         return _render_empty(airport, board_type, 128 if wide else 64)
     return _render_board(rows, airport, board_type, 128 if wide else 64)

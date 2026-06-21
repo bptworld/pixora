@@ -1,0 +1,3 @@
+Source: OpenAI image generation, saved under the local Codex generated_images folder.
+Prompt: Clean full side-profile real-looking unbranded passenger jet, nose pointing right, landing gear down, on a flat chroma-key background.
+Changes: Chroma-key background removed, transparent padding cropped, and resized for Pixora card rendering.
