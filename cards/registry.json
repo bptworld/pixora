@@ -8306,9 +8306,46 @@
         {
           "key": "timezone",
           "label": "Time Zone",
-          "type": "text",
+          "type": "select",
           "default": "",
-          "placeholder": "Use global/ZIP default"
+          "choices": [
+            {
+              "value": "",
+              "label": "Use global default"
+            },
+            {
+              "value": "America/New_York",
+              "label": "Eastern"
+            },
+            {
+              "value": "America/Chicago",
+              "label": "Central"
+            },
+            {
+              "value": "America/Denver",
+              "label": "Mountain"
+            },
+            {
+              "value": "America/Phoenix",
+              "label": "Arizona"
+            },
+            {
+              "value": "America/Los_Angeles",
+              "label": "Pacific"
+            },
+            {
+              "value": "America/Anchorage",
+              "label": "Alaska"
+            },
+            {
+              "value": "Pacific/Honolulu",
+              "label": "Hawaii"
+            },
+            {
+              "value": "UTC",
+              "label": "UTC"
+            }
+          ]
         },
         {
           "key": "timeFormat",
@@ -8346,9 +8383,46 @@
         {
           "key": "timezone",
           "label": "Time Zone",
-          "type": "text",
+          "type": "select",
           "default": "",
-          "placeholder": "Use global default"
+          "choices": [
+            {
+              "value": "",
+              "label": "Use global default"
+            },
+            {
+              "value": "America/New_York",
+              "label": "Eastern"
+            },
+            {
+              "value": "America/Chicago",
+              "label": "Central"
+            },
+            {
+              "value": "America/Denver",
+              "label": "Mountain"
+            },
+            {
+              "value": "America/Phoenix",
+              "label": "Arizona"
+            },
+            {
+              "value": "America/Los_Angeles",
+              "label": "Pacific"
+            },
+            {
+              "value": "America/Anchorage",
+              "label": "Alaska"
+            },
+            {
+              "value": "Pacific/Honolulu",
+              "label": "Hawaii"
+            },
+            {
+              "value": "UTC",
+              "label": "UTC"
+            }
+          ]
         },
         {
           "key": "timeFormat",
@@ -8386,9 +8460,46 @@
         {
           "key": "timezone",
           "label": "Time Zone",
-          "type": "text",
+          "type": "select",
           "default": "",
-          "placeholder": "Use global default"
+          "choices": [
+            {
+              "value": "",
+              "label": "Use global default"
+            },
+            {
+              "value": "America/New_York",
+              "label": "Eastern"
+            },
+            {
+              "value": "America/Chicago",
+              "label": "Central"
+            },
+            {
+              "value": "America/Denver",
+              "label": "Mountain"
+            },
+            {
+              "value": "America/Phoenix",
+              "label": "Arizona"
+            },
+            {
+              "value": "America/Los_Angeles",
+              "label": "Pacific"
+            },
+            {
+              "value": "America/Anchorage",
+              "label": "Alaska"
+            },
+            {
+              "value": "Pacific/Honolulu",
+              "label": "Hawaii"
+            },
+            {
+              "value": "UTC",
+              "label": "UTC"
+            }
+          ]
         },
         {
           "key": "timeFormat",
@@ -8450,9 +8561,46 @@
         {
           "key": "timezone",
           "label": "Time Zone",
-          "type": "text",
+          "type": "select",
           "default": "",
-          "placeholder": "Use global default"
+          "choices": [
+            {
+              "value": "",
+              "label": "Use global default"
+            },
+            {
+              "value": "America/New_York",
+              "label": "Eastern"
+            },
+            {
+              "value": "America/Chicago",
+              "label": "Central"
+            },
+            {
+              "value": "America/Denver",
+              "label": "Mountain"
+            },
+            {
+              "value": "America/Phoenix",
+              "label": "Arizona"
+            },
+            {
+              "value": "America/Los_Angeles",
+              "label": "Pacific"
+            },
+            {
+              "value": "America/Anchorage",
+              "label": "Alaska"
+            },
+            {
+              "value": "Pacific/Honolulu",
+              "label": "Hawaii"
+            },
+            {
+              "value": "UTC",
+              "label": "UTC"
+            }
+          ]
         },
         {
           "key": "timeFormat",

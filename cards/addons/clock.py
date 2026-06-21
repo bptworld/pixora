@@ -23,7 +23,23 @@ CARD_DETAIL = "Time plus local weather"
 CARD_OPTIONS = [
     {"key": "zipCode", "label": "ZIP", "type": "text", "default": "", "maxlength": 5, "inputmode": "numeric"},
     {"key": "showWeather", "label": "Show weather", "type": "checkbox", "default": True},
-    {"key": "timezone", "label": "Time Zone", "type": "text", "default": "", "placeholder": "Use global/ZIP default"},
+    {
+        "key": "timezone",
+        "label": "Time Zone",
+        "type": "select",
+        "default": "",
+        "choices": [
+            {"value": "", "label": "Use global default"},
+            {"value": "America/New_York", "label": "Eastern"},
+            {"value": "America/Chicago", "label": "Central"},
+            {"value": "America/Denver", "label": "Mountain"},
+            {"value": "America/Phoenix", "label": "Arizona"},
+            {"value": "America/Los_Angeles", "label": "Pacific"},
+            {"value": "America/Anchorage", "label": "Alaska"},
+            {"value": "Pacific/Honolulu", "label": "Hawaii"},
+            {"value": "UTC", "label": "UTC"},
+        ],
+    },
     {
         "key": "timeFormat",
         "label": "Time Format",

@@ -8,7 +8,23 @@ CARD_ID = "clock_week_strip"
 CARD_NAME = "Clock Week Strip"
 CARD_DETAIL = "Time with weekday strip"
 CARD_OPTIONS = [
-    {"key": "timezone", "label": "Time Zone", "type": "text", "default": "", "placeholder": "Use global default"},
+    {
+        "key": "timezone",
+        "label": "Time Zone",
+        "type": "select",
+        "default": "",
+        "choices": [
+            {"value": "", "label": "Use global default"},
+            {"value": "America/New_York", "label": "Eastern"},
+            {"value": "America/Chicago", "label": "Central"},
+            {"value": "America/Denver", "label": "Mountain"},
+            {"value": "America/Phoenix", "label": "Arizona"},
+            {"value": "America/Los_Angeles", "label": "Pacific"},
+            {"value": "America/Anchorage", "label": "Alaska"},
+            {"value": "Pacific/Honolulu", "label": "Hawaii"},
+            {"value": "UTC", "label": "UTC"},
+        ],
+    },
     {
         "key": "timeFormat",
         "label": "Time Format",
