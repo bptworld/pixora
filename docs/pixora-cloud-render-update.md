@@ -64,6 +64,9 @@ For cloud card library work:
 
 - Pixora Cloud does not install or remove card source files from the dashboard.
 - All public registry cards should be available directly through `/api/cards`.
+- Cloud card option panels come from public `cards/registry.json`; the cloud card list should not import every addon just to discover options.
+- When a card addon changes `CARD_OPTIONS`, sync the matching `options` block into `cards/registry.json` in the public Pixora repo and push that public repo change.
+- The public registry should include every public card, including travel cards such as `helicopter_tracker`.
 - Keep card add/remove controls focused on device decks, not on the Card Library itself.
 - Do not reintroduce visible `Browse Cards`, `Install`, or card-library remove buttons in the cloud dashboard.
 - `/api/addons/install` and `/api/addons/remove` may remain harmless compatibility no-ops, but they must not block users with local-only source-file errors.
@@ -123,6 +126,44 @@ ids = {card.get('id') for card in cards}
 print('cards', len(cards), 'has_overhead', 'flights_overhead' in ids, 'has_launch', 'launch_countdown' in ids)
 print('install_noop', client.post('/api/addons/install', json={'url': '/cards/addons/flights_overhead.py'}).json().get('ok'))
 print('remove_noop', client.post('/api/addons/remove', json={'id': 'flights_overhead'}).json().get('ok'))
+'@ | python -
+```
+
+For public card option metadata verification, run this from the normal `C:\Pixora` checkout before pushing card or registry changes:
+
+```powershell
+@'
+import importlib.util, json, sys
+from pathlib import Path
+sys.path.insert(0, str(Path('cards').resolve()))
+sys.path.insert(0, str(Path('cards/addons').resolve()))
+registry = json.loads(Path('cards/registry.json').read_text(encoding='utf-8'))
+reg = {c.get('id'): c for c in registry.get('cards', []) if isinstance(c, dict)}
+missing = []
+mismatch = []
+errors = []
+for path in sorted(Path('cards/addons').glob('*.py')):
+    if path.name.startswith('_'):
+        continue
+    try:
+        spec = importlib.util.spec_from_file_location(f'check_{path.stem}', path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        card_id = getattr(mod, 'CARD_ID', path.stem)
+        options = getattr(mod, 'CARD_OPTIONS', None)
+        if isinstance(options, list):
+            expected = [dict(item) for item in options if isinstance(item, dict)]
+            reg_options = reg.get(card_id, {}).get('options')
+            if reg_options is None:
+                missing.append(card_id)
+            elif reg_options != expected:
+                mismatch.append(card_id)
+    except Exception as exc:
+        errors.append((path.name, str(exc)))
+print('registry_cards', len(reg))
+print('missing', len(missing), missing[:20])
+print('mismatch', len(mismatch), mismatch[:20])
+print('errors', len(errors), errors[:5])
 '@ | python -
 ```
 
