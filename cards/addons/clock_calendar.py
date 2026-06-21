@@ -1,11 +1,26 @@
 from datetime import datetime
 from io import BytesIO
+from zoneinfo import ZoneInfo
 
-from card_utils import draw_sharp_text, format_time
+from card_utils import draw_sharp_text, format_time, pixora_local_now
 
 CARD_ID = "clock_calendar"
 CARD_NAME = "Clock with Calendar"
 CARD_DETAIL = "Time and today's date"
+CARD_OPTIONS = [
+    {"key": "timezone", "label": "Time Zone", "type": "text", "default": "", "placeholder": "Use global default"},
+    {
+        "key": "timeFormat",
+        "label": "Time Format",
+        "type": "select",
+        "default": "",
+        "choices": [
+            {"value": "", "label": "Use global default"},
+            {"value": "12", "label": "12-hour"},
+            {"value": "24", "label": "24-hour"},
+        ],
+    },
+]
 
 _SEGMENTS = {
     "0": "abcfed",
@@ -161,13 +176,32 @@ def _draw_bottom_blocks(draw, x1, y, x2, active=0, block_w=6, gap=4):
         idx += 1
 
 
+def _clock_now(opts):
+    tz_name = str((opts or {}).get("timezone") or (opts or {}).get("timeZone") or "").strip()
+    if tz_name:
+        try:
+            return datetime.now(ZoneInfo(tz_name))
+        except Exception:
+            pass
+    return pixora_local_now()
+
+
+def _clock_time_text(now, opts):
+    value = str((opts or {}).get("timeFormat") or "").strip().lower()
+    if value in ("24", "24h", "24-hour", "military"):
+        return now.strftime("%H:%M")
+    if value in ("12", "12h", "12-hour"):
+        return now.strftime("%I:%M").lstrip("0")
+    return format_time(now)
+
+
 def render(options=None):
     from PIL import ImageFont
 
     opts = options or {}
     is_wide = opts.get("_target") == "matrixportal-s3-128x32"
-    now = datetime.now()
-    time_text = format_time(now)
+    now = _clock_now(opts)
+    time_text = _clock_time_text(now, opts)
     try:
         font = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
     except Exception:

@@ -1,11 +1,38 @@
 from datetime import datetime
 from io import BytesIO
+from zoneinfo import ZoneInfo
 
-from card_utils import draw_pixora_bold_number, draw_sharp_text, format_short_date, format_time, pixora_bold_number_size
+from card_utils import draw_pixora_bold_number, draw_sharp_text, format_short_date, format_time, pixora_bold_number_size, pixora_local_now
 
 CARD_ID = "clock_week_strip"
 CARD_NAME = "Clock Week Strip"
 CARD_DETAIL = "Time with weekday strip"
+CARD_OPTIONS = [
+    {"key": "timezone", "label": "Time Zone", "type": "text", "default": "", "placeholder": "Use global default"},
+    {
+        "key": "timeFormat",
+        "label": "Time Format",
+        "type": "select",
+        "default": "",
+        "choices": [
+            {"value": "", "label": "Use global default"},
+            {"value": "12", "label": "12-hour"},
+            {"value": "24", "label": "24-hour"},
+        ],
+    },
+    {
+        "key": "dateFormat",
+        "label": "Date Format",
+        "type": "select",
+        "default": "",
+        "choices": [
+            {"value": "", "label": "Use global default"},
+            {"value": "md", "label": "MM/DD"},
+            {"value": "dm", "label": "DD/MM"},
+            {"value": "mon_d", "label": "Day M/D"},
+        ],
+    },
+]
 
 _DAYS = ("M", "T", "W", "T", "F", "S", "S")
 
@@ -30,14 +57,44 @@ def _draw_week_strip(image, draw, x, y, cell_w, today_idx, font, compact=False):
             _center_text(image, draw, label, y - 3, font, text, x1, x2)
 
 
-def _date_text(now):
-    short_date = format_short_date(now)
+def _short_date(now, opts):
+    value = str((opts or {}).get("dateFormat") or "").strip()
+    if value == "dm":
+        return f"{now.day:02d}/{now.month:02d}"
+    if value == "mon_d":
+        return f"{now.strftime('%a')} {now.month}/{now.day}"
+    if value == "md":
+        return f"{now.month:02d}/{now.day:02d}"
+    return format_short_date(now)
+
+
+def _date_text(now, opts):
+    short_date = _short_date(now, opts)
     if any(ch.isalpha() for ch in short_date):
         return short_date.upper()
     return short_date
 
 
-def _render_64(now, time_text, font):
+def _clock_now(opts):
+    tz_name = str((opts or {}).get("timezone") or (opts or {}).get("timeZone") or "").strip()
+    if tz_name:
+        try:
+            return datetime.now(ZoneInfo(tz_name))
+        except Exception:
+            pass
+    return pixora_local_now()
+
+
+def _clock_time_text(now, opts):
+    value = str((opts or {}).get("timeFormat") or "").strip().lower()
+    if value in ("24", "24h", "24-hour", "military"):
+        return now.strftime("%H:%M")
+    if value in ("12", "12h", "12-hour"):
+        return now.strftime("%I:%M").lstrip("0")
+    return format_time(now)
+
+
+def _render_64(now, time_text, font, opts):
     from PIL import Image, ImageDraw
 
     image = Image.new("RGB", (64, 32), (0, 5, 12))
@@ -46,19 +103,19 @@ def _render_64(now, time_text, font):
 
     tw, th = pixora_bold_number_size(time_text, scale=2, spacing=1)
     draw_pixora_bold_number(draw, ((64 - tw) // 2, 11), time_text, (235, 247, 255), scale=2, spacing=1)
-    date = f"{now.strftime('%a').upper()} {_date_text(now)}"
+    date = f"{now.strftime('%a').upper()} {_date_text(now, opts)}"
     _center_text(image, draw, date[:11], 24, font, (92, 185, 255), 0, 63)
     return image
 
 
-def _render_128(now, time_text, font):
+def _render_128(now, time_text, font, opts):
     from PIL import Image, ImageDraw
 
     image = Image.new("RGB", (128, 32), (0, 5, 12))
     draw = ImageDraw.Draw(image)
     _draw_week_strip(image, draw, 2, 1, 10, now.weekday(), font)
     _center_text(image, draw, now.strftime("%B").upper()[:10], 11, font, (112, 135, 152), 2, 70)
-    _center_text(image, draw, _date_text(now), 21, font, (92, 185, 255), 2, 70)
+    _center_text(image, draw, _date_text(now, opts), 21, font, (92, 185, 255), 2, 70)
 
     tw, th = pixora_bold_number_size(time_text, scale=2, spacing=2)
     draw.rectangle((73, 0, 127, 31), fill=(2, 8, 16))
@@ -71,14 +128,14 @@ def render(options=None):
     from PIL import ImageFont
 
     opts = options or {}
-    now = datetime.now()
-    time_text = format_time(now)
+    now = _clock_now(opts)
+    time_text = _clock_time_text(now, opts)
     try:
         font = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
     except Exception:
         font = ImageFont.load_default()
 
-    image = _render_128(now, time_text, font) if opts.get("_target") == "matrixportal-s3-128x32" else _render_64(now, time_text, font)
+    image = _render_128(now, time_text, font, opts) if opts.get("_target") == "matrixportal-s3-128x32" else _render_64(now, time_text, font, opts)
     out = BytesIO()
     image.save(out, "WEBP", lossless=True, quality=100)
     return out.getvalue()

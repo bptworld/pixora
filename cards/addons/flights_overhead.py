@@ -14,7 +14,7 @@ from card_utils import (
 
 CARD_ID = "flights_overhead"
 CARD_NAME = "Flights Overhead"
-CARD_DETAIL = "Free live ADS-B flights above you"
+CARD_DETAIL = "Live ADS-B flights above you"
 CARD_OPTIONS = [
     {"key": "zipCode",        "label": "ZIP Code",       "type": "text",     "default": "10001", "maxlength": 5, "inputmode": "numeric"},
     {"key": "radiusMiles",    "label": "Radius (mi)",    "type": "number",   "default": "50"},

@@ -23,6 +23,18 @@ CARD_DETAIL = "Time plus local weather"
 CARD_OPTIONS = [
     {"key": "zipCode", "label": "ZIP", "type": "text", "default": "", "maxlength": 5, "inputmode": "numeric"},
     {"key": "showWeather", "label": "Show weather", "type": "checkbox", "default": True},
+    {"key": "timezone", "label": "Time Zone", "type": "text", "default": "", "placeholder": "Use global/ZIP default"},
+    {
+        "key": "timeFormat",
+        "label": "Time Format",
+        "type": "select",
+        "default": "",
+        "choices": [
+            {"value": "", "label": "Use global default"},
+            {"value": "12", "label": "12-hour"},
+            {"value": "24", "label": "24-hour"},
+        ],
+    },
 ]
 
 _WEATHER_POOL = None
@@ -173,6 +185,15 @@ def _clock_now(options=None):
     return datetime.now().astimezone()
 
 
+def _clock_time_text(now, options=None):
+    value = str((options or {}).get("timeFormat") or "").strip().lower()
+    if value in ("24", "24h", "24-hour", "military"):
+        return now.strftime("%H:%M")
+    if value in ("12", "12h", "12-hour"):
+        return now.strftime("%I:%M").lstrip("0")
+    return format_time(now)
+
+
 def _weather_worker(zip_code):
     try:
         weather = weather_for_zip(zip_code)
@@ -265,7 +286,8 @@ def render(options=None):
     except Exception:
         time_font = temp_font = unit_font = small_font = ImageFont.load_default()
 
-    text = format_time(_clock_now(options))
+    now = _clock_now(options)
+    text = _clock_time_text(now, options)
     time_scale = 2 if is_wide else 2
     time_spacing = 2 if is_wide else 1
     tw, th = _bitmap_text_size(text, scale=time_scale, spacing=time_spacing)
