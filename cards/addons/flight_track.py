@@ -1013,21 +1013,26 @@ def _route_pixel_span(pixels):
 
 
 def _style_route_map(background):
-    pixels = background.convert("RGB").load()
+    background = background.convert("RGB")
+    pixels = background.load()
     width, height = background.size
     for y in range(height):
         for x in range(width):
             r, g, b = pixels[x, y]
-            if r > 218 and g > 218 and b > 205:
-                pixels[x, y] = (128, 145, 104)
+            if b > 185 and g > 175 and b >= r + 8:
+                pixels[x, y] = (18, 105, 172)
+            elif r > 218 and g > 218 and b > 205:
+                pixels[x, y] = (96, 104, 106)
             elif b > r + 18 and b > g + 8:
-                pixels[x, y] = (34, 82, 116)
+                pixels[x, y] = (18, 105, 172)
             elif g > r + 12 and g > b:
-                pixels[x, y] = (72, 122, 76)
+                pixels[x, y] = (88, 104, 96)
             elif r > 175 and g > 160 and b < 150:
-                pixels[x, y] = (150, 124, 78)
-    background = ImageEnhance.Color(background).enhance(1.35)
-    background = ImageEnhance.Contrast(background).enhance(1.55)
+                pixels[x, y] = (126, 118, 106)
+            elif abs(r - g) < 18 and abs(g - b) < 22 and r > 120:
+                pixels[x, y] = (96, 104, 106)
+    background = ImageEnhance.Color(background).enhance(1.15)
+    background = ImageEnhance.Contrast(background).enhance(1.25)
     background = ImageEnhance.Sharpness(background).enhance(2.2)
     return background.filter(ImageFilter.SHARPEN)
 
