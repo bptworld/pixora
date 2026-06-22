@@ -1,7 +1,9 @@
 from datetime import datetime, timedelta, timezone
 from html import unescape
 from io import BytesIO
+import json
 import re
+import urllib.parse
 import urllib.request
 
 from card_utils import draw_pixora_bold_number, draw_sharp_text, format_short_date, pixora_bold_number_size, render_text_webp
@@ -12,6 +14,7 @@ CARD_DETAIL = "Latest Mega Millions draw"
 CARD_OPTIONS = []
 
 URL = "https://www.lottery.net/mega-millions/numbers"
+NY_OPEN_DATA_URL = "https://data.ny.gov/resource/5xaw-6ayf.json"
 CACHE = {}
 MONTHS = {
     "jan": 1,
@@ -39,6 +42,19 @@ def _fetch_html(url, seconds=21600):
     CACHE["html"] = html
     CACHE["expires"] = now + timedelta(seconds=seconds)
     return html
+
+
+def _fetch_json(url, params=None, seconds=21600):
+    now = datetime.now(timezone.utc)
+    cache_key = url + "?" + urllib.parse.urlencode(params or {})
+    if CACHE.get(cache_key, {}).get("expires", now) > now and CACHE.get(cache_key, {}).get("json") is not None:
+        return CACHE[cache_key]["json"]
+    full_url = cache_key if params else url
+    request = urllib.request.Request(full_url, headers={"User-Agent": "Pixora/0.1", "Accept": "application/json"})
+    with urllib.request.urlopen(request, timeout=8) as response:
+        data = json.loads(response.read().decode("utf-8", errors="ignore"))
+    CACHE[cache_key] = {"json": data, "expires": now + timedelta(seconds=seconds)}
+    return data
 
 
 def _clean_html(text):
@@ -70,7 +86,7 @@ def _next_draw_text(date_text):
     return f"Next Draw: {format_short_date(next_date)}"
 
 
-def _latest():
+def _latest_lottery_net():
     html = _fetch_html(URL)
     block_match = re.search(r'<div class="[^"]*latestResults[^"]*".*?</div>\s*</div>\s*</div>', html, re.I | re.S)
     block = block_match.group(0) if block_match else html
@@ -88,6 +104,38 @@ def _latest():
         "jackpot": _clean_html(jackpot_match.group(1)) if jackpot_match else "",
         "next": _next_draw_text(date_text),
     }
+
+
+def _latest_ny_open_data():
+    rows = _fetch_json(NY_OPEN_DATA_URL, {"$limit": "1", "$order": "draw_date DESC"})
+    if not isinstance(rows, list) or not rows:
+        raise ValueError("Mega Millions NY Open Data row not found")
+    row = rows[0]
+    numbers = re.findall(r"\d+", str(row.get("winning_numbers") or ""))[:5]
+    special = str(row.get("mega_ball") or "").strip()
+    if len(numbers) < 5 or not special:
+        raise ValueError("Mega Millions NY Open Data numbers not found")
+    draw_date = str(row.get("draw_date") or "")[:10]
+    date_text = "LATEST"
+    try:
+        parsed_date = datetime.strptime(draw_date, "%Y-%m-%d")
+        date_text = f"{parsed_date.strftime('%A')} {parsed_date.strftime('%B')} {parsed_date.day} {parsed_date.year}"
+    except Exception:
+        date_text = draw_date or "LATEST"
+    return {
+        "date": date_text,
+        "numbers": numbers,
+        "special": special,
+        "jackpot": "",
+        "next": _next_draw_text(date_text),
+    }
+
+
+def _latest():
+    try:
+        return _latest_lottery_net()
+    except Exception:
+        return _latest_ny_open_data()
 
 
 def _center(image, text, y, color, font, x1=0, x2=63):
