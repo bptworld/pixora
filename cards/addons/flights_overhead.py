@@ -1,6 +1,7 @@
 from io import BytesIO
 import hashlib
 import json
+import math
 import threading
 import time
 import urllib.error
@@ -94,6 +95,49 @@ def _airport_code(value):
     return _clean(value)[:4] or "---"
 
 
+def _airport_latlon(value):
+    if not isinstance(value, dict):
+        return None
+    try:
+        lat = value.get("latitude")
+        lon = value.get("longitude")
+        if lat is None or lon is None:
+            return None
+        return float(lat), float(lon)
+    except Exception:
+        return None
+
+
+def _bearing_degrees(lat1, lon1, lat2, lon2):
+    lat1 = math.radians(float(lat1))
+    lat2 = math.radians(float(lat2))
+    dlon = math.radians(float(lon2) - float(lon1))
+    y = math.sin(dlon) * math.cos(lat2)
+    x = math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(dlon)
+    return (math.degrees(math.atan2(y, x)) + 360.0) % 360.0
+
+
+def _heading_delta(a, b):
+    return abs((float(a) - float(b) + 180.0) % 360.0 - 180.0)
+
+
+def _route_near_position(lat, lon, origin_pos, dest_pos):
+    if lat is None or lon is None or not origin_pos or not dest_pos:
+        return True
+    try:
+        route_miles = haversine_miles(origin_pos[0], origin_pos[1], dest_pos[0], dest_pos[1])
+        if route_miles <= 0:
+            return True
+        via_plane = (
+            haversine_miles(origin_pos[0], origin_pos[1], lat, lon)
+            + haversine_miles(lat, lon, dest_pos[0], dest_pos[1])
+        )
+        slack = max(120.0, route_miles * 0.15)
+        return via_plane <= route_miles + slack
+    except Exception:
+        return True
+
+
 def _fetch_json_fast(url, seconds=600, timeout=1.2):
     import time
 
@@ -113,7 +157,7 @@ def _fetch_json_fast(url, seconds=600, timeout=1.2):
     return data
 
 
-def _route_for_callsign(callsign):
+def _route_for_callsign(callsign, lat=None, lon=None, track=None):
     callsign = _clean(callsign)
     if not callsign:
         return ""
@@ -122,8 +166,23 @@ def _route_for_callsign(callsign):
         data = _fetch_json_fast(url, seconds=_ROUTE_CACHE_SECONDS, timeout=1.0)
         response = data.get("response") or {}
         route = response.get("flightroute") or response
-        origin = _airport_code(route.get("origin"))
-        dest = _airport_code(route.get("destination"))
+        origin_raw = route.get("origin")
+        dest_raw = route.get("destination")
+        origin = _airport_code(origin_raw)
+        dest = _airport_code(dest_raw)
+        origin_pos = _airport_latlon(origin_raw)
+        dest_pos = _airport_latlon(dest_raw)
+        if lat is not None and lon is not None and track is not None and origin_pos and dest_pos:
+            try:
+                to_origin = _bearing_degrees(lat, lon, origin_pos[0], origin_pos[1])
+                to_dest = _bearing_degrees(lat, lon, dest_pos[0], dest_pos[1])
+                if _heading_delta(track, to_origin) + 35 < _heading_delta(track, to_dest):
+                    origin, dest = dest, origin
+                    origin_pos, dest_pos = dest_pos, origin_pos
+            except Exception:
+                pass
+        if not _route_near_position(lat, lon, origin_pos, dest_pos):
+            return f"{origin}>" if origin != "---" else ""
         if origin != "---" or dest != "---":
             return f"{origin}>{dest}"
     except Exception:
@@ -219,7 +278,13 @@ def _draw_wide_flight(row):
     stats_x = 127 - sw
     flight = _fit_text(draw, row["flight"], bold, max(12, stats_x - tx - 4))
     draw_sharp_text(image, (tx, 6), flight, (255, 255, 255), bold)
-    draw_sharp_text(image, (tx, 13), row["airline"][:16], (100, 190, 255), font)
+    tail = _clean(row.get("registration") or row.get("hex"))[:8]
+    tail_w = draw.textbbox((0, 0), tail, font=font)[2] if tail else 0
+    airline_max = max(16, 126 - tx - tail_w - (4 if tail else 0))
+    airline = _fit_text(draw, row["airline"], font, airline_max)
+    draw_sharp_text(image, (tx, 13), airline, (100, 190, 255), font)
+    if tail:
+        draw_sharp_text(image, (127 - tail_w, 13), tail, (200, 230, 255), font)
     draw_sharp_text(image, (stats_x, 6), stats, (200, 230, 255), font)
     route = (row.get("route") or "")[:12]
     line4 = f"{format_distance_miles(row['distance'], 0)} {row['direction']}"
@@ -383,18 +448,21 @@ def _flight_row(home_lat, home_lon, item, rank):
     speed_kt = int(_num(row.get("gs") or row.get("speed")))
     lat = _num(row.get("lat"), None)
     lon = _num(row.get("lon"), None)
+    track = _num(row.get("track") or row.get("true_heading") or row.get("mag_heading"), None)
     direction = compass_dir(home_lat, home_lon, lat, lon)
     airline = lookup_airline(callsign)
     airline_name = airline[0] if airline else callsign[:8]
     iata = airline[1] if airline else _ICAO_TO_IATA.get(callsign[:3])
     flight_num = _display_flight(callsign)
-    route = _route_for_callsign(callsign)
+    route = _route_for_callsign(callsign, lat=lat, lon=lon, track=track)
     return {
         "rank": rank,
         "callsign": callsign,
         "flight": flight_num or "UNKNOWN",
         "airline": airline_name or "UNKNOWN",
         "iata": iata,
+        "registration": _clean(row.get("r") or row.get("reg") or row.get("registration")),
+        "hex": _clean(row.get("hex") or row.get("icao24")),
         "distance": dist,
         "direction": direction,
         "alt_ft": alt_ft,
