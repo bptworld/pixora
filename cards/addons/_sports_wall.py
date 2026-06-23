@@ -44,6 +44,8 @@ def readable_accent(color, alt):
 def kind_headline(kind, sport="score"):
     kind = str(kind or "score").lower()
     sport = str(sport or "score").lower()
+    if kind in ("hat_trick", "hat-trick", "hattrick"):
+        return "HAT TRICK"
     if kind == "game_start":
         return "START GAME"
     if kind == "game_end":
@@ -92,6 +94,8 @@ def kind_headline(kind, sport="score"):
 def compact_headline(kind, sport="score"):
     kind = str(kind or "score").lower()
     sport = str(sport or "score").lower()
+    if kind in ("hat_trick", "hat-trick", "hattrick"):
+        return "HAT TRICK"
     if kind == "game_start":
         return "START"
     if kind == "game_end":
@@ -1011,6 +1015,93 @@ def _render_soccer_timing_wall_frames(team, kind, default_label="FC"):
     return frames, durations
 
 
+def _render_soccer_win_wall_frames(team, default_label="FC"):
+    from PIL import Image, ImageDraw
+
+    team = team or {}
+    try:
+        width = int(team.get("_width") or 64)
+    except Exception:
+        width = 64
+    width = max(64, min(512, width))
+    color = hex_color(team.get("color"), (70, 220, 125))
+    alt = readable_accent(color, hex_color(team.get("alternateColor"), (255, 255, 255)))
+    headline = "WINS"
+    label = str(team.get("abbreviation") or team.get("shortDisplayName") or default_label or "FC").upper()
+    title_font = fit_font(headline, max(26, width - 40), (13, 12, 11, 10, 9, 8, 7))
+    label_font = fit_font(label, max(24, width - 44), (8, 7, 6))
+    badge_font = fit_font("PORTU", 34, (8, 7, 6))
+    logo = _fetch_logo(_team_logo_url(team))
+    frames = []
+    durations = []
+
+    def frame(phase):
+        image = Image.new("RGBA", (width, 32), (0, 8, 13, 255))
+        draw = ImageDraw.Draw(image)
+        _draw_full_soccer_pitch(draw, width, phase, color, alt)
+        _draw_goal_net(draw, 2, 18, 13, 29, alt if phase % 2 else color)
+        _draw_goal_net(draw, width - 14, 18, width - 3, 29, alt if phase % 2 else color)
+        if _draw_soccer_matchup_net_badges(image, draw, team, badge_font, color, alt):
+            pass
+        elif logo:
+            image.alpha_composite(logo, (1, 4))
+        else:
+            _draw_badge(image, draw, team, color, default_label)
+        return image, draw
+
+    for i in range(12):
+        image, draw = frame(i)
+        t = i / 11
+        x = int(20 + ((width - 29) * t))
+        y = int(24 - 11 * math.sin(t * math.pi))
+        for trail in range(1, 5):
+            tx = max(16, x - trail * 5)
+            draw.point((tx, min(29, y + trail)), fill=dim(alt, 0.8) + (255,))
+        _draw_sport_mark(draw, "soccer", x, y, color, alt, i)
+        frames.append(image.convert("RGB"))
+        durations.append(55)
+
+    panel_x0 = 18 if width < 96 else max(30, width // 2 - 42)
+    panel_x1 = width - 17 if width < 96 else min(width - 31, width // 2 + 42)
+    for i in range(18):
+        image, draw = frame(i + 12)
+        pulse = i % 6
+        _draw_sport_mark(draw, "soccer", width - 8, 21, color, alt, i)
+        if i % 2 == 0:
+            draw.line((width - 12, 15, width - 3, 27), fill=(245, 245, 245, 255))
+            draw.line((width - 3, 15, width - 12, 27), fill=(245, 245, 245, 255))
+        _draw_firework(draw, 31 + (i % 5), 9, 4 + (i % 5), color, alt, i, width)
+        _draw_firework(draw, width - 31, 23, 4 + ((i + 2) % 5), alt, color, i + 4, width)
+        draw.rectangle((panel_x0, 6, panel_x1, 26), fill=(0, 22, 12, 225), outline=(alt if pulse < 3 else color) + (255,))
+        hbox = draw.textbbox((0, 0), headline, font=title_font)
+        hx = panel_x0 + ((panel_x1 - panel_x0 + 1) - (hbox[2] - hbox[0])) // 2 - hbox[0]
+        for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1), (1, 1)):
+            draw_sharp_text(image, (hx + dx, 7 - hbox[1] + dy), headline, (0, 35, 18), title_font)
+        draw_sharp_text(image, (hx, 7 - hbox[1]), headline, (255, 231, 104) if pulse < 3 else alt, title_font)
+        lbox = draw.textbbox((0, 0), label, font=label_font)
+        lx = panel_x0 + ((panel_x1 - panel_x0 + 1) - (lbox[2] - lbox[0])) // 2 - lbox[0]
+        draw_sharp_text(image, (lx + 1, 20 - lbox[1]), label, (0, 35, 18), label_font)
+        draw_sharp_text(image, (lx, 19 - lbox[1]), label, color if pulse < 3 else alt, label_font)
+        frames.append(image.convert("RGB"))
+        durations.append(90)
+
+    for i in range(10):
+        image, draw = frame(i + 30)
+        _draw_firework(draw, 27 + (i % 4), 10, 7 + (i % 5), color, alt, i, width)
+        _draw_firework(draw, width - 28, 21, 7 + ((i + 2) % 5), alt, color, i + 3, width)
+        if width >= 96:
+            _draw_firework(draw, width // 2, 15, 9 + (i % 4), (255, 202, 64), alt, i + 6, width)
+        hbox = draw.textbbox((0, 0), headline, font=title_font)
+        hx = max(18, (width - (hbox[2] - hbox[0])) // 2) - hbox[0]
+        hy = 8 - hbox[1]
+        draw.rectangle((max(15, hx - 4), 6, min(width - 16, hx + (hbox[2] - hbox[0]) + 4), 24), fill=(0, 18, 10, 225), outline=(alt if i % 2 else color) + (255,))
+        draw_sharp_text(image, (hx, hy), headline, alt if i % 2 else (255, 231, 104), title_font)
+        frames.append(image.convert("RGB"))
+        durations.append(130)
+
+    return frames, durations
+
+
 def render_wall_score_frames(team, kind="score", sport="score", default_label="TEAM"):
     from PIL import Image, ImageDraw
 
@@ -1022,21 +1113,25 @@ def render_wall_score_frames(team, kind="score", sport="score", default_label="T
     width = max(64, min(512, width))
     if str(sport or "").lower() == "soccer" and str(kind or "").lower() in ("game_start", "game_end", "half_start", "half_end"):
         return _render_soccer_timing_wall_frames(team, kind, default_label=default_label)
+    if str(sport or "").lower() == "soccer" and str(kind or "").lower() in ("win", "wins", "winner", "final_win"):
+        return _render_soccer_win_wall_frames(team, default_label=default_label)
     if str(sport or "").lower() in ("baseball", "mlb", "softball") and str(kind or "").lower() in (
         "run", "home_run", "homerun", "homer", "hr", "grand_slam", "grand slam", "slam",
         "rbi", "scoring_play", "scoring-play", "now_batting", "now-batting", "walk_off", "walk-off", "win",
     ):
         return _render_baseball_wall_frames(team, kind, default_label=default_label)
+    kind_key = str(kind or "").lower()
     color = hex_color(team.get("color"), (117, 231, 214))
     alt = readable_accent(color, hex_color(team.get("alternateColor"), (255, 255, 255)))
     headline = compact_headline(kind, sport) if width < 96 else kind_headline(kind, sport)
     scorer_name = ""
-    if str(sport or "").lower() == "soccer" and str(kind or "").lower() == "goal":
+    soccer_goal_kind = kind_key in ("goal", "hat_trick", "hat-trick", "hattrick")
+    score_label = "HAT TRICK" if kind_key in ("hat_trick", "hat-trick", "hattrick") else "GOAL"
+    if str(sport or "").lower() == "soccer" and soccer_goal_kind:
         raw_name = str(team.get("playerName") or "").strip()
         parts = [part for part in raw_name.replace(".", "").split() if part]
         scorer_name = (parts[-1] if parts else raw_name).upper()
     is_win = str(kind or "").lower() in ("win", "wins", "winner", "final_win")
-    kind_key = str(kind or "").lower()
     non_scoring_kinds = {
         "game_start", "game_end", "half_start", "half_end",
         "quarter_start", "quarter_end", "period_start", "period_end",
@@ -1047,9 +1142,9 @@ def render_wall_score_frames(team, kind="score", sport="score", default_label="T
     probe = ImageDraw.Draw(Image.new("RGB", (1, 1)))
     if scorer_name:
         title_font = fit_font(scorer_name, title_max_width, (8, 7, 6))
-        goal_font = fit_font("GOAL", title_max_width, (12, 11, 10, 9, 8, 7))
+        goal_font = fit_font(score_label, title_max_width, (12, 11, 10, 9, 8, 7, 6))
         name_bbox = probe.textbbox((0, 0), scorer_name, font=title_font)
-        goal_bbox = probe.textbbox((0, 0), "GOAL", font=goal_font)
+        goal_bbox = probe.textbbox((0, 0), score_label, font=goal_font)
         text_w = max(name_bbox[2] - name_bbox[0], goal_bbox[2] - goal_bbox[0])
         text_bbox = goal_bbox
     else:
@@ -1091,7 +1186,7 @@ def render_wall_score_frames(team, kind="score", sport="score", default_label="T
             name_x = panel_x0 + max(0, ((panel_x1 - panel_x0 + 1) - name_w) // 2) - name_bbox[0]
             goal_x = panel_x0 + max(0, ((panel_x1 - panel_x0 + 1) - goal_w) // 2) - goal_bbox[0]
             draw_sharp_text(image, (name_x, panel_y0 + 1 - name_bbox[1]), scorer_name, (245, 248, 236), title_font)
-            draw_sharp_text(image, (goal_x, panel_y0 + 11 - goal_bbox[1]), "GOAL", alt if phase % 2 else color, goal_font)
+            draw_sharp_text(image, (goal_x, panel_y0 + 11 - goal_bbox[1]), score_label, alt if phase % 2 else color, goal_font)
         else:
             draw_sharp_text(image, (text_x, text_y), headline, alt if phase % 2 else color, title_font)
         if mask_reveal is not None and mask_reveal < text_w and text_x + mask_reveal <= panel_x1:

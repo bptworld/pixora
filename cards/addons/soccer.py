@@ -141,10 +141,13 @@ def _scorer_for_goal(competition, competitor, score):
             continue
         athletes = detail.get("athletesInvolved") or []
         athlete = athletes[0] if athletes else {}
+        player_name = athlete.get("shortName") or athlete.get("displayName") or athlete.get("fullName") or ""
+        player_key = str(athlete.get("id") or athlete.get("uid") or player_name).strip().lower()
         goals.append({
-            "playerName": athlete.get("shortName") or athlete.get("displayName") or athlete.get("fullName") or "",
+            "playerName": player_name,
             "playerHeadshot": _athlete_headshot(athlete),
             "playerFlag": _team_logo_url(team),
+            "playerKey": player_key,
         })
     if not goals:
         return {}
@@ -152,7 +155,33 @@ def _scorer_for_goal(competition, competitor, score):
         index = max(0, min(len(goals) - 1, int(score) - 1))
     except Exception:
         index = len(goals) - 1
-    return goals[index]
+    scorer = dict(goals[index])
+    scorer_key = scorer.get("playerKey")
+    scorer_name = str(scorer.get("playerName") or "").strip().lower()
+    goal_count = sum(
+        1 for goal in goals
+        if (scorer_key and goal.get("playerKey") == scorer_key)
+        or (scorer_name and str(goal.get("playerName") or "").strip().lower() == scorer_name)
+    )
+    scorer["playerGoalCount"] = goal_count
+    if goal_count >= 3:
+        scorer["goalKind"] = "hat_trick"
+    return scorer
+
+
+def _test_scorer_payload(team, favorite):
+    favorite = str(favorite or (team or {}).get("abbreviation") or "FC").strip().upper()
+    samples = {
+        "ARS": ("SAKA", "https://cdn.futwiz.com/assets/img/fc26/faces/246669.png"),
+        "MCI": ("HAALAND", "https://a.espncdn.com/i/headshots/soccer/players/full/253989.png"),
+        "LIV": ("SALAH", "https://a.espncdn.com/i/headshots/soccer/players/full/173896.png"),
+    }
+    name, headshot = samples.get(favorite, (favorite or "PLAYER", ""))
+    return {
+        "playerName": name,
+        "playerHeadshot": headshot,
+        "playerFlag": _team_logo_url(team or {}),
+    }
 
 
 def _fetch_league_teams(league):
@@ -190,12 +219,14 @@ def _resolve_team_for_test(favorite, league="eng.1"):
                 "color": team.get("color") or "46DC7D",
                 "alternateColor": team.get("alternateColor") or "FFFFFF",
                 "logo": _team_logo_url(team),
+                **_test_scorer_payload(team, favorite),
             }
     return {
         "abbreviation": favorite or "FC",
         "color": "46DC7D",
         "alternateColor": "FFFFFF",
         "logo": "",
+        **_test_scorer_payload({"abbreviation": favorite or "FC"}, favorite),
     }
 
 
@@ -256,6 +287,8 @@ def _render_goal_animation_frames(team, kind="goal"):
     kind = str(kind or "goal").lower()
     if (team or {}).get("_wall"):
         return render_wall_score_frames(team, kind, sport="soccer", default_label="FC")
+    if (team or {}).get("playerName") and kind in ("goal", "hat_trick", "hat-trick", "hattrick"):
+        return render_score_alert_frames({**(team or {}), "_sport": "soccer"}, kind)
     if kind not in ("goal",):
         return render_score_alert_frames({**(team or {}), "_sport": "soccer"}, kind)
 
@@ -421,18 +454,20 @@ def _maybe_goal_animation(options):
         _GOAL_STATE[key] = {"score": score, "animated": animated, "seen": datetime.now(timezone.utc)}
         warm_priority_graphic(cache_key, lambda animation_team=animation_team: _render_goal_animation(animation_team))
         if score > last_score and score > animated:
-            animation_team = {**animation_team, **_scorer_for_goal(competition, competitor, score)}
-            cache_key = priority_graphic_key(CARD_ID, animation_team, "goal", animation_team["_width"])
+            scorer = _scorer_for_goal(competition, competitor, score)
+            animation_kind = "hat_trick" if scorer.get("goalKind") == "hat_trick" else "goal"
+            animation_team = {**animation_team, **scorer}
+            cache_key = priority_graphic_key(CARD_ID, animation_team, animation_kind, animation_team["_width"])
             _GOAL_STATE[key]["animated"] = score
             target = str((options or {}).get("goalAnimationTarget") or "device").strip().lower()
             wall = target in ("group", "group_wall", "wall") or target.startswith("group:")
             return {
-                "body": cached_priority_graphic(cache_key, lambda animation_team=animation_team: _render_goal_animation(animation_team)),
-                "dwell_secs": 6,
+                "body": cached_priority_graphic(cache_key, lambda animation_team=animation_team, animation_kind=animation_kind: _render_goal_animation(animation_team, animation_kind)),
+                "dwell_secs": 7 if animation_kind == "hat_trick" else 6,
                 "_stay": True,
                 "_no_replay": True,
                 "_priority": True,
-                "_group_wall": {"type": "goal", "renderer": "_render_goal_animation_frames", "team": dict(animation_team), "dwell_secs": 6} if wall else None,
+                "_group_wall": {"type": animation_kind, "kind": animation_kind, "renderer": "_render_goal_animation_frames", "team": dict(animation_team), "dwell_secs": 7 if animation_kind == "hat_trick" else 6} if wall else None,
             }
     return None
 

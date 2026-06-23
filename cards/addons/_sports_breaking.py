@@ -448,6 +448,8 @@ def _kind_lines(kind):
         return "BUCKET", ""
     if kind == "goal":
         return "GOAL", ""
+    if kind in ("hat_trick", "hat-trick", "hattrick"):
+        return "HAT", "TRICK"
     if kind == "point":
         return "POINT", ""
     if kind in ("win", "wins", "winner", "final_win"):
@@ -631,7 +633,8 @@ def _player_goal_name(team):
 
 def _draw_player_goal_device_frame(image, draw, team, kind, step, width, color, alt, small, big):
     name = _player_goal_name(team)
-    if not name or str(kind or "").lower() != "goal":
+    kind_key = str(kind or "").lower()
+    if not name or kind_key not in ("goal", "hat_trick", "hat-trick", "hattrick"):
         return False
 
     headshot = fetch_logo((team or {}).get("playerHeadshot"), size=22) if (team or {}).get("playerHeadshot") else None
@@ -663,8 +666,12 @@ def _draw_player_goal_device_frame(image, draw, team, kind, step, width, color, 
 
     draw.rectangle((panel_x0, 5, panel_x1, 26), fill=(0, 0, 0), outline=edge)
     name = _fit_device_text(draw, name, small, max(8, panel_x1 - panel_x0 - 4))
-    goal = "GOAL"
+    goal = "HAT TRICK" if kind_key in ("hat_trick", "hat-trick", "hattrick") else "GOAL"
     goal_font = big
+    if draw.textbbox((0, 0), goal, font=goal_font)[2] > max(8, panel_x1 - panel_x0 - 4):
+        goal_font = small
+    if draw.textbbox((0, 0), goal, font=goal_font)[2] > max(8, panel_x1 - panel_x0 - 4):
+        goal = "HAT" if kind_key in ("hat_trick", "hat-trick", "hattrick") else goal
     goal_w = draw.textbbox((0, 0), goal, font=goal_font)[2]
     name_w = draw.textbbox((0, 0), name, font=small)[2]
     draw_sharp_text(image, (panel_x0 + ((panel_x1 - panel_x0 + 1) - name_w) // 2, 4), name, alt, small)
@@ -793,13 +800,235 @@ def _render_sport_timing_device_frames(team, kind):
     return frames, durations
 
 
+def _draw_world_cup_logo_or_fallback(image, draw, team, color, alt):
+    from PIL import ImageFont
+
+    logo = fetch_logo((team or {}).get("logo"), size=21) if (team or {}).get("logo") else None
+    if logo:
+        image.paste(logo, (2, 5), logo if logo.mode == "RGBA" else None)
+        return
+    abbr = str((team or {}).get("abbreviation") or "FC").upper()[:3]
+    try:
+        font = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
+    except Exception:
+        font = ImageFont.load_default()
+    draw.rectangle((2, 6, 23, 25), fill=(0, 0, 0), outline=color)
+    text_w = draw.textbbox((0, 0), abbr, font=font)[2]
+    draw_sharp_text(image, (3 + max(0, (19 - text_w) // 2), 11), abbr, alt, font)
+
+
+def _draw_world_cup_net(draw, width):
+    offset = max(0, int(width or 64) - 64)
+    white = (220, 235, 245)
+    post = (245, 245, 245)
+    draw.line((53 + offset, 13, 63 + offset, 13), fill=post)
+    draw.line((53 + offset, 13, 53 + offset, 27), fill=post)
+    draw.line((63 + offset, 13, 63 + offset, 27), fill=post)
+    draw.line((53 + offset, 27, 63 + offset, 27), fill=post)
+    for x in (56 + offset, 59 + offset):
+        draw.line((x, 14, x, 26), fill=white)
+    for y in (16, 19, 22, 25):
+        draw.line((54 + offset, y, 62 + offset, y), fill=white)
+
+
+def _draw_world_cup_ball(draw, x, y):
+    draw.ellipse((x - 4, y - 4, x + 4, y + 4), fill=(245, 245, 238), outline=(180, 185, 185))
+    dark = (18, 22, 26)
+    draw.polygon([(x, y - 2), (x + 2, y), (x + 1, y + 3), (x - 1, y + 3), (x - 2, y)], fill=dark)
+    for px, py in [(x - 3, y - 3), (x + 3, y - 3), (x - 4, y + 2), (x + 4, y + 2)]:
+        draw.rectangle((px, py, px + 1, py + 1), fill=dark)
+
+
+def _render_soccer_win_device_frames(team):
+    from PIL import Image, ImageDraw, ImageFont
+
+    try:
+        width = int((team or {}).get("_width") or 64)
+    except Exception:
+        width = 64
+    width = max(64, min(512, width))
+    color = _hex_color((team or {}).get("color"), (70, 220, 125))
+    alt = _hex_color((team or {}).get("alternateColor"), (245, 250, 255))
+    try:
+        small = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
+        big = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 10)
+    except Exception:
+        small = big = ImageFont.load_default()
+
+    probe = ImageDraw.Draw(Image.new("RGB", (1, 1)))
+    abbr = str((team or {}).get("abbreviation") or (team or {}).get("shortDisplayName") or "TEAM").upper()
+    abbr = _fit_device_text(probe, abbr, small, max(20, width - 32))
+    win_text = _fit_device_text(probe, "WINS", big, max(18, width - 32))
+    frames = []
+    durations = []
+
+    win_w = probe.textbbox((0, 0), win_text, font=big)[2]
+    text_x = 26 if width <= 64 else max(26, (width - win_w) // 2)
+    ball_path = [(27 + int((width - 33) * (i / 7)), 23 - min(5, abs(3 - i))) for i in range(8)]
+
+    for step, (x, y) in enumerate(ball_path):
+        image = Image.new("RGBA", (width, 32), (0, 0, 0, 255))
+        draw = ImageDraw.Draw(image)
+        _draw_world_cup_logo_or_fallback(image, draw, team, color, alt)
+        _draw_world_cup_net(draw, width)
+        if step:
+            px, py = ball_path[step - 1]
+            draw.point((px - 4, py + 1), fill=(80, 90, 85))
+            draw.point((px - 8, py + 2), fill=(45, 52, 48))
+        _draw_world_cup_ball(draw, x, y)
+        frames.append(image.convert("RGB"))
+        durations.append(85)
+
+    for step in range(12):
+        image = Image.new("RGBA", (width, 32), (0, 0, 0, 255))
+        draw = ImageDraw.Draw(image)
+        _draw_world_cup_logo_or_fallback(image, draw, team, color, alt)
+        _draw_world_cup_net(draw, width)
+        _draw_world_cup_ball(draw, width - 5, 21)
+        if step % 2 == 0:
+            draw.line((width - 9, 15, width - 2, 26), fill=(245, 245, 245))
+            draw.line((width - 2, 15, width - 9, 26), fill=(245, 245, 245))
+        for i in range(5):
+            sx = 25 + ((step * 5 + i * 9) % max(1, width - 32))
+            sy = 2 + ((step * 3 + i * 5) % 10)
+            fill = alt if i % 2 else color
+            draw.point((sx, sy), fill=fill)
+            draw.point((sx + 1, sy), fill=fill)
+        if step % 4 != 3:
+            draw_sharp_text(image, (text_x, 0), win_text, color if step % 2 else alt, big)
+            abbr_w = draw.textbbox((0, 0), abbr, font=small)[2]
+            draw_sharp_text(image, (max(25, text_x + max(0, (win_w - abbr_w) // 2)), 12), abbr, (255, 204, 76), small)
+        frames.append(image.convert("RGB"))
+        durations.append(170 if step % 4 != 3 else 110)
+    return frames, durations
+
+
+def _draw_device_sport_mark(draw, sport, x, y, color, alt, phase=0):
+    sport = str(sport or "").lower()
+    if sport in ("basketball", "nba", "wnba"):
+        ball = (224, 124, 48)
+        draw.ellipse((x - 4, y - 4, x + 4, y + 4), fill=ball, outline=alt)
+        draw.line((x - 4, y, x + 4, y), fill=(88, 46, 22))
+        draw.arc((x - 4, y - 4, x + 4, y + 4), 70, 110, fill=(88, 46, 22))
+        draw.arc((x - 4, y - 4, x + 4, y + 4), 250, 290, fill=(88, 46, 22))
+        return
+    if sport == "volleyball":
+        draw.ellipse((x - 4, y - 4, x + 4, y + 4), fill=(245, 242, 218), outline=alt)
+        draw.arc((x - 4, y - 4, x + 4, y + 4), 15, 165, fill=color)
+        draw.arc((x - 4, y - 4, x + 4, y + 4), 195, 330, fill=color)
+        draw.line((x, y - 4, x, y + 4), fill=(120, 130, 140))
+        return
+    if sport == "lacrosse":
+        ball = (245, 245, 235)
+        draw.ellipse((x - 2, y - 2, x + 2, y + 2), fill=ball, outline=alt)
+        draw.line((x - 6, y + 5, x + 5, y - 6), fill=color)
+        draw.arc((x + 2, y - 8, x + 10, y), 80, 265, fill=alt)
+        return
+    draw.rectangle((x - 3, y - 3, x + 3, y + 3), fill=color, outline=alt)
+
+
+def _sport_scene_label(kind, sport):
+    sport = str(sport or "").lower()
+    kind = str(kind or "").lower()
+    if kind in ("win", "wins", "winner", "final_win"):
+        return "WINS", ""
+    if sport in ("basketball", "nba", "wnba"):
+        if kind == "three":
+            return "3", "POINT"
+        if kind == "free_throw":
+            return "FREE", "THROW"
+        return "BUCKET", ""
+    if sport == "volleyball":
+        return "POINT", ""
+    if sport == "lacrosse":
+        return "GOAL", ""
+    return _kind_lines(kind)
+
+
+def _render_sport_scene_device_frames(team, kind):
+    from PIL import Image, ImageDraw, ImageFont
+
+    sport = str((team or {}).get("_sport") or "score").lower()
+    try:
+        width = int((team or {}).get("_width") or 64)
+    except Exception:
+        width = 64
+    width = max(64, min(512, width))
+    color = _hex_color((team or {}).get("color"), (117, 231, 214))
+    alt = _hex_color((team or {}).get("alternateColor"), (245, 250, 255))
+    try:
+        small = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
+        big = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 10)
+    except Exception:
+        small = big = ImageFont.load_default()
+
+    probe = ImageDraw.Draw(Image.new("RGB", (1, 1)))
+    abbr = str((team or {}).get("abbreviation") or (team or {}).get("shortDisplayName") or "TEAM").upper()
+    abbr = _fit_device_text(probe, abbr, small, max(18, width - 42))
+    line1, line2 = _sport_scene_label(kind, sport)
+    line1 = _fit_device_text(probe, line1, big, max(20, width - 40))
+    line2 = _fit_device_text(probe, line2, small, max(20, width - 40))
+    is_win = str(kind or "").lower() in ("win", "wins", "winner", "final_win")
+    text_w = max(probe.textbbox((0, 0), line1, font=big)[2], probe.textbbox((0, 0), line2 or abbr, font=small)[2])
+    panel_x0 = 24 if width < 96 else max(26, (width - text_w) // 2 - 4)
+    panel_x1 = min(width - 17, panel_x0 + max(26, text_w + 8))
+    frames = []
+    durations = []
+
+    for step in range(16):
+        image = Image.new("RGB", (width, 32), (0, 0, 0))
+        draw = ImageDraw.Draw(image)
+        _draw_timing_surface(draw, width, step, color, sport)
+        logo = fetch_logo((team or {}).get("logo"), size=18) if (team or {}).get("logo") else None
+        if logo:
+            image.paste(logo, (2, 7), logo if logo.mode == "RGBA" else None)
+        else:
+            badge = abbr[:3]
+            draw.rectangle((2, 7, 21, 24), fill=(0, 0, 0), outline=alt)
+            badge_w = draw.textbbox((0, 0), badge, font=small)[2]
+            draw_sharp_text(image, (3 + max(0, (17 - badge_w) // 2), 10), badge, alt, small)
+
+        start_x = 24
+        end_x = width - 10
+        t = min(1, step / 9)
+        mark_x = int(start_x + ((end_x - start_x) * t))
+        arc = 10 if sport in ("basketball", "volleyball") else 5
+        mark_y = int(24 - arc * (1 - abs((t * 2) - 1)))
+        for trail in range(1, 4):
+            tx = max(start_x, mark_x - trail * 5)
+            draw.point((tx, min(28, mark_y + trail)), fill=alt)
+        _draw_device_sport_mark(draw, sport, mark_x, mark_y, color, alt, step)
+
+        if step >= 6:
+            draw.rectangle((panel_x0, 5, panel_x1, 26), fill=(2, 8, 10), outline=(alt if step % 2 else color))
+            l1_w = draw.textbbox((0, 0), line1, font=big)[2]
+            draw_sharp_text(image, (panel_x0 + max(0, ((panel_x1 - panel_x0 + 1) - l1_w) // 2), 6), line1, (255, 204, 76) if is_win else alt, big)
+            bottom = abbr if is_win or not line2 else line2
+            b_w = draw.textbbox((0, 0), bottom, font=small)[2]
+            draw_sharp_text(image, (panel_x0 + max(0, ((panel_x1 - panel_x0 + 1) - b_w) // 2), 18), bottom, color if is_win else (255, 204, 76), small)
+            if is_win:
+                for i in range(3):
+                    sx = (panel_x1 + 3 + step * 3 + i * 9) % width
+                    sy = 4 + ((step + i * 4) % 20)
+                    draw.point((sx, sy), fill=alt)
+                    draw.point((sx + 1, sy), fill=color)
+        frames.append(image)
+        durations.append(80 if step < 10 else 130)
+    return frames, durations
+
+
 def render_score_alert_frames(team, kind="score"):
     from PIL import Image, ImageDraw, ImageFont
 
     if (team or {}).get("_wall"):
         return render_wall_score_frames(team, kind, sport=(team or {}).get("_sport") or "score")
+    kind_key = str(kind or "").lower()
+    if str((team or {}).get("_sport") or "").lower() == "soccer" and kind_key in ("win", "wins", "winner", "final_win"):
+        return _render_soccer_win_device_frames(team)
     if _is_timing_kind(kind) and str((team or {}).get("_sport") or "").lower() in ("soccer", "football", "basketball", "hockey", "lacrosse", "volleyball", "baseball", "nfl", "nhl", "nba", "wnba", "ufl", "cfl", "mlb", "college_baseball"):
         return _render_sport_timing_device_frames(team, kind)
+    if str((team or {}).get("_sport") or "").lower() in ("basketball", "nba", "wnba", "lacrosse", "volleyball"):
+        return _render_sport_scene_device_frames(team, kind)
 
     try:
         width = int((team or {}).get("_width") or 64)
@@ -852,7 +1081,7 @@ def render_score_alert(team, kind="score"):
     return out.getvalue()
 
 
-def maybe_score_alert(options, card_id, url, cache, state, sport="score", default_label="TEAM"):
+def maybe_score_alert(options, card_id, url, cache, state, sport="score", default_label="TEAM", render=None, renderer_name="_render_score_alert_frames"):
     favorite = (options or {}).get("favoriteTeam", "")
     if not str(favorite or "").strip():
         return None
@@ -891,7 +1120,9 @@ def maybe_score_alert(options, card_id, url, cache, state, sport="score", defaul
                     competitor,
                     animation_team,
                     sport=sport,
+                    render=render,
                     target=(options or {}).get("winAnimationTarget") or (options or {}).get("scoreAnimationTarget") or "device",
+                    renderer_name=renderer_name,
                 )
                 if win and previous is not None:
                     return win
@@ -913,14 +1144,14 @@ def maybe_score_alert(options, card_id, url, cache, state, sport="score", defaul
             wall = target in ("group", "group_wall", "wall") or target.startswith("group:")
             cache_key = priority_graphic_key(card_id, animation_team, kind, animation_team["_width"])
             return {
-                "body": cached_priority_graphic(cache_key, lambda animation_team=animation_team, kind=kind: render_score_alert(animation_team, kind)),
+                "body": cached_priority_graphic(cache_key, lambda animation_team=animation_team, kind=kind: (render or render_score_alert)(animation_team, kind)),
                 "dwell_secs": 6,
                 "_stay": True,
                 "_no_replay": True,
                 "_priority": True,
                 "_group_wall": {
                     "type": kind,
-                    "renderer": "_render_score_alert_frames",
+                    "renderer": renderer_name,
                     "team": dict(animation_team),
                     "kind": kind,
                     "dwell_secs": 6,
