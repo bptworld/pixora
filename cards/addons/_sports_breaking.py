@@ -621,6 +621,57 @@ def _fit_device_text(draw, text, font, max_width):
     return text
 
 
+def _player_goal_name(team):
+    name = str((team or {}).get("playerName") or "").strip()
+    if not name:
+        return ""
+    parts = [part for part in name.replace(".", "").split() if part]
+    return (parts[-1] if parts else name).upper()
+
+
+def _draw_player_goal_device_frame(image, draw, team, kind, step, width, color, alt, small, big):
+    name = _player_goal_name(team)
+    if not name or str(kind or "").lower() != "goal":
+        return False
+
+    headshot = fetch_logo((team or {}).get("playerHeadshot"), size=22) if (team or {}).get("playerHeadshot") else None
+    flag_url = (team or {}).get("playerFlag") or (team or {}).get("playerLogo") or _team_logo_url(team or {})
+    flag = fetch_logo(flag_url, size=18 if width >= 96 else 14) if flag_url else None
+    edge = alt if step % 2 else color
+    panel_x0 = 25 if width < 96 else 28
+    panel_x1 = width - (17 if width < 96 else 23)
+    if panel_x1 - panel_x0 < 28:
+        panel_x0 = 16
+        panel_x1 = width - 16
+
+    if headshot:
+        hx = 1
+        hy = max(5, (32 - headshot.height) // 2)
+        draw.rectangle((0, hy - 1, hx + headshot.width, hy + headshot.height), fill=(0, 0, 0), outline=edge)
+        image.paste(headshot, (hx, hy), headshot)
+    else:
+        abbr = str((team or {}).get("abbreviation") or "FC").upper()[:3]
+        draw.rectangle((1, 8, 22, 25), fill=(0, 0, 0), outline=edge)
+        abbr_w = draw.textbbox((0, 0), abbr, font=small)[2]
+        draw_sharp_text(image, (12 - abbr_w // 2, 10), abbr, edge, small)
+
+    if flag:
+        fx = width - flag.width - 1
+        fy = max(7, (32 - flag.height) // 2)
+        draw.rectangle((fx - 1, fy - 1, width - 1, fy + flag.height), fill=(0, 0, 0), outline=edge)
+        image.paste(flag, (fx, fy), flag)
+
+    draw.rectangle((panel_x0, 5, panel_x1, 26), fill=(0, 0, 0), outline=edge)
+    name = _fit_device_text(draw, name, small, max(8, panel_x1 - panel_x0 - 4))
+    goal = "GOAL"
+    goal_font = big
+    goal_w = draw.textbbox((0, 0), goal, font=goal_font)[2]
+    name_w = draw.textbbox((0, 0), name, font=small)[2]
+    draw_sharp_text(image, (panel_x0 + ((panel_x1 - panel_x0 + 1) - name_w) // 2, 4), name, alt, small)
+    draw_sharp_text(image, (panel_x0 + ((panel_x1 - panel_x0 + 1) - goal_w) // 2, 16), goal, color if step % 2 else alt, goal_font)
+    return True
+
+
 def _draw_128_soccer_net_badges(image, draw, team, font):
     width = image.width
     if width < 96:
@@ -771,14 +822,15 @@ def render_score_alert_frames(team, kind="score"):
     for step in range(12):
         image = Image.new("RGB", (width, 32), bg if step % 2 == 0 else (0, 0, 0))
         draw = ImageDraw.Draw(image)
-        draw.rectangle((0, 0, width - 1, 8), fill=(0, 0, 0))
-        abbr_w = draw.textbbox((0, 0), abbr, font=small)[2]
-        draw_sharp_text(image, ((width - abbr_w) // 2, -3), abbr, alt, small)
-        line1_w = draw.textbbox((0, 0), line1, font=big)[2]
-        draw_sharp_text(image, ((width - line1_w) // 2, 7), line1, color, big)
-        if line2:
-            line2_w = draw.textbbox((0, 0), line2, font=small)[2]
-            draw_sharp_text(image, ((width - line2_w) // 2, 20), line2, alt, small)
+        if not _draw_player_goal_device_frame(image, draw, team, kind, step, width, color, alt, small, big):
+            draw.rectangle((0, 0, width - 1, 8), fill=(0, 0, 0))
+            abbr_w = draw.textbbox((0, 0), abbr, font=small)[2]
+            draw_sharp_text(image, ((width - abbr_w) // 2, -3), abbr, alt, small)
+            line1_w = draw.textbbox((0, 0), line1, font=big)[2]
+            draw_sharp_text(image, ((width - line1_w) // 2, 7), line1, color, big)
+            if line2:
+                line2_w = draw.textbbox((0, 0), line2, font=small)[2]
+                draw_sharp_text(image, ((width - line2_w) // 2, 20), line2, alt, small)
         frames.append(image)
         durations.append(140 if step % 2 == 0 else 90)
     return frames, durations

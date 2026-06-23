@@ -1030,6 +1030,11 @@ def render_wall_score_frames(team, kind="score", sport="score", default_label="T
     color = hex_color(team.get("color"), (117, 231, 214))
     alt = readable_accent(color, hex_color(team.get("alternateColor"), (255, 255, 255)))
     headline = compact_headline(kind, sport) if width < 96 else kind_headline(kind, sport)
+    scorer_name = ""
+    if str(sport or "").lower() == "soccer" and str(kind or "").lower() == "goal":
+        raw_name = str(team.get("playerName") or "").strip()
+        parts = [part for part in raw_name.replace(".", "").split() if part]
+        scorer_name = (parts[-1] if parts else raw_name).upper()
     is_win = str(kind or "").lower() in ("win", "wins", "winner", "final_win")
     kind_key = str(kind or "").lower()
     non_scoring_kinds = {
@@ -1039,9 +1044,19 @@ def render_wall_score_frames(team, kind="score", sport="score", default_label="T
     }
     has_scoring_edges = kind_key not in non_scoring_kinds and bool(team.get("playerHeadshot"))
     title_max_width = max(18, width - 50) if has_scoring_edges else max(24, width - 38)
-    title_font = fit_font(headline, title_max_width, (13, 12, 11, 10, 9, 8, 7))
-    text_bbox = ImageDraw.Draw(Image.new("RGB", (1, 1))).textbbox((0, 0), headline, font=title_font)
-    text_w = text_bbox[2] - text_bbox[0]
+    probe = ImageDraw.Draw(Image.new("RGB", (1, 1)))
+    if scorer_name:
+        title_font = fit_font(scorer_name, title_max_width, (8, 7, 6))
+        goal_font = fit_font("GOAL", title_max_width, (12, 11, 10, 9, 8, 7))
+        name_bbox = probe.textbbox((0, 0), scorer_name, font=title_font)
+        goal_bbox = probe.textbbox((0, 0), "GOAL", font=goal_font)
+        text_w = max(name_bbox[2] - name_bbox[0], goal_bbox[2] - goal_bbox[0])
+        text_bbox = goal_bbox
+    else:
+        title_font = fit_font(headline, title_max_width, (13, 12, 11, 10, 9, 8, 7))
+        goal_font = title_font
+        text_bbox = probe.textbbox((0, 0), headline, font=title_font)
+        text_w = text_bbox[2] - text_bbox[0]
     if has_scoring_edges:
         left_limit = 28 if width >= 96 else 24
         right_limit = width - (27 if width >= 96 else 18)
@@ -1067,6 +1082,20 @@ def render_wall_score_frames(team, kind="score", sport="score", default_label="T
     text_y = panel_y0 + (((panel_y1 - panel_y0 + 1) - text_h) // 2) - text_bbox[1] - 1
     frames = []
     durations = []
+
+    def draw_center_text(image, draw, phase, mask_reveal=None):
+        draw.rectangle((panel_x0, panel_y0, panel_x1, panel_y1), fill=(2, 8, 10, 255), outline=(alt if phase % 2 else color) + (255,))
+        if scorer_name:
+            name_w = name_bbox[2] - name_bbox[0]
+            goal_w = goal_bbox[2] - goal_bbox[0]
+            name_x = panel_x0 + max(0, ((panel_x1 - panel_x0 + 1) - name_w) // 2) - name_bbox[0]
+            goal_x = panel_x0 + max(0, ((panel_x1 - panel_x0 + 1) - goal_w) // 2) - goal_bbox[0]
+            draw_sharp_text(image, (name_x, panel_y0 + 1 - name_bbox[1]), scorer_name, (245, 248, 236), title_font)
+            draw_sharp_text(image, (goal_x, panel_y0 + 11 - goal_bbox[1]), "GOAL", alt if phase % 2 else color, goal_font)
+        else:
+            draw_sharp_text(image, (text_x, text_y), headline, alt if phase % 2 else color, title_font)
+        if mask_reveal is not None and mask_reveal < text_w and text_x + mask_reveal <= panel_x1:
+            draw.rectangle((text_x + mask_reveal, panel_y0 - 1, panel_x1, panel_y1 + 1), fill=(2, 8, 10, 255))
 
     def base_frame(phase):
         image = Image.new("RGBA", (width, 32), (0, 0, 0, 255))
@@ -1123,10 +1152,7 @@ def render_wall_score_frames(team, kind="score", sport="score", default_label="T
             _draw_firework(draw, 34 + (i % 3), 22, max(3, shell_radius - 3), alt, color, i + 2, width)
             if i in (4, 5, 6, 7):
                 _draw_boom(draw, image, width, color, alt, i)
-        draw.rectangle((panel_x0, panel_y0, panel_x1, panel_y1), fill=(2, 8, 10, 255), outline=dim(color, 0.55) + (255,))
-        draw_sharp_text(image, (text_x, text_y), headline, color if i % 2 else alt, title_font)
-        if reveal < text_w and text_x + reveal <= panel_x1:
-            draw.rectangle((text_x + reveal, panel_y0 - 1, panel_x1, panel_y1 + 1), fill=(2, 8, 10, 255))
+        draw_center_text(image, draw, i, mask_reveal=reveal)
         frames.append(image.convert("RGB"))
         durations.append(85)
 
@@ -1140,8 +1166,7 @@ def render_wall_score_frames(team, kind="score", sport="score", default_label="T
                 _draw_firework(draw, width // 2, 16, 12 + (i % 3), (255, 202, 64), alt, i + 8, width)
             if i < 4:
                 _draw_boom(draw, image, width, color, alt, i)
-        draw.rectangle((panel_x0, panel_y0, panel_x1, panel_y1), fill=(2, 8, 10, 255), outline=(alt if i % 2 else color) + (255,))
-        draw_sharp_text(image, (text_x, text_y), headline, alt if i % 2 else color, title_font)
+        draw_center_text(image, draw, i)
         frames.append(image.convert("RGB"))
         durations.append(130)
 

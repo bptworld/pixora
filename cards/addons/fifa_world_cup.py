@@ -247,6 +247,21 @@ def _scorer_for_goal(competition, competitor, score):
     return goals[index]
 
 
+def _test_scorer_payload(team, favorite):
+    favorite = str(favorite or (team or {}).get("abbreviation") or "USA").strip().upper()
+    samples = {
+        "ARG": ("MESSI", "https://a.espncdn.com/i/headshots/soccer/players/full/45843.png"),
+        "POR": ("RONALDO", "https://a.espncdn.com/photo/2026/0603/r1667633_1296x1296_1-1.jpg"),
+        "USA": ("PULISIC", "https://a.espncdn.com/photo/2026/0622/r1677762_1296x1296_1-1.jpg"),
+    }
+    name, headshot = samples.get(favorite, (favorite or "PLAYER", "https://a.espncdn.com/i/headshots/soccer/players/full/45843.png"))
+    return {
+        "playerName": name,
+        "playerHeadshot": headshot,
+        "playerFlag": _team_flag_url(team or {}) or f"https://a.espncdn.com/i/teamlogos/countries/500/{favorite.lower()}.png",
+    }
+
+
 def _team_matches(team, favorite):
     favorite = str(favorite or "").strip().upper()
     if not favorite:
@@ -263,15 +278,16 @@ def _resolve_team_for_test(favorite, width=64):
             for competitor in competition.get("competitors") or []:
                 team = competitor.get("team") or {}
                 if _team_matches(team, favorite):
-                    return {**_team_for_animation(team, width), **_matchup_payload(competition)}
+                    return {**_team_for_animation(team, width), **_matchup_payload(competition), **_test_scorer_payload(team, favorite)}
     except Exception:
         pass
-    return _team_for_animation({
+    fallback_team = {
         "abbreviation": favorite or "FC",
         "color": "46DC7D",
         "alternateColor": "FFFFFF",
         "logo": f"https://a.espncdn.com/i/teamlogos/countries/500/{(favorite or 'usa').lower()}.png",
-    }, width)
+    }
+    return {**_team_for_animation(fallback_team, width), **_test_scorer_payload(fallback_team, favorite)}
 
 
 def _render_goal_animation_frames(team, kind="goal"):
