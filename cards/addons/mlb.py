@@ -188,6 +188,10 @@ def _run_animation_text(kind):
         return "GRAND", "SLAM"
     if kind in ("home_run", "homerun", "homer", "hr"):
         return "HOME", "RUN"
+    if kind in ("walk_off", "walk-off"):
+        return "WALK", "OFF"
+    if kind in ("win", "winner", "game_winner", "game-winner"):
+        return "GAME", "WIN"
     return "RUN", "SCORED"
 
 
@@ -200,6 +204,8 @@ def _home_run_headline(kind):
 
 def _draw_home_run_frame_layout(image, draw, team, kind, color, alt, flash=False):
     width = image.width
+    if width < 96:
+        return 2, width - 2
     edge_size = 22 if width >= 96 else 16
     headshot = _fetch_headshot(team.get("playerHeadshot"), edge_size)
     left_edge = 2
@@ -215,9 +221,13 @@ def _draw_home_run_frame_layout(image, draw, team, kind, color, alt, flash=False
 
 def _draw_home_run_middle_text(image, draw, team, kind, color, alt, show_player=True):
     width = image.width
-    edge_size = 22 if width >= 96 else 16
-    left_edge = edge_size + 5 if team.get("playerHeadshot") else 2
-    right_edge = width - edge_size - 5
+    if width < 96:
+        left_edge = 2
+        right_edge = width - 2
+    else:
+        edge_size = 22
+        left_edge = edge_size + 5 if team.get("playerHeadshot") else 2
+        right_edge = width - edge_size - 5
     lane_w = max(10, right_edge - left_edge)
     event_text = _home_run_headline(kind)
     player_name = _compact_player_name(team.get("playerName"), "")
@@ -315,10 +325,31 @@ def _render_now_batting_frames(team):
     draw.rectangle((0, 0, width - 1, 2), fill=color + (255,))
     draw.line((0, 31, width - 1, 31), fill=tuple(max(12, c // 3) for c in color) + (255,))
 
-    headshot = _fetch_headshot(team.get("playerHeadshot"), 25 if width >= 96 else 20)
+    if width < 96:
+        text_left = 2
+        text_right = width - 2
+        text_width = max(28, text_right - text_left)
+        label = "AT BAT"
+        name = _display_player_name(team.get("playerName"), width)
+        stats = _format_batting_stats(team.get("playerStats"), width)
+        label_font = _font_from_file("PixelifySans-Bold.ttf", 6)
+        name_font = _fit_regular_font(name, text_width, (9, 8, 7, 6))
+        stats_font = _fit_regular_font(stats, text_width, (6, 5))
+        label_bbox = draw.textbbox((0, 0), label, font=label_font)
+        name_bbox = draw.textbbox((0, 0), name, font=name_font)
+        stats_bbox = draw.textbbox((0, 0), stats, font=stats_font)
+        label_x = text_left + max(0, (text_width - (label_bbox[2] - label_bbox[0])) // 2)
+        name_x = text_left + max(0, (text_width - (name_bbox[2] - name_bbox[0])) // 2)
+        stats_x = text_left + max(0, (text_width - (stats_bbox[2] - stats_bbox[0])) // 2)
+        draw_sharp_text(image, (label_x, 4 - label_bbox[1]), label, color, label_font)
+        draw_sharp_text(image, (name_x, 13 - name_bbox[1]), name, (245, 248, 250), name_font)
+        draw_sharp_text(image, (stats_x, 23 - stats_bbox[1]), stats, (255, 255, 255), stats_font)
+        return [image.convert("RGB")], [5000]
+
+    headshot = _fetch_headshot(team.get("playerHeadshot"), 25)
     if headshot:
         hx = 2
-        hy = 5 if width >= 96 else 8
+        hy = 5
         draw.rounded_rectangle((hx - 1, hy - 1, hx + headshot.width, hy + headshot.height), radius=2, fill=(3, 9, 13, 255), outline=color + (255,))
         image.alpha_composite(headshot, (hx, hy))
         text_left = hx + headshot.width + 4
@@ -386,18 +417,87 @@ def _render_rbi_card(team, kind="rbi"):
     if stats == "AT BAT":
         stats = "RUN SCORED"
 
-    headline_font = _font_from_file("PixelifySans-Bold.ttf", 12 if width >= 96 else 13)
-    name_font = _fit_regular_font(name, text_width, (10, 9, 8, 7))
-    stats_font = _fit_regular_font(stats, text_width, (7, 6, 5))
+    headline_font = _font_from_file("PixelifySans-Bold.ttf", 12 if width >= 96 else 9)
+    name_font = _fit_regular_font(name, text_width, (10, 9, 8, 7) if width >= 96 else (8, 7, 6))
+    stats_font = _fit_regular_font(stats, text_width, (7, 6, 5) if width >= 96 else (6, 5))
     headline_bbox = draw.textbbox((0, 0), headline, font=headline_font)
     name_bbox = draw.textbbox((0, 0), name, font=name_font)
     stats_bbox = draw.textbbox((0, 0), stats, font=stats_font)
     headline_x = text_left + max(0, (text_width - (headline_bbox[2] - headline_bbox[0])) // 2)
     name_x = text_left + max(0, (text_width - (name_bbox[2] - name_bbox[0])) // 2)
     stats_x = text_left + max(0, (text_width - (stats_bbox[2] - stats_bbox[0])) // 2)
-    draw_sharp_text(image, (headline_x, 2 - headline_bbox[1]), headline, alt, headline_font)
-    draw_sharp_text(image, (name_x, 15 - name_bbox[1]), name, (245, 248, 250), name_font)
-    draw_sharp_text(image, (stats_x, 24 - stats_bbox[1]), stats, (255, 255, 255), stats_font)
+    if width < 96:
+        headline_color = alt if sum(alt) >= 140 else color
+        draw_sharp_text(image, (headline_x, 4 - headline_bbox[1]), headline, headline_color, headline_font)
+        draw_sharp_text(image, (name_x, 13 - name_bbox[1]), name, (245, 248, 250), name_font)
+        draw_sharp_text(image, (stats_x, 23 - stats_bbox[1]), stats, (255, 255, 255), stats_font)
+    else:
+        draw_sharp_text(image, (headline_x, 2 - headline_bbox[1]), headline, alt, headline_font)
+        draw_sharp_text(image, (name_x, 15 - name_bbox[1]), name, (245, 248, 250), name_font)
+        draw_sharp_text(image, (stats_x, 24 - stats_bbox[1]), stats, (255, 255, 255), stats_font)
+
+    out = BytesIO()
+    image.convert("RGB").save(out, "WEBP", lossless=True, quality=100)
+    return out.getvalue()
+
+
+def _render_compact_moment_card(team, kind="run"):
+    from PIL import Image, ImageDraw
+
+    color = _hex_color(team.get("color"), _COLOR)
+    alt = _hex_color(team.get("alternateColor"), (255, 255, 255))
+    if alt == (255, 255, 255):
+        alt = (255, 224, 96)
+    try:
+        width = int(team.get("_width") or 64)
+    except Exception:
+        width = 64
+    width = max(64, min(95, width))
+
+    headline_map = {
+        "home_run": "HOME RUN",
+        "homerun": "HOME RUN",
+        "homer": "HOME RUN",
+        "hr": "HOME RUN",
+        "grand_slam": "GRAND SLAM",
+        "grand slam": "GRAND SLAM",
+        "slam": "GRAND SLAM",
+        "walk_off": "WALK OFF",
+        "walk-off": "WALK OFF",
+        "win": "GAME WIN",
+        "winner": "GAME WIN",
+    }
+    headline = headline_map.get(str(kind or "run").lower(), "RUN")
+    name = _display_player_name(team.get("playerName"), width)
+    if not team.get("playerName"):
+        name = "Scoring Play"
+    stats = _format_batting_stats(team.get("playerStats"), width)
+    if stats == "AT BAT":
+        stats = "SCORED"
+
+    image = Image.new("RGBA", (width, 32), (1, 5, 8, 255))
+    draw = ImageDraw.Draw(image)
+    for y in range(0, 32, 2):
+        shade = 8 + (y // 2)
+        draw.line((0, y, width - 1, y), fill=(1, shade, 13, 255))
+    draw.rectangle((0, 0, width - 1, 2), fill=color + (255,))
+    draw.line((0, 31, width - 1, 31), fill=tuple(max(12, c // 3) for c in color) + (255,))
+
+    text_left = 2
+    text_width = width - 4
+    headline_font = _fit_regular_font(headline, text_width, (8, 7, 6))
+    name_font = _fit_regular_font(name, text_width, (8, 7, 6))
+    stats_font = _fit_regular_font(stats, text_width, (6, 5))
+    headline_bbox = draw.textbbox((0, 0), headline, font=headline_font)
+    name_bbox = draw.textbbox((0, 0), name, font=name_font)
+    stats_bbox = draw.textbbox((0, 0), stats, font=stats_font)
+    headline_x = text_left + max(0, (text_width - (headline_bbox[2] - headline_bbox[0])) // 2)
+    name_x = text_left + max(0, (text_width - (name_bbox[2] - name_bbox[0])) // 2)
+    stats_x = text_left + max(0, (text_width - (stats_bbox[2] - stats_bbox[0])) // 2)
+    headline_color = alt if sum(alt) >= 140 else color
+    draw_sharp_text(image, (headline_x, 4 - headline_bbox[1]), headline, headline_color, headline_font)
+    draw_sharp_text(image, (name_x, 13 - name_bbox[1]), name, (245, 248, 250), name_font)
+    draw_sharp_text(image, (stats_x, 23 - stats_bbox[1]), stats, (255, 255, 255), stats_font)
 
     out = BytesIO()
     image.convert("RGB").save(out, "WEBP", lossless=True, quality=100)
@@ -497,8 +597,14 @@ def _render_run_animation_frames(team, kind="run"):
 
 def _render_run_animation(team, kind="run"):
     kind_key = str(kind or "run").lower()
+    try:
+        width = int((team or {}).get("_width") or 64)
+    except Exception:
+        width = 64
     if kind_key in ("rbi", "scoring_play", "scoring-play"):
         return _render_rbi_card(team, kind_key)
+    if width < 96 and kind_key in ("home_run", "homerun", "homer", "hr", "grand_slam", "grand slam", "slam", "walk_off", "walk-off", "win", "winner"):
+        return _render_compact_moment_card(team, kind_key)
     frames, durations = _render_run_animation_frames(team, kind)
     out = BytesIO()
     frames[0].save(
