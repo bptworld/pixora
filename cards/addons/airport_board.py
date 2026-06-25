@@ -8,7 +8,7 @@ from card_utils import draw_sharp_text, lookup_airline, render_text_webp
 
 CARD_ID = "airport_board"
 CARD_NAME = "Airport Board"
-CARD_DETAIL = "Free FlightStats arrival and departure board"
+CARD_DETAIL = "Arrival and Departure Boards"
 CARD_OPTIONS = [
     {"key": "airport", "label": "Airport", "type": "text", "default": "BOS", "maxlength": 4},
     {
