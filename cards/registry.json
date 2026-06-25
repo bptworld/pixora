@@ -4927,6 +4927,18 @@
       "options": []
     },
     {
+      "id": "pga_tournament",
+      "name": "PGA Tournament",
+      "category": "Sports",
+      "detail": "Current live PGA tournament",
+      "description": "Current live PGA tournament details and leaderboard",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/addons/pga_tournament.py",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/pga_tournament.webp",
+      "options": []
+    },
+    {
       "id": "pll_lacrosse",
       "name": "PLL Lacrosse",
       "category": "Sports",
