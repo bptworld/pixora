@@ -34,7 +34,7 @@ except Exception:
 
 CARD_ID = "flight_track"
 CARD_NAME = "Flight Tracker"
-CARD_DETAIL = "Free live ADS-B flight tracking"
+CARD_DETAIL = "Live ADS-B tracking with FlightStats route details"
 _AIRLINE_CHOICES = [
     {"value": "AA", "label": "American"},
     {"value": "UA", "label": "United"},
@@ -171,6 +171,9 @@ _LANDED_FLIGHT_EVENTS = {}
 _MAP_TILE_SIZE = 256
 _MAP_TILE_STYLE = "carto-light-nolabels-v1"
 _US_STATE_GEOJSON_URL = "https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json"
+_FLIGHTSTATS_ROOT = "https://www.flightstats.com/v2/api-next/flight-tracker"
+_FLIGHTSTATS_CACHE_SECONDS = 600
+_FLIGHTSTATS_TIMEOUT = 1.4
 
 
 def _is_wide(options):
@@ -356,7 +359,7 @@ def _route_option(opts, slot=1):
 
 def _airport_code(value):
     if isinstance(value, dict):
-        value = value.get("iata_code") or value.get("icao_code") or value.get("iata") or value.get("icao")
+        value = value.get("fs") or value.get("iata_code") or value.get("icao_code") or value.get("iata") or value.get("icao")
     return _clean(value)[:4] or "---"
 
 
@@ -464,6 +467,116 @@ def _fetch_adsbdb_route(callsign, deadline=None):
         return response.get("flightroute") or response
     except Exception:
         return {}
+
+
+def _flightstats_ident(opts, slot=1):
+    airline = _clean(_slot_value(opts, "airline", slot) or "")[:3]
+    number = "".join(ch for ch in str(_slot_value(opts, "flightNumber", slot) or "") if ch.isdigit())
+    if airline and number:
+        return airline, number
+    ident = _flight_ident(opts, use_icao=False, slot=slot)
+    match = re.match(r"^([A-Z]{2,3})(\d+)$", ident or "")
+    return (match.group(1), match.group(2)) if match else ("", "")
+
+
+def _flightstats_dates():
+    today = datetime_local_date()
+    return [today, today - 86400, today + 86400]
+
+
+def datetime_local_date():
+    now = time.localtime()
+    return int(time.mktime((now.tm_year, now.tm_mon, now.tm_mday, 0, 0, 0, 0, 0, -1)))
+
+
+def _fetch_flightstats_detail(opts, slot=1, deadline=None):
+    airline, number = _flightstats_ident(opts, slot=slot)
+    if not airline or not number or _time_left(deadline) < 0.6:
+        return {}
+    for day_ts in _flightstats_dates():
+        if _time_left(deadline) < 0.6:
+            break
+        day = time.localtime(day_ts)
+        url = f"{_FLIGHTSTATS_ROOT}/{urllib.parse.quote(airline)}/{urllib.parse.quote(number)}/{day.tm_year}/{day.tm_mon}/{day.tm_mday}"
+        now = time.time()
+        _prune_json_cache(now)
+        cached = _JSON_CACHE.get(url)
+        if cached and cached["expires"] > now:
+            data = cached["data"]
+        else:
+            request = urllib.request.Request(
+                url,
+                headers={"User-Agent": "Mozilla/5.0 (compatible; Pixora/0.1)", "Accept": "application/json"},
+            )
+            try:
+                with urllib.request.urlopen(request, timeout=max(0.2, min(_FLIGHTSTATS_TIMEOUT, _time_left(deadline)))) as response:
+                    data = json.loads(response.read().decode("utf-8"))
+                _JSON_CACHE[url] = {"expires": now + _FLIGHTSTATS_CACHE_SECONDS, "data": data}
+                _prune_json_cache(now)
+            except urllib.error.HTTPError as err:
+                if err.code in (400, 404):
+                    continue
+                if cached and "data" in cached:
+                    data = cached["data"]
+                else:
+                    continue
+            except Exception:
+                if cached and "data" in cached:
+                    data = cached["data"]
+                else:
+                    continue
+        detail = data.get("data") if isinstance(data, dict) else {}
+        if isinstance(detail, dict) and (detail.get("departureAirport") or detail.get("arrivalAirport")):
+            return detail
+    return {}
+
+
+def _fs_airport(detail, key):
+    value = detail.get(key) if isinstance(detail, dict) else {}
+    return value if isinstance(value, dict) else {}
+
+
+def _fs_time_text(airport):
+    times = airport.get("times") if isinstance(airport, dict) else {}
+    if not isinstance(times, dict):
+        return ""
+    value = times.get("estimatedActual") or times.get("scheduled") or {}
+    if not isinstance(value, dict):
+        return ""
+    text = str(value.get("time") or "")
+    ampm = str(value.get("ampm") or "")
+    return (text + ampm[:1]).upper().replace(" ", "")
+
+
+def _flightstats_summary(detail):
+    if not isinstance(detail, dict):
+        return {}
+    departure = _fs_airport(detail, "departureAirport")
+    arrival = _fs_airport(detail, "arrivalAirport")
+    status = detail.get("status") if isinstance(detail.get("status"), dict) else {}
+    note = detail.get("flightNote") if isinstance(detail.get("flightNote"), dict) else {}
+    final_status = str(status.get("finalStatus") or status.get("status") or note.get("phase") or "").upper()
+    status_text = str(status.get("statusDescription") or status.get("status") or note.get("message") or "").upper()
+    gate = str(arrival.get("gate") or departure.get("gate") or "").upper()
+    terminal = str(arrival.get("terminal") or departure.get("terminal") or "").upper()
+    baggage = str(arrival.get("baggage") or "").upper()
+    schedule = detail.get("schedule") if isinstance(detail.get("schedule"), dict) else {}
+    additional = detail.get("additionalFlightInfo") if isinstance(detail.get("additionalFlightInfo"), dict) else {}
+    equipment = additional.get("equipment") if isinstance(additional.get("equipment"), dict) else {}
+    return {
+        "origin": _airport_code(departure),
+        "destination": _airport_code(arrival),
+        "status": final_status or status_text,
+        "status_text": status_text,
+        "departure_time": _fs_time_text(departure),
+        "arrival_time": _fs_time_text(arrival),
+        "gate": gate,
+        "terminal": terminal,
+        "baggage": baggage,
+        "aircraft": _clean(equipment.get("iata") or equipment.get("name") or "")[:10],
+        "scheduled_arrival_utc": schedule.get("scheduledArrivalUTC") or "",
+        "actual_arrival_utc": schedule.get("estimatedActualArrivalUTC") or "",
+    }
 
 
 def _home_latlon(zip_code):
@@ -606,12 +719,14 @@ def _load_live(opts, deadline=None):
     return None, "NO LIVE"
 
 
-def _route_from_enrichment(callsign, opts, lat=None, lon=None, track=None, deadline=None):
+def _route_from_enrichment(callsign, opts, lat=None, lon=None, track=None, flightstats=None, deadline=None):
     user_origin, user_dest, source = _route_input(opts, int(opts.get("_slot") or 1))
     route = _fetch_adsbdb_route(callsign, deadline=deadline)
-    origin = user_origin
-    dest = user_dest
-    route_source = source or "ADSDB"
+    fs_origin = _clean((flightstats or {}).get("origin") or "")[:4]
+    fs_dest = _clean((flightstats or {}).get("destination") or "")[:4]
+    origin = user_origin or fs_origin
+    dest = user_dest or fs_dest
+    route_source = source or ("FSTAT" if (fs_origin or fs_dest) else "ADSDB")
     route_origin_pos = _airport_latlon(route.get("origin"))
     route_dest_pos = _airport_latlon(route.get("destination"))
     origin_pos = _airport_lookup_latlon(origin, deadline=deadline) if origin else None
@@ -623,7 +738,7 @@ def _route_from_enrichment(callsign, opts, lat=None, lon=None, track=None, deadl
         dest = _airport_code(route.get("destination"))
         dest_pos = route_dest_pos
     if (origin and origin != "---") or (dest and dest != "---"):
-        if not source and lat is not None and lon is not None and track is not None:
+        if not source and route_source != "FSTAT" and lat is not None and lon is not None and track is not None:
             if origin_pos and dest_pos:
                 try:
                     to_origin = _bearing_degrees(lat, lon, origin_pos[0], origin_pos[1])
@@ -687,15 +802,16 @@ def _ground_position(callsign, registration, hex_id, origin_pos, dest_pos):
 def _build_flight(row, query_callsign, source_name, opts, deadline=None):
     callsign = _clean(row.get("flight") or row.get("callsign") or query_callsign)
     marketing_ident = _flight_ident(opts, use_icao=False, slot=int(opts.get("_slot") or 1))
+    flightstats = _flightstats_summary(_fetch_flightstats_detail(opts, slot=int(opts.get("_slot") or 1), deadline=deadline))
     registration = _clean(row.get("r") or row.get("reg") or row.get("registration"))
     hex_id = _clean(row.get("hex") or row.get("icao24"))
     aircraft = _fetch_adsbdb_aircraft(hex_id, registration, deadline=deadline)
-    aircraft_type = _clean(row.get("t") or row.get("typeCode") or aircraft.get("icao_type") or aircraft.get("type"))[:10]
+    aircraft_type = _clean(row.get("t") or row.get("typeCode") or aircraft.get("icao_type") or aircraft.get("type") or flightstats.get("aircraft"))[:10]
     description = str(row.get("desc") or aircraft.get("type") or aircraft.get("manufacturer") or "").upper()
     lat = _num(row.get("lat"), None)
     lon = _num(row.get("lon"), None)
     track = _num(row.get("track") or row.get("true_heading") or row.get("mag_heading"), None)
-    origin, dest, route_source, origin_pos, dest_pos = _route_from_enrichment(callsign, opts, lat=lat, lon=lon, track=track, deadline=deadline)
+    origin, dest, route_source, origin_pos, dest_pos = _route_from_enrichment(callsign, opts, lat=lat, lon=lon, track=track, flightstats=flightstats, deadline=deadline)
     is_ground_row = row.get("alt_baro") == "ground" or (_num(row.get("gs")) < 35 and _num(row.get("alt_baro")) < 200)
     if lat is not None and lon is not None:
         _remember_position(callsign, registration, hex_id, lat, lon)
@@ -723,6 +839,14 @@ def _build_flight(row, query_callsign, source_name, opts, deadline=None):
         "destination_latlon": dest_pos,
         "route_source": route_source,
         "source": source_name,
+        "flightstats": flightstats,
+        "gate": flightstats.get("gate") or "",
+        "terminal": flightstats.get("terminal") or "",
+        "baggage": flightstats.get("baggage") or "",
+        "scheduled_departure": flightstats.get("departure_time") or "",
+        "scheduled_arrival": flightstats.get("arrival_time") or "",
+        "scheduled_status": flightstats.get("status") or "",
+        "scheduled_status_text": flightstats.get("status_text") or "",
         "lat": lat,
         "lon": lon,
         "over_city": over_city,
@@ -764,6 +888,14 @@ def _airline_iata(flight):
 def _status(flight):
     if flight.get("emergency") and flight["emergency"] != "none":
         return "EMERG", (255, 70, 70)
+    scheduled = str(flight.get("scheduled_status") or "").upper()
+    scheduled_text = str(flight.get("scheduled_status_text") or "").upper()
+    if "CANCEL" in scheduled or "CANCEL" in scheduled_text:
+        return "CANCEL", (255, 70, 70)
+    if "DELAY" in scheduled or "DELAY" in scheduled_text:
+        return "DELAY", (255, 190, 90)
+    if "ARRIVED" in scheduled or "LANDED" in scheduled:
+        return "ARRIVED", (100, 190, 255)
     speed = _num(flight.get("speed_kt"), 0)
     alt = _num(flight.get("alt_ft"), 0)
     vertical = _num(flight.get("vertical_rate_fpm"), 0)
@@ -796,7 +928,7 @@ def _route_label(flight):
     origin = flight.get("origin") or "---"
     dest = flight.get("destination") or "---"
     if origin != "---" or dest != "---":
-        suffix = "" if flight.get("route_source") == "USER" else "?"
+        suffix = "" if flight.get("route_source") in ("USER", "FSTAT") else "?"
         return f"{origin}>{dest}{suffix}"
     return "ROUTE BEST EFFORT"
 
@@ -824,6 +956,26 @@ def _location_line(flight, opts):
     if destination and destination != "---":
         return _AIRPORT_CITY.get(destination[:3], destination)
     return "POSITION LIVE"
+
+
+def _schedule_line(flight):
+    parts = []
+    gate = str(flight.get("gate") or "").strip()
+    terminal = str(flight.get("terminal") or "").strip()
+    baggage = str(flight.get("baggage") or "").strip()
+    arrival = str(flight.get("scheduled_arrival") or "").strip()
+    departure = str(flight.get("scheduled_departure") or "").strip()
+    if gate:
+        parts.append("G" + gate)
+    if terminal:
+        parts.append("T" + terminal)
+    if baggage:
+        parts.append("B" + baggage)
+    if arrival:
+        parts.append("ARR " + arrival)
+    elif departure:
+        parts.append("DEP " + departure)
+    return " ".join(parts)
 
 
 def _fit(draw, text, font, max_width):
@@ -886,13 +1038,13 @@ def _draw_detail_panel(flight, opts, width):
     status, status_color = _status(flight)
     tail = _fit(draw, flight.get("registration") or flight.get("hex") or "NO TAIL", FONT_BOLD, width - 2)
     location = _fit(draw, _location_line(flight, opts), FONT_7, width - 2)
-    state = _fit(draw, flight.get("over_state") or "", FONT_7, width - 2)
+    schedule = _fit(draw, _schedule_line(flight) or flight.get("over_state") or "", FONT_7, width - 2)
 
     draw.rectangle((0, 0, width - 1, 8), fill=(0, 17, 45))
     draw_sharp_text(image, (1, -3), tail, (245, 250, 255), FONT_BOLD)
     row_y = (7, 15, 22) if width <= 64 else (6, 14, 21)
     draw_sharp_text(image, (1, row_y[0]), location, (255, 220, 90), FONT_7)
-    draw_sharp_text(image, (1, row_y[1]), state, (190, 220, 255), FONT_7)
+    draw_sharp_text(image, (1, row_y[1]), schedule, (190, 220, 255), FONT_7)
     draw_sharp_text(image, (1, row_y[2]), status, status_color, FONT_7)
     return image
 
@@ -1274,7 +1426,7 @@ def _draw_wide_panel(flight, opts):
 
     tail = _fit(draw, flight.get("registration") or flight.get("hex") or "NO TAIL", FONT_7, 62)
     location = _fit(draw, _location_line(flight, opts), FONT_7, 62)
-    state = _fit(draw, flight.get("over_state") or "", FONT_7, 62)
+    schedule = _fit(draw, _schedule_line(flight) or flight.get("over_state") or "", FONT_7, 62)
     tail_w = draw.textbbox((0, 0), tail, font=FONT_7)[2]
 
     draw_sharp_text(image, (20, 6), route, (100, 190, 255), FONT_7)
@@ -1282,7 +1434,7 @@ def _draw_wide_panel(flight, opts):
     draw_sharp_text(image, (1, 21), stats, (255, 220, 90), FONT_7)
     draw_sharp_text(image, (max(66, 127 - tail_w), -3), tail, (245, 250, 255), FONT_7)
     draw_sharp_text(image, (66, 6), location, (255, 220, 90), FONT_7)
-    draw_sharp_text(image, (66, 14), state, (190, 220, 255), FONT_7)
+    draw_sharp_text(image, (66, 14), schedule, (190, 220, 255), FONT_7)
     draw_sharp_text(image, (66, 21), status, status_color, FONT_7)
     return image
 
