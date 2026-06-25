@@ -75,6 +75,7 @@ CARD_OPTIONS = [
         "type": "select",
         "default": "30",
         "choices": [
+            {"value": "10", "label": "10 minutes"},
             {"value": "15", "label": "15 minutes"},
             {"value": "30", "label": "30 minutes"},
             {"value": "60", "label": "60 minutes"},
@@ -252,7 +253,7 @@ def _board_rows(opts):
         return [], "SET AIRPORT"
     hours = _parse_int(opts.get("hours"), 2, 1, 4)
     limit = _parse_int(opts.get("maxFlights"), 3, 1, 10)
-    poll_minutes = _parse_int(opts.get("pollMinutes"), 30, 5, 120)
+    poll_minutes = _parse_int(opts.get("pollMinutes"), 30, 10, 120)
     board_type = str(opts.get("boardType") or "departures").lower()
     airline_filter = _clean(opts.get("airline"))[:2]
     force_refresh = str(opts.get("_forceRefresh") or "").strip().lower() in ("1", "true", "yes", "on")

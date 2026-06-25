@@ -6814,6 +6814,10 @@
           "default": "30",
           "choices": [
             {
+              "value": "10",
+              "label": "10 minutes"
+            },
+            {
               "value": "15",
               "label": "15 minutes"
             },
