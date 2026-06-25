@@ -4,11 +4,11 @@ import json
 import urllib.parse
 import urllib.request
 
-from card_utils import draw_sharp_text, fetch_airline_logo, format_time, iata_to_icao_prefix, lookup_airline, render_text_webp
+from card_utils import draw_sharp_text, lookup_airline, render_text_webp
 
 CARD_ID = "airport_board"
 CARD_NAME = "Airport Board"
-CARD_DETAIL = "Low-credit FR24 arrival and departure board"
+CARD_DETAIL = "Free FlightStats arrival and departure board"
 CARD_OPTIONS = [
     {"key": "airport", "label": "Airport", "type": "text", "default": "BOS", "maxlength": 4},
     {
@@ -80,10 +80,9 @@ CARD_OPTIONS = [
         ],
     },
     {"key": "skipNoData", "label": "Skip if no data", "type": "checkbox", "default": False},
-    {"key": "apiKey", "label": "Flightradar24 API Token", "type": "text", "default": ""},
 ]
 
-_API_ROOT = "https://fr24api.flightradar24.com/api"
+_API_ROOT = "https://www.flightstats.com/v2/api-next/flight-tracker"
 _CACHE = {}
 _RESULT_CACHE = {}
 
@@ -123,32 +122,38 @@ def _parse_time(value):
     return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
-def _fmt_time(value):
-    dt = _parse_time(value)
-    if not dt:
-        return "--:--"
-    return format_time(dt.astimezone())
-
-
-def _rows(data):
+def _flightstats_rows(data):
     if isinstance(data, dict):
-        rows = data.get("data")
-        return rows if isinstance(rows, list) else []
-    return data if isinstance(data, list) else []
+        payload = data.get("data")
+        if isinstance(payload, dict):
+            rows = payload.get("flights")
+            return rows if isinstance(rows, list) else []
+    return []
 
 
-def _fetch_summary(params, api_key, seconds):
+def _fetch_flightstats_board(kind, airport, date_value, start_hour, hours, airline_filter, seconds):
     now = datetime.now(timezone.utc)
-    key = urllib.parse.urlencode(sorted(params.items()))
+    params = {"numHours": str(hours)}
+    if airline_filter:
+        params["carrierCode"] = airline_filter
+    key = "|".join([
+        kind,
+        airport,
+        date_value.strftime("%Y-%m-%d"),
+        str(start_hour),
+        urllib.parse.urlencode(sorted(params.items())),
+    ])
     cached = _CACHE.get(key)
     if cached and cached["expires"] > now:
         return cached["data"]
-    url = f"{_API_ROOT}/flight-summary/light?{urllib.parse.urlencode(params)}"
+    url = (
+        f"{_API_ROOT}/{kind}/{airport}/"
+        f"{date_value.year}/{date_value.month}/{date_value.day}/{start_hour}"
+        f"?{urllib.parse.urlencode(params)}"
+    )
     req = urllib.request.Request(url, headers={
-        "User-Agent": "Pixora/0.1",
-        "Authorization": "Bearer " + api_key,
+        "User-Agent": "Mozilla/5.0 (compatible; Pixora/0.1)",
         "Accept": "application/json",
-        "Accept-Version": "v1",
     })
     with urllib.request.urlopen(req, timeout=18) as resp:
         data = json.loads(resp.read().decode("utf-8"))
@@ -165,167 +170,48 @@ def _safe_log(opts, message):
             pass
 
 
-def _airport_code(row, *keys):
-    for key in keys:
-        value = row.get(key)
-        if isinstance(value, dict):
-            value = value.get("code_iata") or value.get("iata") or value.get("code")
-        text = _clean(value)[:3]
-        if text:
-            return text
-    return ""
-
-
-def _airport_icao_code(row, *keys):
-    for key in keys:
-        value = row.get(key)
-        if isinstance(value, dict):
-            value = value.get("code_icao") or value.get("icao") or value.get("code")
-        text = _clean(value)[:4]
-        if text:
-            return text
-    return ""
-
-
-def _airport_codes(row, iata_keys, icao_keys):
-    iata = _airport_code(row, *iata_keys)
-    icao = _airport_icao_code(row, *icao_keys)
-    return iata, icao
-
-
-def _airport_match(code, iata, icao):
-    code = _clean(code)[:3]
-    if iata == code:
-        return True
-    return bool(icao and (icao == code or icao == "K" + code))
-
-
-def _display_airport(iata, icao):
-    if iata:
-        return iata
-    icao = _clean(icao)
-    if len(icao) == 4 and icao.startswith("K"):
-        return icao[1:]
-    return icao[:4] or "---"
-
-
 def _flight_number(row):
-    for key in ("flight", "ident_iata", "ident", "callsign"):
-        text = str(row.get(key) or "").replace(" ", "").upper()
-        if text:
-            return text[:8]
-    op = _clean(row.get("operator_iata") or row.get("airline_iata") or row.get("airline"))
-    num = "".join(ch for ch in str(row.get("flight_number") or "") if ch.isdigit())
+    carrier = row.get("carrier") if isinstance(row.get("carrier"), dict) else {}
+    op = _clean(carrier.get("fs"))[:3]
+    num = "".join(ch for ch in str(carrier.get("flightNumber") or "") if ch.isdigit())
     return (op + num)[:8] if op or num else "FLIGHT"
 
 
 def _airline_iata(row):
-    for key in ("operator_iata", "airline_iata", "painted_as", "operating_as"):
-        text = _clean(row.get(key))
-        if len(text) == 2:
-            return text
-    flight = _flight_number(row)
-    if len(flight) >= 3 and flight[:2].isalpha():
-        return flight[:2]
-    return ""
-
-
-def _airline_icao(row):
-    for key in ("operating_as", "painted_as", "operator_icao", "airline_icao"):
-        text = _clean(row.get(key))
-        if len(text) == 3:
-            return text
-    callsign = _clean(row.get("callsign"))
-    return callsign[:3] if len(callsign) >= 3 and callsign[:3].isalpha() else ""
+    carrier = row.get("carrier") if isinstance(row.get("carrier"), dict) else {}
+    return _clean(carrier.get("fs"))[:3]
 
 
 def _status(row):
-    chunks = []
-    for key in ("status", "flight_status", "flight_state", "state", "status_text", "remarks"):
-        value = row.get(key)
-        if isinstance(value, dict):
-            value = " ".join(str(v) for v in value.values())
-        if value:
-            chunks.append(str(value))
-    text = " ".join(chunks).lower()
-    if any(word in text for word in ("cancel", "cncl")):
-        return "CANCEL"
-    if any(word in text for word in ("delay", "late")):
-        return "DELAY"
-    if any(word in text for word in ("board", "gate")):
-        return "BOARD"
-    if row.get("datetime_landed") or "land" in text:
-        return "LANDED"
-    if row.get("datetime_takeoff") or "airborne" in text or "enroute" in text:
-        return "ENRT"
     return "ON TIME"
 
 
 def _time_for(row, direction):
-    keys = (
-        ("datetime_scheduled_departure", "scheduled_departure", "datetime_takeoff", "first_seen")
-        if direction == "DEP" else
-        ("datetime_scheduled_arrival", "scheduled_arrival", "eta", "datetime_landed")
-    )
-    for key in keys:
-        value = row.get(key)
-        if value:
-            return value
+    value = row.get("departureTime") if direction == "DEP" else row.get("arrivalTime")
+    if isinstance(value, dict):
+        return value.get("timeAMPM") or value.get("time24") or ""
     return ""
 
 
 def _sort_time_for(row, direction):
-    primary = _parse_time(_time_for(row, direction))
+    primary = _parse_time(row.get("sortTime"))
     if primary:
         return primary
-    fallback_keys = (
-        ("last_seen", "datetime_takeoff", "first_seen")
-        if direction == "ARR" else
-        ("datetime_takeoff", "first_seen", "last_seen")
-    )
-    for key in fallback_keys:
-        parsed = _parse_time(row.get(key))
-        if parsed:
-            return parsed
     return datetime.max.replace(tzinfo=timezone.utc)
 
 
-def _row_from_summary(row, airport, board_type, airline_filter):
-    origin, origin_icao = _airport_codes(
-        row,
-        ("orig_iata", "origin_iata", "origin", "from"),
-        ("orig_icao", "origin_icao", "orig_icao_actual"),
-    )
-    dest, dest_icao = _airport_codes(
-        row,
-        ("dest_iata", "destination_iata", "destination", "to"),
-        ("dest_icao", "destination_icao", "dest_icao_actual"),
-    )
-    if _airport_match(airport, origin, origin_icao):
-        direction = "DEP"
-        other = _display_airport(dest, dest_icao)
-    elif _airport_match(airport, dest, dest_icao):
-        direction = "ARR"
-        other = _display_airport(origin, origin_icao)
-    else:
-        return None
+def _row_from_flightstats(row, direction, airline_filter):
+    airport = row.get("airport") if isinstance(row.get("airport"), dict) else {}
+    other = _clean(airport.get("fs"))[:4] or "---"
     if other == "---":
         return None
-    if board_type == "departures" and direction != "DEP":
-        return None
-    if board_type == "arrivals" and direction != "ARR":
-        return None
     iata = _airline_iata(row)
-    icao = _airline_icao(row)
-    filter_icao = iata_to_icao_prefix(airline_filter) if airline_filter else ""
     flight = _flight_number(row)
-    if airline_filter and iata != airline_filter and not flight.startswith(airline_filter) and icao != filter_icao:
+    if airline_filter and iata != airline_filter and not flight.startswith(airline_filter):
         return None
     airline = lookup_airline(flight) or lookup_airline(iata or flight)
     time_value = _time_for(row, direction)
-    time_text = _fmt_time(time_value)
-    if time_text == "--:--":
-        time_text = "LIVE" if direction == "ARR" else "NOW"
+    time_text = str(time_value or "").replace(" ", "") or ("LIVE" if direction == "ARR" else "NOW")
     return {
         "flight": flight,
         "iata": iata or (airline[1] if airline else ""),
@@ -345,10 +231,21 @@ def _is_current_or_upcoming(row, now):
     return sort_time >= now - timedelta(minutes=5)
 
 
+def _flightstats_windows(now, hours):
+    local_now = now.astimezone()
+    windows = []
+    remaining = hours
+    cursor = local_now.replace(minute=0, second=0, microsecond=0)
+    while remaining > 0:
+        available_today = max(1, 24 - cursor.hour)
+        chunk = min(remaining, available_today, 12)
+        windows.append((cursor.date(), cursor.hour, chunk))
+        cursor += timedelta(hours=chunk)
+        remaining -= chunk
+    return windows
+
+
 def _board_rows(opts):
-    api_key = str(opts.get("apiKey") or "").strip()
-    if not api_key:
-        return [], "SET API"
     airport = _clean(opts.get("airport") or "BOS")[:3]
     if len(airport) != 3:
         return [], "SET AIRPORT"
@@ -370,27 +267,21 @@ def _board_rows(opts):
         _safe_log(opts, f"[airport_board] {opts.get('_device_id', '')} cache hit for {airport} {board_type}; rows={len(cached['rows'])}; next poll in {remaining}s")
         return cached["rows"], cached["error"]
 
-    airport_filter = airport
-    if board_type == "departures":
-        airport_filter = f"outbound:{airport}"
-    elif board_type == "arrivals":
-        airport_filter = f"inbound:{airport}"
-
-    query_lookback_minutes = 60 if board_type == "arrivals" else 2
-    query_from = (now - timedelta(minutes=query_lookback_minutes)).replace(second=0, microsecond=0)
-    params = {
-        "flight_datetime_from": query_from.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "flight_datetime_to": (now + timedelta(hours=hours)).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "airports": airport_filter,
-        "limit": str(limit if airline_filter else min(5, limit + (1 if board_type == "both" else 0))),
-    }
-    if airline_filter:
-        params["airlines"] = airline_filter
+    directions = []
+    if board_type in ("departures", "both"):
+        directions.append(("dep", "DEP"))
+    if board_type in ("arrivals", "both"):
+        directions.append(("arr", "ARR"))
     try:
-        _safe_log(opts, f"[airport_board] {opts.get('_device_id', '')} polling FR24 {airport_filter} from={params['flight_datetime_from']} limit={params['limit']} window={hours}h cache={poll_minutes}m")
-        data = _fetch_summary(params, api_key, poll_minutes * 60)
+        raw_rows = []
+        for kind, direction in directions:
+            for date_value, start_hour, chunk_hours in _flightstats_windows(now, hours):
+                _safe_log(opts, f"[airport_board] {opts.get('_device_id', '')} polling FlightStats {airport} {kind} {date_value} {start_hour}:00 +{chunk_hours}h cache={poll_minutes}m")
+                data = _fetch_flightstats_board(kind, airport, date_value, start_hour, chunk_hours, airline_filter, poll_minutes * 60)
+                for item in _flightstats_rows(data):
+                    raw_rows.append((item, direction))
     except urllib.error.HTTPError as err:
-        error = "BAD API" if err.code in (401, 403) else "FR24 ERR"
+        error = None if err.code == 404 else "FS ERR"
         _RESULT_CACHE[result_key] = {
             "rows": [],
             "error": error,
@@ -400,15 +291,14 @@ def _board_rows(opts):
     except Exception:
         _RESULT_CACHE[result_key] = {
             "rows": [],
-            "error": "FR24 ERR",
+            "error": "FS ERR",
             "expires": now + timedelta(minutes=poll_minutes),
         }
-        return [], "FR24 ERR"
-    raw_rows = _rows(data)
+        return [], "FS ERR"
     rows = []
     seen = set()
-    for item in raw_rows:
-        row = _row_from_summary(item, airport, board_type, airline_filter)
+    for item, direction in raw_rows:
+        row = _row_from_flightstats(item, direction, airline_filter)
         if not row:
             continue
         if not _is_current_or_upcoming(row, now):
@@ -420,7 +310,7 @@ def _board_rows(opts):
         rows.append(row)
     rows.sort(key=lambda r: r["sort"])
     rows = rows[:limit]
-    _safe_log(opts, f"[airport_board] {opts.get('_device_id', '')} FR24 returned {len(raw_rows)} rows; usable={len(rows)} for {airport} {board_type}")
+    _safe_log(opts, f"[airport_board] {opts.get('_device_id', '')} FlightStats returned {len(raw_rows)} rows; usable={len(rows)} for {airport} {board_type}")
     _RESULT_CACHE[result_key] = {
         "rows": rows,
         "error": None,
@@ -510,7 +400,7 @@ def _render_empty(airport, board_type, width):
     label = "DEP" if board_type == "departures" else ("ARR" if board_type == "arrivals" else "BOARD")
     draw_sharp_text(image, (2 if width == 128 else 1, -3), f"{airport} {label}"[:16 if width == 128 else 9], (100, 190, 255), font)
     msg = "NO UPCOMING FLIGHTS" if width == 128 else "NO FLIGHTS"
-    sub = "FR24 BOARD" if width == 128 else "FR24"
+    sub = "FLIGHTSTATS" if width == 128 else "FSTAT"
     mw = _text_width(draw, msg, font)
     sw = _text_width(draw, sub, font)
     draw_sharp_text(image, ((width - mw) // 2, 10), msg, (180, 210, 235), font)

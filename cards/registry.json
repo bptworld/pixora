@@ -6657,8 +6657,8 @@
       "id": "airport_board",
       "name": "Airport Board",
       "category": "Travel",
-      "detail": "Low-credit FR24 arrival and departure board",
-      "description": "Low-credit FR24 arrival and departure board",
+      "detail": "Free FlightStats arrival and departure board",
+      "description": "Free FlightStats arrival and departure board",
       "author": "bptworld",
       "version": "1.0",
       "url": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/addons/airport_board.py",
@@ -6828,12 +6828,6 @@
           "label": "Skip if no data",
           "type": "checkbox",
           "default": false
-        },
-        {
-          "key": "apiKey",
-          "label": "Flightradar24 API Token",
-          "type": "text",
-          "default": ""
         }
       ]
     },
