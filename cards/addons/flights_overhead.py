@@ -2,6 +2,7 @@ from io import BytesIO
 import hashlib
 import json
 import math
+import re
 import threading
 import time
 import urllib.error
@@ -15,7 +16,7 @@ from card_utils import (
 
 CARD_ID = "flights_overhead"
 CARD_NAME = "Flights Overhead"
-CARD_DETAIL = "Live ADS-B flights above you"
+CARD_DETAIL = "Live overhead ADS-B with FlightStats routes"
 CARD_OPTIONS = [
     {"key": "zipCode",        "label": "ZIP Code",       "type": "text",     "default": "10001", "maxlength": 5, "inputmode": "numeric"},
     {"key": "radiusMiles",    "label": "Radius (mi)",    "type": "number",   "default": "50"},
@@ -40,6 +41,7 @@ CARD_OPTIONS = [
 
 _SOURCE_CACHE_SECONDS = 20
 _ROUTE_CACHE_SECONDS = 3600
+_FLIGHTSTATS_CACHE_SECONDS = 600
 _SNAPSHOT_TTL_SECONDS = 20
 _EMPTY_SNAPSHOT_TTL_SECONDS = 15
 _ROUTE_CACHE = {}
@@ -58,6 +60,7 @@ _AIRLINER_TYPES = {
     "B37", "B38", "B39", "B40", "B70", "B71", "B72", "B73", "B74", "B75", "B76", "B77", "B78",
     "MD8", "MD9", "B06", "BCS", "C919", "DC10", "DC9", "IL9", "L10",
 }
+_FLIGHTSTATS_ROOT = "https://www.flightstats.com/v2/api-next/flight-tracker"
 
 
 def _is_wide(options):
@@ -157,10 +160,57 @@ def _fetch_json_fast(url, seconds=600, timeout=1.2):
     return data
 
 
+def _display_ident_parts(callsign):
+    callsign = _clean(callsign)
+    if len(callsign) > 3 and callsign[:3] in _ICAO_TO_IATA and callsign[3:].isdigit():
+        return _ICAO_TO_IATA[callsign[:3]], callsign[3:]
+    airline = lookup_airline(callsign)
+    if airline and airline[1] and callsign[3:].isdigit():
+        return airline[1], callsign[3:]
+    match = re.match(r"^([A-Z]{2,3})(\d+)$", callsign)
+    return (match.group(1), match.group(2)) if match else ("", "")
+
+
+def _local_midnights():
+    now = time.localtime()
+    today = int(time.mktime((now.tm_year, now.tm_mon, now.tm_mday, 0, 0, 0, 0, 0, -1)))
+    return [today, today - 86400, today + 86400]
+
+
+def _flightstats_route_for_callsign(callsign):
+    airline, number = _display_ident_parts(callsign)
+    if not airline or not number:
+        return ""
+    for day_ts in _local_midnights():
+        day = time.localtime(day_ts)
+        url = f"{_FLIGHTSTATS_ROOT}/{urllib.parse.quote(airline)}/{urllib.parse.quote(number)}/{day.tm_year}/{day.tm_mon}/{day.tm_mday}"
+        try:
+            data = _fetch_json_fast(url, seconds=_FLIGHTSTATS_CACHE_SECONDS, timeout=1.2)
+        except urllib.error.HTTPError as err:
+            if err.code in (400, 404):
+                continue
+            return ""
+        except Exception:
+            continue
+        detail = data.get("data") if isinstance(data, dict) else {}
+        if not isinstance(detail, dict):
+            continue
+        departure = detail.get("departureAirport") if isinstance(detail.get("departureAirport"), dict) else {}
+        arrival = detail.get("arrivalAirport") if isinstance(detail.get("arrivalAirport"), dict) else {}
+        origin = _airport_code(departure)
+        dest = _airport_code(arrival)
+        if origin != "---" or dest != "---":
+            return f"{origin}>{dest}"
+    return ""
+
+
 def _route_for_callsign(callsign, lat=None, lon=None, track=None):
     callsign = _clean(callsign)
     if not callsign:
         return ""
+    fs_route = _flightstats_route_for_callsign(callsign)
+    if fs_route:
+        return fs_route
     try:
         url = "https://api.adsbdb.com/v0/callsign/" + urllib.parse.quote(callsign)
         data = _fetch_json_fast(url, seconds=_ROUTE_CACHE_SECONDS, timeout=1.0)
