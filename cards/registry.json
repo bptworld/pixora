@@ -6898,6 +6898,48 @@
       ]
     },
     {
+      "id": "flight_watchlist",
+      "name": "Flight Watchlist",
+      "category": "Travel",
+      "detail": "Watch flights, pickups, countdowns, and near alerts",
+      "description": "Watch flights, pickups, countdowns, and near alerts",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/addons/flight_watchlist.py",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/flight_watchlist.webp",
+      "options": [
+        {"key": "airline1", "label": "Airline 1", "type": "text", "default": "DL", "maxlength": 3},
+        {"key": "flightNumber1", "label": "Flight # 1", "type": "text", "default": "977", "maxlength": 6, "inputmode": "numeric"},
+        {"key": "airline2", "label": "Airline 2", "type": "text", "default": "", "maxlength": 3},
+        {"key": "flightNumber2", "label": "Flight # 2", "type": "text", "default": "", "maxlength": 6, "inputmode": "numeric"},
+        {"key": "airline3", "label": "Airline 3", "type": "text", "default": "", "maxlength": 3},
+        {"key": "flightNumber3", "label": "Flight # 3", "type": "text", "default": "", "maxlength": 6, "inputmode": "numeric"},
+        {"key": "airline4", "label": "Airline 4", "type": "text", "default": "", "maxlength": 3},
+        {"key": "flightNumber4", "label": "Flight # 4", "type": "text", "default": "", "maxlength": 6, "inputmode": "numeric"},
+        {"key": "airline5", "label": "Airline 5", "type": "text", "default": "", "maxlength": 3},
+        {"key": "flightNumber5", "label": "Flight # 5", "type": "text", "default": "", "maxlength": 6, "inputmode": "numeric"},
+        {
+          "key": "mode",
+          "label": "Mode",
+          "type": "select",
+          "default": "watchlist",
+          "choices": [
+            {"value": "watchlist", "label": "Watchlist"},
+            {"value": "pickup", "label": "Pickup Mode"},
+            {"value": "countdown", "label": "Arrival Countdown"},
+            {"value": "near", "label": "Plane Is Near"}
+          ]
+        },
+        {"key": "homeZip", "label": "Home ZIP", "type": "text", "default": "", "maxlength": 5, "inputmode": "numeric"},
+        {"key": "nearMiles", "label": "Near Alert Miles", "type": "number", "default": "35"},
+        {"key": "delayAlerts", "label": "Delay / cancel alerts", "type": "checkbox", "default": true},
+        {"key": "gateAlerts", "label": "Gate change alerts", "type": "checkbox", "default": true},
+        {"key": "landedAlerts", "label": "Landed alerts", "type": "checkbox", "default": true},
+        {"key": "nearAlerts", "label": "Plane near alerts", "type": "checkbox", "default": true},
+        {"key": "skipNoData", "label": "Skip if no data", "type": "checkbox", "default": false}
+      ]
+    },
+    {
       "id": "flight_track",
       "name": "Flight Tracker",
       "category": "Travel",
