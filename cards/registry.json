@@ -6800,6 +6800,10 @@
             {
               "value": "5",
               "label": "5 flights"
+            },
+            {
+              "value": "10",
+              "label": "10 flights"
             }
           ]
         },

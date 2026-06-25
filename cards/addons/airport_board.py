@@ -66,6 +66,7 @@ CARD_OPTIONS = [
             {"value": "2", "label": "2 flights"},
             {"value": "3", "label": "3 flights"},
             {"value": "5", "label": "5 flights"},
+            {"value": "10", "label": "10 flights"},
         ],
     },
     {
@@ -250,7 +251,7 @@ def _board_rows(opts):
     if len(airport) != 3:
         return [], "SET AIRPORT"
     hours = _parse_int(opts.get("hours"), 2, 1, 4)
-    limit = _parse_int(opts.get("maxFlights"), 3, 1, 5)
+    limit = _parse_int(opts.get("maxFlights"), 3, 1, 10)
     poll_minutes = _parse_int(opts.get("pollMinutes"), 30, 5, 120)
     board_type = str(opts.get("boardType") or "departures").lower()
     airline_filter = _clean(opts.get("airline"))[:2]
