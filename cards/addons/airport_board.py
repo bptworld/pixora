@@ -333,8 +333,31 @@ def _fit(draw, text, font, max_width):
     return text
 
 
-def _row_text(row):
-    return f"{row['time']} {row['flight']} {row['other']} {row['status']}"
+def _compact_time(value, width):
+    text = str(value or "")
+    text = text.replace("AM", "A").replace("PM", "P")
+    if width < 128:
+        return text[:5]
+    return text[:6]
+
+
+def _draw_row(image, draw, row, y, width, font):
+    if width >= 128:
+        columns = [
+            (1, 33, _compact_time(row.get("time"), width), (235, 245, 255)),
+            (35, 69, row.get("flight"), (235, 245, 255)),
+            (72, 91, row.get("other"), (160, 215, 255)),
+            (94, width - 2, row.get("status"), (210, 230, 235)),
+        ]
+    else:
+        columns = [
+            (1, 22, _compact_time(row.get("time"), width), (235, 245, 255)),
+            (25, 49, row.get("flight"), (235, 245, 255)),
+            (52, width - 2, row.get("other"), (160, 215, 255)),
+        ]
+    for x, max_x, value, color in columns:
+        text = _fit(draw, value, font, max(0, max_x - x))
+        draw_sharp_text(image, (x, y), text, color, font)
 
 
 def _draw_board(rows, airport, board_type, width, offset=0):
@@ -355,8 +378,7 @@ def _draw_board(rows, airport, board_type, width, offset=0):
         y = 7 + index * 8 - offset
         if y < 1 or y > 29:
             continue
-        text = _fit(draw, _row_text(row), font, width - 2)
-        draw_sharp_text(image, (1, y), text, (235, 245, 255), font)
+        _draw_row(image, draw, row, y, width, font)
     return image
 
 
