@@ -8,6 +8,10 @@ $ErrorActionPreference = "Stop"
 $projectRoot = Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..")
 $repoRoot = Resolve-Path -LiteralPath (Join-Path $projectRoot "..\..")
 $releaseDir = Join-Path $repoRoot "releases\firmware"
+$dropDir = Resolve-Path -LiteralPath (Join-Path $repoRoot "..\Firmware") -ErrorAction SilentlyContinue
+if (!$dropDir) {
+  $dropDir = Join-Path $repoRoot "..\Firmware"
+}
 $pio = Join-Path $env:APPDATA "Python\Python313\Scripts\pio.exe"
 
 if (!(Test-Path -LiteralPath $pio)) {
@@ -24,6 +28,7 @@ if ($Build) {
 }
 
 New-Item -ItemType Directory -Force -Path $releaseDir | Out-Null
+New-Item -ItemType Directory -Force -Path $dropDir | Out-Null
 
 $targets = @(
   @{ Env = "matrixportal_s3_64x32"; Name = "64x32" },
@@ -36,6 +41,9 @@ foreach ($target in $targets) {
     throw "Missing build output: $source. Run with -Build first."
   }
   $dest = Join-Path $releaseDir "pixora-v$Version-$($target.Name)-ota-firmware.bin"
+  $drop = Join-Path $dropDir "pixora-v$Version-$($target.Name)-ota-firmware.bin"
   Copy-Item -LiteralPath $source -Destination $dest -Force
+  Copy-Item -LiteralPath $source -Destination $drop -Force
   Write-Host "Wrote $dest"
+  Write-Host "Wrote $drop"
 }
