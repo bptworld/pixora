@@ -155,4 +155,3 @@ def render(options=None):
         quality=100,
     )
     return out.getvalue()
-

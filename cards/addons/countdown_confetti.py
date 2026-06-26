@@ -65,4 +65,3 @@ def render(options=None):
     frames[0].save(out, "WEBP", save_all=True, append_images=frames[1:],
                    duration=frame_duration, loop=1, lossless=True, quality=100)
     return out.getvalue()
-

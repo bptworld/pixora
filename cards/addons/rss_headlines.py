@@ -91,4 +91,3 @@ def render(options=None):
     if not items:
         return render_text_webp("NO NEWS", (160, 170, 180))
     return _render_scroll(label, items[0]["title"], width)
-

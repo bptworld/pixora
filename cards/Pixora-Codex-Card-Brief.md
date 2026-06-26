@@ -325,4 +325,3 @@ def render(options=None):
     image.save(out, "WEBP", lossless=True, quality=100)
     return out.getvalue()
 ```
-

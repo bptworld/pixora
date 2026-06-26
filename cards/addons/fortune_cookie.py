@@ -118,4 +118,3 @@ def render(options=None):
     out = BytesIO()
     image.save(out, "WEBP", lossless=True, quality=100)
     return out.getvalue()
-

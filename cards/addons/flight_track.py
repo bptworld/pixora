@@ -1172,19 +1172,21 @@ def _style_route_map(background):
         for x in range(width):
             r, g, b = pixels[x, y]
             if b > 185 and g > 175 and b >= r + 8:
-                pixels[x, y] = (18, 105, 172)
+                pixels[x, y] = (7, 58, 96)
             elif r > 218 and g > 218 and b > 205:
-                pixels[x, y] = (96, 104, 106)
+                pixels[x, y] = (22, 37, 42)
             elif b > r + 18 and b > g + 8:
-                pixels[x, y] = (18, 105, 172)
+                pixels[x, y] = (7, 58, 96)
             elif g > r + 12 and g > b:
-                pixels[x, y] = (88, 104, 96)
+                pixels[x, y] = (28, 55, 41)
             elif r > 175 and g > 160 and b < 150:
-                pixels[x, y] = (126, 118, 106)
+                pixels[x, y] = (55, 50, 39)
             elif abs(r - g) < 18 and abs(g - b) < 22 and r > 120:
-                pixels[x, y] = (96, 104, 106)
-    background = ImageEnhance.Color(background).enhance(1.15)
-    background = ImageEnhance.Contrast(background).enhance(1.25)
+                pixels[x, y] = (24, 38, 43)
+            else:
+                pixels[x, y] = (max(0, r // 4), max(6, g // 4), max(12, b // 4))
+    background = ImageEnhance.Color(background).enhance(1.45)
+    background = ImageEnhance.Contrast(background).enhance(1.75)
     background = ImageEnhance.Sharpness(background).enhance(2.2)
     return background.filter(ImageFilter.SHARPEN)
 
@@ -1314,8 +1316,9 @@ def _draw_aircraft_marker(draw, x, y, track, color=(255, 90, 210)):
 def _draw_route_map_body(image, draw, flight, bounds):
     depart_color = (95, 230, 135)
     arrive_color = (255, 190, 90)
-    route_color = (150, 120, 255)
-    plane_color = (255, 90, 210)
+    route_shadow = (12, 18, 36)
+    route_color = (145, 210, 255)
+    plane_color = (255, 80, 210)
     origin_pos = flight.get("origin_latlon")
     dest_pos = flight.get("destination_latlon")
     lat = flight.get("lat")
@@ -1342,7 +1345,8 @@ def _draw_route_map_body(image, draw, flight, bounds):
         origin_xy = _project_route_point(route_points[0][0], route_points[0][1], min_lat, max_lat, min_lon, max_lon, bounds)
         plane_xy = _project_route_point(route_points[1][0], route_points[1][1], min_lat, max_lat, min_lon, max_lon, bounds)
         dest_xy = _project_route_point(route_points[2][0], route_points[2][1], min_lat, max_lat, min_lon, max_lon, bounds)
-    draw.rectangle(bounds, outline=(28, 64, 88))
+    draw.rectangle(bounds, outline=(34, 92, 125))
+    draw.line((origin_xy[0], origin_xy[1], dest_xy[0], dest_xy[1]), fill=route_shadow, width=3)
     draw.line((origin_xy[0], origin_xy[1], dest_xy[0], dest_xy[1]), fill=route_color)
     _draw_star(draw, origin_xy[0], origin_xy[1], depart_color)
     _draw_star(draw, dest_xy[0], dest_xy[1], arrive_color)
