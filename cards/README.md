@@ -2,7 +2,7 @@
 
 Add-on cards for the [Pixora](https://github.com/bptworld/pixora) display system.
 
-## Available Cards - 141
+## Available Cards - 142
 
 ### Finance
 
@@ -175,6 +175,7 @@ Add-on cards for the [Pixora](https://github.com/bptworld/pixora) display system
 | Boating Conditions | Wind, seas, and tide for boating |
 | Fishing Window | Tide-based fishing window |
 | Marine Forecast | Coastal wind and seas |
+| Meteor Watch | Meteor showers and tonight sky score |
 | Rip Current Risk | Active rip current alerts |
 | Surf Report | Wave, swell, and wind |
 | Tide Tracking | Next high and low tide |
