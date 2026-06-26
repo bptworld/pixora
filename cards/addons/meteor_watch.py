@@ -222,21 +222,23 @@ def _render_64(data, mode):
     color = _score_color(score)
     if mode == "shower":
         title = _fit(draw, shower["short"], FONT, 62)
-        draw_sharp_text(image, (1, -2), title, (95, 230, 255), FONT)
-        label = "ACTIVE" if shower.get("active") else "PEAK IN"
+        draw_sharp_text(image, (1, 0), title, (95, 230, 255), FONT)
         days = abs(int(shower.get("days", 0)))
-        draw_sharp_text(image, (1, 8), label, (255, 220, 90), TINY)
-        _draw_score_number(draw, days if not shower.get("active") else shower["zhr"], 34, 12, (255, 255, 255), scale=2)
+        _draw_score_number(draw, days if not shower.get("active") else shower["zhr"], 30, 8, (255, 255, 255), scale=2)
         suffix = "/HR" if shower.get("active") else "D"
-        draw_sharp_text(image, (49, 19), suffix, (95, 230, 135), TINY)
-        draw_sharp_text(image, (1, 26), f"MOON {data['moon']}%", (160, 190, 230), TINY)
+        draw_sharp_text(image, (44, 10), suffix, (95, 230, 135), FONT)
+        if shower.get("active"):
+            footer = f"MOON {data['moon']}%"
+        else:
+            footer = shower["peak_date"].strftime("%b %d").upper()
+        draw_sharp_text(image, (1, 20), footer, (160, 190, 230), FONT)
     else:
-        draw_sharp_text(image, (1, -2), "METEOR", (95, 230, 255), FONT)
-        _draw_score_number(draw, score, 24, 11, color, scale=2)
-        draw_sharp_text(image, (43, 13), "/99", (180, 210, 230), TINY)
+        draw_sharp_text(image, (1, 0), "METEOR", (95, 230, 255), FONT)
+        _draw_score_number(draw, score, 24, 8, color, scale=2)
+        draw_sharp_text(image, (43, 9), "/99", (180, 210, 230), FONT)
         cloud = "--" if data["cloud"] is None else str(data["cloud"])
-        draw_sharp_text(image, (1, 26), _fit(draw, shower["short"], TINY, 36), (255, 220, 90), TINY)
-        draw_sharp_text(image, (43, 26), _fit(draw, f"C{cloud}%", TINY, 20), (155, 205, 255), TINY)
+        draw_sharp_text(image, (1, 20), _fit(draw, shower["short"], FONT, 36), (255, 220, 90), FONT)
+        draw_sharp_text(image, (43, 20), _fit(draw, f"C{cloud}%", FONT, 20), (155, 205, 255), FONT)
     return image
 
 
@@ -249,15 +251,15 @@ def _render_128(data, mode):
     shower = data["shower"]
     score = data["score"]
     color = _score_color(score)
-    draw_sharp_text(image, (1, -2), "METEOR", (95, 230, 255), FONT)
-    _draw_score_number(draw, score, 21, 12, color, scale=2)
-    draw_sharp_text(image, (39, 14), "/99", (180, 210, 230), TINY)
+    draw_sharp_text(image, (1, 0), "METEOR", (95, 230, 255), FONT)
+    _draw_score_number(draw, score, 21, 10, color, scale=2)
+    draw_sharp_text(image, (39, 12), "/99", (180, 210, 230), FONT)
     name = _fit(draw, shower["name"], FONT, 72)
-    draw_sharp_text(image, (55, 2), name, (255, 220, 90), FONT)
+    draw_sharp_text(image, (55, 0), name, (255, 220, 90), FONT)
     status = "ACTIVE" if shower.get("active") else f"PEAK {shower['peak_date'].strftime('%b').upper()} {shower['peak_date'].day}"
     cloud = "--" if data["cloud"] is None else str(data["cloud"])
     detail = f"{status} {shower['zhr']}/HR C{cloud}% M{data['moon']}%"
-    draw_sharp_text(image, (55, 19), _fit(draw, detail, TINY, 72), (155, 205, 255), TINY)
+    draw_sharp_text(image, (55, 18), _fit(draw, detail, FONT, 72), (155, 205, 255), FONT)
     return image
 
 
