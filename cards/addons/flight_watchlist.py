@@ -329,37 +329,78 @@ def _draw_flight_header(image, draw, item, bold, width, x=1):
     draw_sharp_text(image, (x, -3), title, (255, 255, 255), bold)
 
 
-def _split_bold_value(value):
-    match = re.match(r"^([\d\s:.,+\-/$%]+)([A-Z]+)?$", str(value or "").upper())
-    if not match or not any(ch.isdigit() for ch in match.group(1)):
-        return "", str(value or "").upper()
-    return match.group(1), match.group(2) or ""
+def _countdown_value(minutes):
+    if minutes is None:
+        return "--"
+    if minutes <= 0:
+        return "NOW"
+    if minutes < 60:
+        return f"{minutes}M"
+    hours = minutes // 60
+    mins = minutes % 60
+    return f"{hours}H {mins}M" if mins else f"{hours}H"
+
+
+def _bold_value_parts(value):
+    text = str(value or "").upper()
+    if not any(ch.isdigit() for ch in text):
+        return []
+    parts = []
+    idx = 0
+    numeric_chars = set("0123456789:.,+-/$%")
+    while idx < len(text):
+        is_numeric = text[idx] in numeric_chars
+        start = idx
+        idx += 1
+        while idx < len(text) and ((text[idx] in numeric_chars) == is_numeric):
+            idx += 1
+        parts.append((is_numeric, text[start:idx]))
+    return parts
 
 
 def _bold_value_size(draw, value, suffix_font, scale=2, spacing=1, suffix_gap=2):
-    number, suffix = _split_bold_value(value)
-    if not number:
+    parts = _bold_value_parts(value)
+    if not parts:
         bbox = draw.textbbox((0, 0), str(value or ""), font=suffix_font)
         return bbox[2] - bbox[0], bbox[3] - bbox[1]
-    nw, nh = pixora_bold_number_size(number, scale=scale, spacing=spacing)
-    sw = draw.textbbox((0, 0), suffix, font=suffix_font)[2] if suffix else 0
-    return nw + (suffix_gap if suffix else 0) + sw, nh
+    width = 0
+    height = 7 * scale
+    previous_numeric = False
+    for is_numeric, text in parts:
+        if width and (is_numeric != previous_numeric):
+            width += suffix_gap
+        if is_numeric:
+            part_w, part_h = pixora_bold_number_size(text, scale=scale, spacing=spacing)
+        else:
+            bbox = draw.textbbox((0, 0), text, font=suffix_font)
+            part_w, part_h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+        width += part_w
+        height = max(height, part_h)
+        previous_numeric = is_numeric
+    return width, height
 
 
 def _draw_bold_value(image, draw, xy, value, color, suffix_font, scale=2, spacing=1, suffix_gap=2):
-    number, suffix = _split_bold_value(value)
-    if not number:
+    parts = _bold_value_parts(value)
+    if not parts:
         draw_sharp_text(image, xy, str(value or ""), color, suffix_font)
         return
     x, y = xy
-    draw_pixora_bold_number(draw, (x, y), number, color, scale=scale, spacing=spacing)
-    if suffix:
-        nx = x + pixora_bold_number_size(number, scale=scale, spacing=spacing)[0] + suffix_gap
-        try:
-            suffix_top = suffix_font.getbbox(suffix)[1]
-        except Exception:
-            suffix_top = 0
-        draw_sharp_text(image, (nx, y - suffix_top), suffix, color, suffix_font)
+    previous_numeric = False
+    for idx, (is_numeric, text) in enumerate(parts):
+        if idx and (is_numeric != previous_numeric):
+            x += suffix_gap
+        if is_numeric:
+            draw_pixora_bold_number(draw, (x, y), text, color, scale=scale, spacing=spacing)
+            x += pixora_bold_number_size(text, scale=scale, spacing=spacing)[0]
+        else:
+            try:
+                suffix_top = suffix_font.getbbox(text)[1]
+            except Exception:
+                suffix_top = 0
+            draw_sharp_text(image, (x, y - suffix_top), text, color, suffix_font)
+            x += draw.textbbox((0, 0), text, font=suffix_font)[2]
+        previous_numeric = is_numeric
 
 
 def _fit(draw, text, font, max_width):
@@ -467,9 +508,7 @@ def _draw_countdown(item, width=64):
     draw = ImageDraw.Draw(image)
     minutes = _minutes_until(item)
     label = "ARRIVES" if item.get("arrival_dt") else "DEPARTS"
-    value = "--"
-    if minutes is not None:
-        value = "NOW" if minutes <= 0 else f"{minutes}M"
+    value = _countdown_value(minutes)
     _draw_flight_header(image, draw, item, bold, width)
     vw, _vh = _bold_value_size(draw, value, font)
     value_y = 8 if width <= 64 else 9
