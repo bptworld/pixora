@@ -228,6 +228,11 @@ def _flight_has_departed_status(*values):
     return any(phrase in text for phrase in ("DEPARTED", "EN ROUTE", "ENROUTE", "AIRBORNE", "IN AIR", "IN FLIGHT"))
 
 
+def _flight_has_arrived_status(*values):
+    text = " ".join(str(value or "").upper() for value in values)
+    return any(phrase in text for phrase in ("ARRIVED", "LANDED", "COMPLETED", "CANCELLED", "CANCELED"))
+
+
 def _terminal_label(value):
     text = str(value or "").strip().upper().replace(" ", "")
     if not text:
@@ -278,7 +283,9 @@ def _summary(flight):
     status_text = str(status.get("statusDescription") or status.get("status") or note.get("message") or final or "").upper()
     arr_dt = _parse_iso(schedule.get("estimatedActualArrivalUTC") or schedule.get("scheduledArrivalUTC"))
     dep_dt = _parse_iso(schedule.get("estimatedActualDepartureUTC") or schedule.get("scheduledDepartureUTC"))
-    destination_fields = _flight_has_departed_status(final, status_text, note.get("phase"), note.get("message")) or bool(schedule.get("estimatedActualDepartureUTC"))
+    departed = _flight_has_departed_status(final, status_text, note.get("phase"), note.get("message")) or bool(schedule.get("estimatedActualDepartureUTC"))
+    arrived = bool(detail.get("isLanded") or note.get("landed")) or _flight_has_arrived_status(final, status_text, note.get("phase"), note.get("message"))
+    destination_fields = departed
     return {
         **flight,
         "origin": _airport_code(dep),
@@ -292,6 +299,7 @@ def _summary(flight):
         "baggage": str(arr.get("baggage") or "").upper(),
         "arrival_dt": arr_dt,
         "departure_dt": dep_dt,
+        "in_air": bool(departed and not arrived),
     }
 
 
@@ -577,6 +585,23 @@ def _draw_countdown(item, width=64):
     return image
 
 
+def _draw_countdown_waiting(item, width=64):
+    from PIL import Image, ImageDraw
+    font, bold, _big = _fonts()
+    small_font = _compact_watchlist_font()
+    image = Image.new("RGB", (width, 32), (0, 5, 18))
+    draw = ImageDraw.Draw(image)
+    _draw_flight_header(image, draw, item, bold, width)
+    route = f"{item.get('origin','---')}>{item.get('destination','---')}"
+    draw_sharp_text(image, (1, 8), _fit(draw, route, font, width - 2), (100, 190, 255), font)
+    waiting = "WAITING TO DEPART" if width > 64 else "WAITING"
+    draw_sharp_text(image, (1, 17), _fit(draw, waiting, font, width - 2), (255, 220, 90), font)
+    dep = item.get("departure_time") or "--"
+    footer = f"DEP {dep}"
+    draw_sharp_text(image, (1, 23), _fit(draw, footer, small_font, width - 2), (95, 230, 135), small_font)
+    return image
+
+
 def _draw_near(item, near, width=64):
     from PIL import Image, ImageDraw
     font, bold, big = _fonts()
@@ -663,7 +688,7 @@ def render(options=None):
     if mode == "pickup":
         frames = [_draw_pickup(item, width) for item in items]
     elif mode == "countdown":
-        frames = [_draw_countdown(item, width) for item in items]
+        frames = [_draw_countdown(item, width) if item.get("in_air") else _draw_countdown_waiting(item, width) for item in items]
     elif mode == "near":
         frames = [_draw_near(item, near_by_ident.get(_state_key(item)), width) for item in items]
     else:
