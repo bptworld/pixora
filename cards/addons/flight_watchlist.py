@@ -311,6 +311,14 @@ def _fonts():
         return font, font, font
 
 
+def _compact_watchlist_font():
+    from PIL import ImageFont
+    try:
+        return ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 6)
+    except Exception:
+        return _fonts()[0]
+
+
 def _webp(image):
     out = BytesIO()
     image.save(out, "WEBP", lossless=True, quality=100)
@@ -336,17 +344,20 @@ def _draw_watchlist(items, width=64):
     font, bold, _big = _fonts()
     image = Image.new("RGB", (width, 32), (0, 5, 18))
     draw = ImageDraw.Draw(image)
-    draw.rectangle((0, 0, width - 1, 8), fill=(0, 17, 45))
     title = "FLIGHT WATCH" if width > 64 else "WATCH"
+    title_bbox = draw.textbbox((1, -3), title, font=bold)
+    draw.rectangle((0, 0, min(width - 1, title_bbox[2]), 8), fill=(0, 17, 45))
     draw_sharp_text(image, (1, -3), title, (100, 190, 255), bold)
-    rows = items[:3] if width <= 64 else items[:4]
+    compact = width <= 64
+    row_font = _compact_watchlist_font() if compact else font
+    rows = items[:3] if compact else items[:4]
     for idx, item in enumerate(rows):
-        y = 8 + idx * (8 if width <= 64 else 6)
+        y = (8 + idx * 7) if compact else (8 + idx * 6)
         route = f"{item.get('origin','---')}>{item.get('destination','---')}"
         status = item.get("status") or ""
         text = f"{item['ident']} {route} {item.get('arrival_time') or item.get('departure_time') or status}"
         color = _status_color(status)
-        draw_sharp_text(image, (1, y), _fit(draw, text, font, width - 2), color, font)
+        draw_sharp_text(image, (1, y), _fit(draw, text, row_font, width - 2), color, row_font)
     return image
 
 
@@ -366,7 +377,8 @@ def _draw_pickup(item, width=64):
     extras = " ".join(part for part in (("G" + item["gate"]) if item.get("gate") else "", ("T" + item["terminal"]) if item.get("terminal") else "", ("BAG " + item["baggage"]) if item.get("baggage") else "") if part)
     draw_sharp_text(image, (1, 8), _fit(draw, route, font, width - 2), (100, 190, 255), font)
     draw_sharp_text(image, (1, 16), _fit(draw, extras or item.get("status_text") or "FLIGHT STATUS", font, width - 2), (255, 220, 90), font)
-    draw_sharp_text(image, (1, 24), _fit(draw, item.get("status") or "SCHEDULED", font, width - 2), _status_color(item.get("status")), font)
+    status_y = 20 if width <= 64 else 24
+    draw_sharp_text(image, (1, status_y), _fit(draw, item.get("status") or "SCHEDULED", font, width - 2), _status_color(item.get("status")), font)
     return image
 
 
@@ -392,7 +404,8 @@ def _draw_countdown(item, width=64):
     vw = draw.textbbox((0, 0), value, font=big)[2]
     draw_sharp_text(image, ((width - vw) // 2, 7), value, (255, 220, 90), big)
     route = f"{item.get('origin','---')}>{item.get('destination','---')} {label}"
-    draw_sharp_text(image, (1, 24), _fit(draw, route, font, width - 2), (100, 190, 255), font)
+    route_y = 20 if width <= 64 else 24
+    draw_sharp_text(image, (1, route_y), _fit(draw, route, font, width - 2), (100, 190, 255), font)
     return image
 
 
@@ -407,7 +420,8 @@ def _draw_near(item, near, width=64):
     vw = draw.textbbox((0, 0), value, font=big)[2]
     draw_sharp_text(image, ((width - vw) // 2, 7), value, (255, 220, 90), big)
     route = f"{item.get('origin','---')}>{item.get('destination','---')}"
-    draw_sharp_text(image, (1, 24), _fit(draw, route, font, width - 2), (100, 190, 255), font)
+    route_y = 20 if width <= 64 else 24
+    draw_sharp_text(image, (1, route_y), _fit(draw, route, font, width - 2), (100, 190, 255), font)
     return image
 
 
