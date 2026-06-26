@@ -133,6 +133,33 @@ void showStatus(const char *line1, const char *line2, uint16_t color = 0) {
   matrix.show();
 }
 
+void showProgressStatus(const char *line1, const char *line2, uint8_t percent, uint16_t color = 0) {
+  if (!color) {
+    color = color565Scaled(255, 210, 80);
+  }
+  uint8_t clamped = constrain(percent, 0, 100);
+  uint16_t dim = color565Scaled(28, 38, 48);
+  uint16_t fill = color;
+  int barX = 4;
+  int barY = PIXORA_PANEL_HEIGHT - 6;
+  int barW = PIXORA_PANEL_WIDTH - 8;
+  int fillW = (barW - 2) * clamped / 100;
+
+  matrix.fillScreen(0);
+  matrix.setTextWrap(false);
+  matrix.setTextColor(color);
+  matrix.setTextSize(1);
+  matrix.setCursor(centeredX(line1, 1), 1);
+  matrix.print(line1);
+  matrix.setCursor(centeredX(line2, 1), 11);
+  matrix.print(line2);
+  matrix.drawRect(barX, barY, barW, 5, dim);
+  if (fillW > 0) {
+    matrix.fillRect(barX + 1, barY + 1, fillW, 3, fill);
+  }
+  matrix.show();
+}
+
 void showWifiStatus() {
   showStatus("WAITING", "FOR WIFI", color565Scaled(34, 217, 242));
 }
@@ -291,7 +318,7 @@ void performOta(const String &otaUrl) {
   if (otaUrl.isEmpty()) {
     return;
   }
-  showStatus("UPDATING", "FIRMWARE", color565Scaled(255, 210, 80));
+  showProgressStatus("UPDATING", "FIRMWARE", 0, color565Scaled(255, 210, 80));
   Serial.printf("Starting OTA: %s\n", otaUrl.c_str());
 
   WiFiClientSecure secureClient;
@@ -317,7 +344,38 @@ void performOta(const String &otaUrl) {
     showCloudStatus();
     return;
   }
-  size_t written = Update.writeStream(*ota.getStreamPtr());
+  WiFiClient *stream = ota.getStreamPtr();
+  uint8_t buffer[1024];
+  size_t written = 0;
+  int lastPercent = -1;
+  uint32_t lastPaint = 0;
+  while (written < (size_t)length) {
+    serviceUsbConfig();
+    size_t available = stream->available();
+    if (!available) {
+      delay(1);
+      continue;
+    }
+    size_t toRead = min(available, sizeof(buffer));
+    toRead = min(toRead, (size_t)length - written);
+    int readCount = stream->readBytes(buffer, toRead);
+    if (readCount <= 0) {
+      delay(1);
+      continue;
+    }
+    size_t chunk = Update.write(buffer, readCount);
+    if (chunk != (size_t)readCount) {
+      Serial.printf("OTA write short: %u/%d error=%s\n", (unsigned)chunk, readCount, Update.errorString());
+      break;
+    }
+    written += chunk;
+    int percent = (int)((written * 100UL) / (size_t)length);
+    if (percent != lastPercent && (percent == 100 || millis() - lastPaint > 150)) {
+      showProgressStatus("UPDATING", "FIRMWARE", (uint8_t)percent, color565Scaled(255, 210, 80));
+      lastPercent = percent;
+      lastPaint = millis();
+    }
+  }
   bool ok = written == (size_t)length && Update.end(true);
   ota.end();
   if (!ok) {
@@ -327,7 +385,7 @@ void performOta(const String &otaUrl) {
   }
   Serial.println("OTA complete; rebooting");
   showStatus("UPDATE", "COMPLETE", color565Scaled(90, 230, 140));
-  delay(800);
+  delay(3000);
   ESP.restart();
 }
 
