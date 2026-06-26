@@ -220,11 +220,11 @@ bool applyUsbConfig(const String &line) {
   }
 
   Config next = config;
-  next.wifiSsid = doc["wifiSsid"] | doc["ssid"] | "";
-  next.wifiPassword = doc["wifiPassword"] | doc["password"] | "";
-  next.imageUrl = doc["imageUrl"] | doc["server"] | doc["remoteUrl"] | "";
-  next.serviceMode = doc["serviceMode"] | "cloud";
-  next.hostname = doc["hostname"] | "";
+  next.wifiSsid = doc["ssid"] | "";
+  next.wifiPassword = doc["pass"] | "";
+  next.imageUrl = doc["url"] | "";
+  next.serviceMode = doc["mode"] | "cloud";
+  next.hostname = doc["host"] | "";
   next.swapColors = doc["swapColors"] | false;
 
   if (next.wifiSsid.isEmpty() || next.imageUrl.isEmpty()) {

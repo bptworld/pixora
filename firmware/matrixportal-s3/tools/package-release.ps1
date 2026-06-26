@@ -37,10 +37,17 @@ foreach ($target in $targets) {
   if (!(Test-Path -LiteralPath $source)) {
     throw "Missing build output: $source. Run with -Build first."
   }
-  $dest = Join-Path $releaseDir "pixora-v$Version-$($target.Name)-ota-firmware.bin"
-  $drop = Join-Path $dropDir "pixora-v$Version-$($target.Name)-ota-firmware.bin"
-  Copy-Item -LiteralPath $source -Destination $dest -Force
-  Copy-Item -LiteralPath $source -Destination $drop -Force
-  Write-Host "Wrote $dest"
-  Write-Host "Wrote $drop"
+  $names = @(
+    "pixora-v$Version-$($target.Name)-user-ota-firmware.bin",
+    "pixora-v$Version-$($target.Name)-factory-firmware.bin",
+    "pixora-v$Version-$($target.Name)-ota-firmware.bin"
+  )
+  foreach ($name in $names) {
+    $dest = Join-Path $releaseDir $name
+    $drop = Join-Path $dropDir $name
+    Copy-Item -LiteralPath $source -Destination $dest -Force
+    Copy-Item -LiteralPath $source -Destination $drop -Force
+    Write-Host "Wrote $dest"
+    Write-Host "Wrote $drop"
+  }
 }

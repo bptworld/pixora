@@ -10,6 +10,7 @@ releases/server/*
 !releases/firmware/
 releases/firmware/*
 !releases/firmware/*-ota-firmware.bin
+!releases/firmware/*-factory-firmware.bin
 data/
 tmp/
 internal-firmware/

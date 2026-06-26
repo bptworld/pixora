@@ -6,7 +6,7 @@ This rebuild starts with:
 
 - two-line boot status screens: `WAITING / FOR WIFI`, `WAITING / ON CLOUD`
 - USB serial setup compatible with the Pixora setup scripts:
-  `PIXORA_CONFIG {"wifiSsid":"...","wifiPassword":"...","imageUrl":"...","serviceMode":"cloud"}`
+  `PIXORA_CONFIG {"ssid":"...","pass":"...","url":"...","mode":"cloud","host":"..."}`
 - cloud/local polling through `/next`
 - raw RGB565 frame mode for the new firmware path
 - headers for dwell, brightness, reboot, and OTA URL
@@ -32,9 +32,19 @@ Use the MatrixPortal S3 BOOT/RESET buttons if Windows does not expose the USB se
 3. Release `BOOT`.
 4. Upload/flash from PlatformIO.
 
+## Which Firmware File
+
+The package script writes three names for each panel size:
+
+- `*-user-ota-firmware.bin`: use this for customer/cloud updates. It is meant to preserve existing setup.
+- `*-factory-firmware.bin`: use this label for pre-ship install/testing on your side.
+- `*-ota-firmware.bin`: compatibility alias for existing Pixora tooling.
+
+The app does not intentionally erase setup. It reads and writes only the current `pixora` settings namespace using the short setup keys `ssid`, `pass`, `url`, `mode`, and `host`. A full chip erase or flashing the wrong full image can still clear setup; customer updates should use the user OTA `.bin`.
+
 ## USB Setup
 
-After flashing, the Pixora Cloud setup app can send the same config line it already sends. On success, firmware prints:
+After flashing, the Pixora Cloud setup app sends the current short-key config line. On success, firmware prints:
 
 ```text
 PIXORA_CONFIG_SAVED
