@@ -10528,6 +10528,47 @@
       ]
     },
     {
+      "id": "meteor_watch",
+      "name": "Meteor Watch",
+      "category": "Weather",
+      "detail": "Meteor showers and tonight sky score",
+      "description": "Meteor showers and tonight sky score",
+      "author": "bptworld",
+      "version": "1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/addons/meteor_watch.py",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/meteor_watch.webp",
+      "options": [
+        {
+          "key": "zipCode",
+          "label": "ZIP Code",
+          "type": "text",
+          "default": "",
+          "maxlength": 5,
+          "inputmode": "numeric"
+        },
+        {
+          "key": "mode",
+          "label": "Mode",
+          "type": "select",
+          "default": "auto",
+          "choices": [
+            {
+              "value": "auto",
+              "label": "Auto"
+            },
+            {
+              "value": "score",
+              "label": "Tonight score"
+            },
+            {
+              "value": "shower",
+              "label": "Meteor shower"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "surf_report",
       "name": "Surf Report",
       "category": "Weather",
