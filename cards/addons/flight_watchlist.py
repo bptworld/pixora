@@ -223,6 +223,22 @@ def _detail_is_stale_completed(detail):
     return arrival.astimezone(timezone.utc) < datetime.now(timezone.utc) - timedelta(minutes=15)
 
 
+def _flight_has_departed_status(*values):
+    text = " ".join(str(value or "").upper() for value in values)
+    return any(phrase in text for phrase in ("DEPARTED", "EN ROUTE", "ENROUTE", "AIRBORNE", "IN AIR", "IN FLIGHT"))
+
+
+def _terminal_label(value):
+    text = str(value or "").strip().upper().replace(" ", "")
+    if not text:
+        return ""
+    if text.startswith("T-"):
+        return text
+    if len(text) == 2 and text.startswith("T") and text[1:].isalnum():
+        text = text[1:]
+    return "T-" + text
+
+
 def _fetch_flightstats(flight):
     airline = flight["airline"]
     number = flight["number"]
@@ -262,6 +278,7 @@ def _summary(flight):
     status_text = str(status.get("statusDescription") or status.get("status") or note.get("message") or final or "").upper()
     arr_dt = _parse_iso(schedule.get("estimatedActualArrivalUTC") or schedule.get("scheduledArrivalUTC"))
     dep_dt = _parse_iso(schedule.get("estimatedActualDepartureUTC") or schedule.get("scheduledDepartureUTC"))
+    destination_fields = _flight_has_departed_status(final, status_text, note.get("phase"), note.get("message")) or bool(schedule.get("estimatedActualDepartureUTC"))
     return {
         **flight,
         "origin": _airport_code(dep),
@@ -270,8 +287,8 @@ def _summary(flight):
         "status_text": status_text or "SCHEDULED",
         "departure_time": _time_text(dep),
         "arrival_time": _time_text(arr),
-        "gate": str(arr.get("gate") or dep.get("gate") or "").upper(),
-        "terminal": str(arr.get("terminal") or dep.get("terminal") or "").upper(),
+        "gate": str(arr.get("gate") or ("" if destination_fields else dep.get("gate")) or "").upper(),
+        "terminal": str(arr.get("terminal") or ("" if destination_fields else dep.get("terminal")) or "").upper(),
         "baggage": str(arr.get("baggage") or "").upper(),
         "arrival_dt": arr_dt,
         "departure_dt": dep_dt,
@@ -526,7 +543,7 @@ def _draw_pickup(item, width=64):
         x = 18
     _draw_flight_header(image, draw, item, bold, width, x=x)
     route = f"{item.get('origin','---')}>{item.get('destination','---')} ARR {item.get('arrival_time') or '--'}"
-    extras = " ".join(part for part in (("G" + item["gate"]) if item.get("gate") else "", ("T" + item["terminal"]) if item.get("terminal") else "", ("BAG " + item["baggage"]) if item.get("baggage") else "") if part)
+    extras = " ".join(part for part in (("G" + item["gate"]) if item.get("gate") else "", _terminal_label(item.get("terminal")), ("BAG " + item["baggage"]) if item.get("baggage") else "") if part)
     draw_sharp_text(image, (1, 8), _fit(draw, route, font, width - 2), (100, 190, 255), font)
     draw_sharp_text(image, (1, 15), _fit(draw, extras or item.get("status_text") or "FLIGHT STATUS", small_font, width - 2), (255, 220, 90), small_font)
     status_y = 22 if width <= 64 else 24

@@ -548,6 +548,22 @@ def _fs_time_text(airport):
     return (text + ampm[:1]).upper().replace(" ", "")
 
 
+def _flight_has_departed_status(*values):
+    text = " ".join(str(value or "").upper() for value in values)
+    return any(phrase in text for phrase in ("DEPARTED", "EN ROUTE", "ENROUTE", "AIRBORNE", "IN AIR", "IN FLIGHT"))
+
+
+def _terminal_label(value):
+    text = str(value or "").strip().upper().replace(" ", "")
+    if not text:
+        return ""
+    if text.startswith("T-"):
+        return text
+    if len(text) == 2 and text.startswith("T") and text[1:].isalnum():
+        text = text[1:]
+    return "T-" + text
+
+
 def _flightstats_summary(detail):
     if not isinstance(detail, dict):
         return {}
@@ -557,10 +573,11 @@ def _flightstats_summary(detail):
     note = detail.get("flightNote") if isinstance(detail.get("flightNote"), dict) else {}
     final_status = str(status.get("finalStatus") or status.get("status") or note.get("phase") or "").upper()
     status_text = str(status.get("statusDescription") or status.get("status") or note.get("message") or "").upper()
-    gate = str(arrival.get("gate") or departure.get("gate") or "").upper()
-    terminal = str(arrival.get("terminal") or departure.get("terminal") or "").upper()
-    baggage = str(arrival.get("baggage") or "").upper()
     schedule = detail.get("schedule") if isinstance(detail.get("schedule"), dict) else {}
+    destination_fields = _flight_has_departed_status(final_status, status_text, note.get("phase"), note.get("message")) or bool(schedule.get("estimatedActualDepartureUTC"))
+    gate = str(arrival.get("gate") or ("" if destination_fields else departure.get("gate")) or "").upper()
+    terminal = str(arrival.get("terminal") or ("" if destination_fields else departure.get("terminal")) or "").upper()
+    baggage = str(arrival.get("baggage") or "").upper()
     additional = detail.get("additionalFlightInfo") if isinstance(detail.get("additionalFlightInfo"), dict) else {}
     equipment = additional.get("equipment") if isinstance(additional.get("equipment"), dict) else {}
     return {
@@ -968,7 +985,7 @@ def _schedule_line(flight):
     if gate:
         parts.append("G" + gate)
     if terminal:
-        parts.append("T" + terminal)
+        parts.append(_terminal_label(terminal))
     if baggage:
         parts.append("B" + baggage)
     if arrival:
