@@ -8,7 +8,14 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-from card_utils import draw_sharp_text, fetch_airline_logo, haversine_miles, lookup_airline
+from card_utils import (
+    draw_pixora_bold_number,
+    draw_sharp_text,
+    fetch_airline_logo,
+    haversine_miles,
+    lookup_airline,
+    pixora_bold_number_size,
+)
 
 CARD_ID = "flight_watchlist"
 CARD_NAME = "Flight Watchlist"
@@ -85,6 +92,22 @@ _ICAO_TO_IATA = {
     "AFR": "AF", "DLH": "LH", "UAE": "EK", "ACA": "AC",
 }
 _IATA_TO_ICAO = {v: k for k, v in _ICAO_TO_IATA.items()}
+_AIRLINE_COLORS = {
+    "AA": (0, 80, 160),
+    "AC": (210, 20, 36),
+    "AF": (0, 35, 120),
+    "AS": (0, 85, 135),
+    "B6": (0, 70, 160),
+    "BA": (0, 60, 130),
+    "DL": (180, 20, 35),
+    "EK": (210, 20, 35),
+    "F9": (0, 115, 60),
+    "HA": (85, 35, 130),
+    "LH": (255, 190, 0),
+    "NK": (255, 220, 0),
+    "UA": (0, 85, 170),
+    "WN": (45, 75, 170),
+}
 
 
 def _clean(value):
@@ -291,6 +314,54 @@ def _status_color(text):
     return (95, 230, 135)
 
 
+def _airline_color(item):
+    airline = _clean((item or {}).get("airline") or "")[:2]
+    return _AIRLINE_COLORS.get(airline, (0, 17, 45))
+
+
+def _draw_flight_header(image, draw, item, bold, width, x=1):
+    from PIL import Image, ImageDraw
+    title = _fit(draw, item["ident"], bold, width - x - 1)
+    mask = Image.new("1", image.size, 0)
+    ImageDraw.Draw(mask).text((x, -3), title, fill=1, font=bold)
+    title_bbox = mask.getbbox() or (0, 0, 0, 7)
+    draw.rectangle((0, 0, width - 1, min(image.height - 1, title_bbox[3])), fill=_airline_color(item))
+    draw_sharp_text(image, (x, -3), title, (255, 255, 255), bold)
+
+
+def _split_bold_value(value):
+    match = re.match(r"^([\d\s:.,+\-/$%]+)([A-Z]+)?$", str(value or "").upper())
+    if not match or not any(ch.isdigit() for ch in match.group(1)):
+        return "", str(value or "").upper()
+    return match.group(1), match.group(2) or ""
+
+
+def _bold_value_size(draw, value, suffix_font, scale=2, spacing=1, suffix_gap=2):
+    number, suffix = _split_bold_value(value)
+    if not number:
+        bbox = draw.textbbox((0, 0), str(value or ""), font=suffix_font)
+        return bbox[2] - bbox[0], bbox[3] - bbox[1]
+    nw, nh = pixora_bold_number_size(number, scale=scale, spacing=spacing)
+    sw = draw.textbbox((0, 0), suffix, font=suffix_font)[2] if suffix else 0
+    return nw + (suffix_gap if suffix else 0) + sw, nh
+
+
+def _draw_bold_value(image, draw, xy, value, color, suffix_font, scale=2, spacing=1, suffix_gap=2):
+    number, suffix = _split_bold_value(value)
+    if not number:
+        draw_sharp_text(image, xy, str(value or ""), color, suffix_font)
+        return
+    x, y = xy
+    draw_pixora_bold_number(draw, (x, y), number, color, scale=scale, spacing=spacing)
+    if suffix:
+        nx = x + pixora_bold_number_size(number, scale=scale, spacing=spacing)[0] + suffix_gap
+        try:
+            suffix_top = suffix_font.getbbox(suffix)[1]
+        except Exception:
+            suffix_top = 0
+        draw_sharp_text(image, (nx, y - suffix_top), suffix, color, suffix_font)
+
+
 def _fit(draw, text, font, max_width):
     text = str(text or "")
     while text and draw.textbbox((0, 0), text, font=font)[2] > max_width:
@@ -366,13 +437,12 @@ def _draw_pickup(item, width=64):
     font, bold, _big = _fonts()
     image = Image.new("RGB", (width, 32), (0, 5, 18))
     draw = ImageDraw.Draw(image)
-    draw.rectangle((0, 0, width - 1, 8), fill=(0, 17, 45))
     logo = fetch_airline_logo(item["airline"])
     x = 1
     if logo and width > 64:
         image.paste(logo, (1, 0), logo)
         x = 18
-    draw_sharp_text(image, (x, -3), _fit(draw, item["ident"], bold, width - x - 1), (245, 250, 255), bold)
+    _draw_flight_header(image, draw, item, bold, width, x=x)
     route = f"{item.get('origin','---')}>{item.get('destination','---')} ARR {item.get('arrival_time') or '--'}"
     extras = " ".join(part for part in (("G" + item["gate"]) if item.get("gate") else "", ("T" + item["terminal"]) if item.get("terminal") else "", ("BAG " + item["baggage"]) if item.get("baggage") else "") if part)
     draw_sharp_text(image, (1, 8), _fit(draw, route, font, width - 2), (100, 190, 255), font)
@@ -400,9 +470,10 @@ def _draw_countdown(item, width=64):
     value = "--"
     if minutes is not None:
         value = "NOW" if minutes <= 0 else f"{minutes}M"
-    draw_sharp_text(image, (1, -3), _fit(draw, item["ident"], bold, width - 2), (245, 250, 255), bold)
-    vw = draw.textbbox((0, 0), value, font=big)[2]
-    draw_sharp_text(image, ((width - vw) // 2, 7), value, (255, 220, 90), big)
+    _draw_flight_header(image, draw, item, bold, width)
+    vw, _vh = _bold_value_size(draw, value, font)
+    value_y = 8 if width <= 64 else 9
+    _draw_bold_value(image, draw, ((width - vw) // 2, value_y), value, (255, 220, 90), font)
     route = f"{item.get('origin','---')}>{item.get('destination','---')} {label}"
     route_y = 20 if width <= 64 else 24
     draw_sharp_text(image, (1, route_y), _fit(draw, route, font, width - 2), (100, 190, 255), font)
@@ -416,9 +487,10 @@ def _draw_near(item, near, width=64):
     draw = ImageDraw.Draw(image)
     miles = near.get("miles") if near else None
     value = "--MI" if miles is None else f"{int(round(miles))}MI"
-    draw_sharp_text(image, (1, -3), _fit(draw, item["ident"], bold, width - 2), (245, 250, 255), bold)
-    vw = draw.textbbox((0, 0), value, font=big)[2]
-    draw_sharp_text(image, ((width - vw) // 2, 7), value, (255, 220, 90), big)
+    _draw_flight_header(image, draw, item, bold, width)
+    vw, _vh = _bold_value_size(draw, value, font)
+    value_y = 8 if width <= 64 else 9
+    _draw_bold_value(image, draw, ((width - vw) // 2, value_y), value, (255, 220, 90), font)
     route = f"{item.get('origin','---')}>{item.get('destination','---')}"
     route_y = 20 if width <= 64 else 24
     draw_sharp_text(image, (1, route_y), _fit(draw, route, font, width - 2), (100, 190, 255), font)
