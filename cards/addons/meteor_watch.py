@@ -176,25 +176,71 @@ def _location(zip_code, opts=None):
     return float(place["latitude"]), float(place["longitude"])
 
 
-def _cloud_cover(lat, lon):
+def _log(opts, message):
+    logger = (opts or {}).get("_log")
+    if callable(logger):
+        try:
+            logger(message)
+        except Exception:
+            pass
+
+
+def _nws_cloud_cover(lat, lon):
+    headers = {"User-Agent": "Pixora/1.0 support@pixorahq.com", "Accept": "application/geo+json, application/json"}
+    point = fetch_json_with_headers(
+        f"https://api.weather.gov/points/{lat:.4f},{lon:.4f}",
+        headers=headers,
+        seconds=86400,
+        cache_key=f"meteor:nws:point:{lat:.3f}:{lon:.3f}",
+    )
+    grid_url = ((point.get("properties") or {}).get("forecastGridData") or "") if isinstance(point, dict) else ""
+    if not grid_url:
+        return None
+    grid = fetch_json_with_headers(
+        grid_url,
+        headers=headers,
+        seconds=1800,
+        cache_key=f"meteor:nws:grid:{lat:.3f}:{lon:.3f}",
+    )
+    values = (((grid.get("properties") or {}).get("skyCover") or {}).get("values") or []) if isinstance(grid, dict) else []
+    nums = [float(item.get("value")) for item in values[:8] if isinstance(item, dict) and isinstance(item.get("value"), (int, float))]
+    if not nums:
+        return None
+    return int(round(sum(nums) / len(nums)))
+
+
+def _cloud_cover(lat, lon, opts=None):
     params = urllib.parse.urlencode({
         "latitude": f"{lat:.4f}",
         "longitude": f"{lon:.4f}",
+        "current": "cloud_cover",
         "hourly": "cloud_cover",
         "forecast_days": 1,
         "timezone": "auto",
     })
-    data = fetch_json_with_headers(
-        "https://api.open-meteo.com/v1/forecast?" + params,
-        headers={"User-Agent": "Pixora/1.0 meteor_watch"},
-        seconds=1800,
-        cache_key=f"meteor:cloud:{lat:.3f}:{lon:.3f}",
-    )
-    values = ((data.get("hourly") or {}).get("cloud_cover") or []) if isinstance(data, dict) else []
-    nums = [float(v) for v in values if isinstance(v, (int, float))]
-    if not nums:
-        return None
-    return int(round(sum(nums) / len(nums)))
+    try:
+        data = fetch_json_with_headers(
+            "https://api.open-meteo.com/v1/forecast?" + params,
+            headers={"User-Agent": "Pixora/1.0 meteor_watch"},
+            seconds=1800,
+            cache_key=f"meteor:cloud:{lat:.3f}:{lon:.3f}",
+        )
+        current = ((data.get("current") or {}).get("cloud_cover")) if isinstance(data, dict) else None
+        if isinstance(current, (int, float)):
+            return int(round(float(current)))
+        values = ((data.get("hourly") or {}).get("cloud_cover") or []) if isinstance(data, dict) else []
+        nums = [float(v) for v in values if isinstance(v, (int, float))]
+        if nums:
+            return int(round(sum(nums) / len(nums)))
+    except Exception as exc:
+        _log(opts, f"open-meteo cloud failed: {exc}")
+    try:
+        fallback = _nws_cloud_cover(lat, lon)
+        if fallback is not None:
+            return fallback
+    except Exception as exc:
+        _log(opts, f"nws cloud failed: {exc}")
+    return None
 
 
 def _month_day(year, value):
@@ -257,8 +303,9 @@ def _data(opts):
     cloud = None
     try:
         lat, lon = _location(zip_code, opts)
-        cloud = _cloud_cover(lat, lon)
-    except Exception:
+        cloud = _cloud_cover(lat, lon, opts)
+    except Exception as exc:
+        _log(opts, f"meteor location/cloud failed zip={zip_code or '-'}: {exc}")
         pass
     shower = _shower_status()
     moon, age = _moon_illumination()
