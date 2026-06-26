@@ -64,6 +64,7 @@ String deviceId;
 uint32_t lastPollMs = 0;
 uint32_t dwellMs = 10000;
 uint8_t brightnessPercent = 70;
+bool hasDisplayedFrame = false;
 
 String trimSlashes(String value) {
   value.trim();
@@ -166,6 +167,10 @@ void showWifiStatus() {
 
 void showCloudStatus() {
   showStatus("WAITING", "ON CLOUD", color565Scaled(20, 184, 166));
+}
+
+void showFirstCardStatus() {
+  showStatus("FETCHING", "FIRST CARD", color565Scaled(20, 184, 166));
 }
 
 void showSetupStatus() {
@@ -276,6 +281,7 @@ bool connectWifi() {
   }
   if (WiFi.status() == WL_CONNECTED) {
     Serial.printf("WiFi connected: %s\n", WiFi.localIP().toString().c_str());
+    showCloudStatus();
     return true;
   }
   showWifiStatus();
@@ -425,7 +431,11 @@ void pollNextFrame() {
     return;
   }
 
-  showCloudStatus();
+  if (!hasDisplayedFrame) {
+    showFirstCardStatus();
+  } else {
+    showCloudStatus();
+  }
   String url = nextUrl();
   WiFiClientSecure secureClient;
   WiFiClient plainClient;
@@ -460,6 +470,8 @@ void pollNextFrame() {
     if (!drawRgb565Stream(http.getStreamPtr(), http.getSize())) {
       Serial.println("Failed to draw rgb565 frame");
       showCloudStatus();
+    } else {
+      hasDisplayedFrame = true;
     }
   } else {
     Serial.printf("Frame fetch failed: HTTP %d\n", code);
@@ -483,7 +495,10 @@ void setup() {
   showStatus("PIXORA", "BOOT");
 
   Serial.printf("Pixora firmware %s device=%s target=%s width=%d\n", PIXORA_VERSION, deviceId.c_str(), PIXORA_DEVICE_TARGET, PIXORA_PANEL_WIDTH);
-  connectWifi();
+  if (connectWifi()) {
+    pollNextFrame();
+    lastPollMs = millis();
+  }
 }
 
 void loop() {
