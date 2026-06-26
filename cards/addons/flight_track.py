@@ -1303,14 +1303,10 @@ def _draw_star(draw, x, y, color):
 
 
 def _draw_aircraft_marker(draw, x, y, track, color=(255, 90, 210)):
-    if track is None:
-        draw.rectangle((x - 1, y - 1, x + 1, y + 1), fill=color)
-        return
-    angle = math.radians(float(track) - 90)
-    nose = (x + int(round(math.cos(angle) * 3)), y + int(round(math.sin(angle) * 3)))
-    tail = (x - int(round(math.cos(angle) * 2)), y - int(round(math.sin(angle) * 2)))
-    draw.line((tail[0], tail[1], nose[0], nose[1]), fill=color)
-    draw.rectangle((x - 1, y - 1, x + 1, y + 1), fill=color)
+    draw.point((x - 1, y - 1), fill=color)
+    draw.point((x, y - 1), fill=color)
+    draw.point((x - 1, y), fill=color)
+    draw.point((x, y), fill=color)
 
 
 def _draw_route_map_body(image, draw, flight, bounds):
