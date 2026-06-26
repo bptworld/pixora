@@ -688,7 +688,13 @@ def render(options=None):
     if mode == "pickup":
         frames = [_draw_pickup(item, width) for item in items]
     elif mode == "countdown":
-        frames = [_draw_countdown(item, width) if item.get("in_air") else _draw_countdown_waiting(item, width) for item in items]
+        countdown_items = [item for item in items if item.get("in_air")]
+        if _truthy(opts.get("skipNoData")):
+            if not countdown_items:
+                return None
+            frames = [_draw_countdown(item, width) for item in countdown_items]
+        else:
+            frames = [_draw_countdown(item, width) if item.get("in_air") else _draw_countdown_waiting(item, width) for item in items]
     elif mode == "near":
         frames = [_draw_near(item, near_by_ident.get(_state_key(item)), width) for item in items]
     else:
