@@ -300,9 +300,9 @@ def _draw_fireball(draw, width, height, step, total):
     draw.point((x - 1, y - 1), fill=(255, 255, 255))
 
 
-def _draw_header(draw, width, title="METEOR"):
-    draw.rectangle((0, 0, width - 1, 6), fill=(9, 42, 58))
-    _draw_pixel_text(draw, (1, 1), title, (95, 230, 255))
+def _draw_header(draw, width, title="METEOR WATCH"):
+    draw.rectangle((0, 0, width - 1, 6), fill=(5, 25, 38))
+    _draw_pixel_text(draw, (1, 1), title, (120, 245, 255))
 
 
 def _render_64(data, mode, meteor_step=0, meteor_total=1):

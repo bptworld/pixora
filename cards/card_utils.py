@@ -56,6 +56,7 @@ _NUMERIC_SEGMENTS = {
     "9": "abfgcd",
 }
 _PIXORA_BOLD_NUMERIC_CHARS = set(_PIXORA_BOLD_DIGITS) | set(_PIXORA_BOLD_SYMBOLS) | {" "}
+_RUNTIME_SETTINGS_STACK = []
 
 
 def _is_bold_font(font):
@@ -144,7 +145,27 @@ def pixora_mixed_bold_number_size(text, font, scale=1, spacing=1):
     return width, height
 
 
+def use_runtime_settings(settings):
+    token = len(_RUNTIME_SETTINGS_STACK)
+    _RUNTIME_SETTINGS_STACK.append(dict(settings or {}))
+    return token
+
+
+def reset_runtime_settings(token=None):
+    if token is None:
+        _RUNTIME_SETTINGS_STACK.clear()
+        return
+    try:
+        del _RUNTIME_SETTINGS_STACK[int(token):]
+    except Exception:
+        _RUNTIME_SETTINGS_STACK.clear()
+
+
 def _settings_value(key, default=""):
+    if _RUNTIME_SETTINGS_STACK:
+        value = _RUNTIME_SETTINGS_STACK[-1].get(key)
+        if value not in (None, ""):
+            return value
     env_key = "PIXORA_" + re.sub(r"[^A-Z0-9]+", "_", key.upper())
     if os.environ.get(env_key):
         return os.environ.get(env_key)
