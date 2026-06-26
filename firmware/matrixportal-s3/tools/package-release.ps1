@@ -8,10 +8,7 @@ $ErrorActionPreference = "Stop"
 $projectRoot = Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..")
 $repoRoot = Resolve-Path -LiteralPath (Join-Path $projectRoot "..\..")
 $releaseDir = Join-Path $repoRoot "releases\firmware"
-$dropDir = Resolve-Path -LiteralPath (Join-Path $repoRoot "..\Firmware") -ErrorAction SilentlyContinue
-if (!$dropDir) {
-  $dropDir = Join-Path $repoRoot "..\Firmware"
-}
+$dropDir = Join-Path $repoRoot "firmware"
 $pio = Join-Path $env:APPDATA "Python\Python313\Scripts\pio.exe"
 
 if (!(Test-Path -LiteralPath $pio)) {
