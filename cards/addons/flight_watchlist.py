@@ -141,13 +141,13 @@ def _configured(opts):
     return flights
 
 
-def _fetch_json(url, seconds=600, timeout=2.0):
+def _fetch_json(url, seconds=600, timeout=2.0, force=False):
     now = time.time()
     for key, item in list(_CACHE.items()):
         if item.get("expires", 0) <= now:
             _CACHE.pop(key, None)
     cached = _CACHE.get(url)
-    if cached and cached["expires"] > now:
+    if not force and cached and cached["expires"] > now:
         return cached["data"]
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (compatible; Pixora/0.1)", "Accept": "application/json"})
     with urllib.request.urlopen(req, timeout=timeout) as response:
@@ -191,6 +191,38 @@ def _parse_iso(value):
         return None
 
 
+def _detail_schedule_time(detail, *keys):
+    schedule = detail.get("schedule") if isinstance(detail, dict) and isinstance(detail.get("schedule"), dict) else {}
+    for key in keys:
+        parsed = _parse_iso(schedule.get(key))
+        if parsed:
+            return parsed
+    return None
+
+
+def _detail_is_stale_completed(detail):
+    if not isinstance(detail, dict):
+        return False
+    status = detail.get("status") if isinstance(detail.get("status"), dict) else {}
+    note = detail.get("flightNote") if isinstance(detail.get("flightNote"), dict) else {}
+    text = " ".join(
+        str(value or "").upper()
+        for value in (
+            status.get("finalStatus"),
+            status.get("status"),
+            status.get("statusDescription"),
+            note.get("phase"),
+            note.get("message"),
+        )
+    )
+    if not (detail.get("isLanded") or note.get("landed") or "ARRIVED" in text or "LANDED" in text):
+        return False
+    arrival = _detail_schedule_time(detail, "estimatedActualArrivalUTC", "scheduledArrivalUTC")
+    if not arrival:
+        return False
+    return arrival.astimezone(timezone.utc) < datetime.now(timezone.utc) - timedelta(minutes=15)
+
+
 def _fetch_flightstats(flight):
     airline = flight["airline"]
     number = flight["number"]
@@ -206,6 +238,14 @@ def _fetch_flightstats(flight):
         except Exception:
             continue
         detail = data.get("data") if isinstance(data, dict) else {}
+        if _detail_is_stale_completed(detail):
+            try:
+                data = _fetch_json(url, seconds=120, timeout=2.2, force=True)
+                detail = data.get("data") if isinstance(data, dict) else {}
+            except Exception:
+                pass
+        if _detail_is_stale_completed(detail):
+            continue
         if isinstance(detail, dict) and (detail.get("departureAirport") or detail.get("arrivalAirport")):
             return detail
     return {}
@@ -476,6 +516,7 @@ def _draw_watchlist(items, width=64):
 def _draw_pickup(item, width=64):
     from PIL import Image, ImageDraw
     font, bold, _big = _fonts()
+    small_font = _compact_watchlist_font()
     image = Image.new("RGB", (width, 32), (0, 5, 18))
     draw = ImageDraw.Draw(image)
     logo = fetch_airline_logo(item["airline"])
@@ -487,8 +528,8 @@ def _draw_pickup(item, width=64):
     route = f"{item.get('origin','---')}>{item.get('destination','---')} ARR {item.get('arrival_time') or '--'}"
     extras = " ".join(part for part in (("G" + item["gate"]) if item.get("gate") else "", ("T" + item["terminal"]) if item.get("terminal") else "", ("BAG " + item["baggage"]) if item.get("baggage") else "") if part)
     draw_sharp_text(image, (1, 8), _fit(draw, route, font, width - 2), (100, 190, 255), font)
-    draw_sharp_text(image, (1, 16), _fit(draw, extras or item.get("status_text") or "FLIGHT STATUS", font, width - 2), (255, 220, 90), font)
-    status_y = 20 if width <= 64 else 24
+    draw_sharp_text(image, (1, 15), _fit(draw, extras or item.get("status_text") or "FLIGHT STATUS", small_font, width - 2), (255, 220, 90), small_font)
+    status_y = 22 if width <= 64 else 24
     draw_sharp_text(image, (1, status_y), _fit(draw, item.get("status") or "SCHEDULED", font, width - 2), _status_color(item.get("status")), font)
     return image
 
