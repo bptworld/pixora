@@ -61,7 +61,7 @@ def render(options=None):
         big = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 14)
     except Exception:
         font = bold = big = ImageFont.load_default()
-    draw.rectangle((0, 0, width - 1, 8), fill=(28, 8, 18))
+    draw.rectangle((0, 0, width - 1, 6), fill=(28, 8, 18))
     title = f"ESPN FANTASY W{week}"
     tw = draw.textbbox((0, 0), title, font=bold)[2]
     draw_sharp_text(image, ((width - tw) // 2, -3), title, (255, 80, 80), bold)

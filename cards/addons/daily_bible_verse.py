@@ -161,7 +161,7 @@ def _render_scroll(label, verse, width=64, speed="normal"):
 
     base = Image.new("RGB", (width, 32), (0, 4, 10))
     base_draw = ImageDraw.Draw(base)
-    base_draw.rectangle((0, 0, width - 1, 8), fill=(9, 20, 25))
+    base_draw.rectangle((0, 0, width - 1, 6), fill=(9, 20, 25))
     label_text = label[:22 if width == 128 else 10].upper()
     draw_sharp_text(base, (1, -3), label_text, (112, 232, 190), label_font)
 

@@ -512,7 +512,7 @@ def _draw_matchup_card(image, draw, fonts, matchup, header, bottom="", show_reco
     left_winner = bool(matchup.get("leftWinner"))
     right_winner = bool(matchup.get("rightWinner"))
 
-    draw.rectangle((0, 0, width - 1, 7), fill=(28, 6, 9))
+    draw.rectangle((0, 0, width - 1, 6), fill=(28, 6, 9))
     draw.rectangle((0, 29, width - 1, 31), fill=(70, 8, 12))
     header = _fit_text(draw, header, tiny, width - 2)
     draw_sharp_text(image, (1, -4), header, _COLOR, tiny)

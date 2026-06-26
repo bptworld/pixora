@@ -80,7 +80,7 @@ def render(options=None):
     if width == 128:
         image = Image.new("RGB", (128, 32), (0, 5, 12))
         draw = ImageDraw.Draw(image)
-        draw.rectangle((0, 0, 127, 8), fill=(0, 20, 35))
+        draw.rectangle((0, 0, 127, 6), fill=(0, 20, 35))
         title = title[:20].upper()
         tw = draw.textbbox((0, 0), title, font=bold)[2]
         draw_sharp_text(image, ((128 - tw) // 2, -3), title, (65, 190, 255), bold)
@@ -91,15 +91,15 @@ def render(options=None):
             vw = draw.textbbox((0, 0), value, font=bold)[2]
             draw_sharp_text(image, ((128 - vw) // 2, 10), value, (245, 250, 255), bold)
         domain = entity_id.split(".")[0][:12].upper()
-        draw_sharp_text(image, (2, 24), domain, (150, 170, 185), font)
+        draw_sharp_text(image, (2, 22), domain, (150, 170, 185), font)
         entity = entity_id.split(".")[-1].replace("_", " ")[:16].upper()
         ew = draw.textbbox((0, 0), entity, font=font)[2]
-        draw_sharp_text(image, (126 - ew, 24), entity, (80, 105, 130), font)
+        draw_sharp_text(image, (126 - ew, 22), entity, (80, 105, 130), font)
         out = BytesIO()
         image.save(out, "WEBP", lossless=True, quality=100)
         return out.getvalue()
 
-    draw.rectangle((0, 0, 63, 8), fill=(0, 20, 35))
+    draw.rectangle((0, 0, 63, 6), fill=(0, 20, 35))
     title = title[:12].upper()
     tw = draw.textbbox((0, 0), title, font=bold)[2]
     draw_sharp_text(image, ((64 - tw) // 2, -3), title, (65, 190, 255), bold)
@@ -109,7 +109,7 @@ def render(options=None):
     else:
         vw = draw.textbbox((0, 0), value, font=bold)[2]
         draw_sharp_text(image, ((64 - vw) // 2, 10), value, (245, 250, 255), bold)
-    draw_sharp_text(image, (1, 24), entity_id.split(".")[0][:8].upper(), (150, 170, 185), font)
+    draw_sharp_text(image, (1, 22), entity_id.split(".")[0][:8].upper(), (150, 170, 185), font)
     out = BytesIO()
     image.save(out, "WEBP", lossless=True, quality=100)
     return out.getvalue()

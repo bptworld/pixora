@@ -125,7 +125,7 @@ def _render_64(now, time_text, font):
     pct = f"{int(progress * 100):02d}%"
     weekday = now.strftime("%a").upper()
 
-    draw.rectangle((0, 0, 63, 7), fill=(5, 15, 22))
+    draw.rectangle((0, 0, 63, 6), fill=(5, 15, 22))
     draw_sharp_text(image, (1, -4), weekday, (150, 178, 196), font)
     pct_w = draw.textbbox((0, 0), pct, font=font)[2]
     draw_sharp_text(image, (63 - pct_w, -4), pct, (62, 224, 150), font)

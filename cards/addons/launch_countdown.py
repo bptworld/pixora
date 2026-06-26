@@ -565,7 +565,7 @@ def _draw_launch_page(launch, opts, rocket_x=None, rocket_y=5, rocket_offset=0, 
         time_w = draw.textbbox((0, 0), time_text, font=font)[2]
         draw_sharp_text(image, (max(1, (content_w - time_w) // 2), 16), time_text, orange, font)
         rocket_w = draw.textbbox((0, 0), rocket, font=font)[2]
-        draw_sharp_text(image, (max(1, (content_w - rocket_w) // 2), 23), rocket, muted, font)
+        draw_sharp_text(image, (max(1, (content_w - rocket_w) // 2), 22), rocket, muted, font)
 
     if flying_frame is None:
         _draw_rocket(draw, (rocket_x if rocket_x is not None else width - 17) + rocket_offset, rocket_y, orange)

@@ -320,7 +320,7 @@ def _draw_128(img, draw, rows, station_name, units, f):
     height = _height_label(next_event["height"], units)
     draw_sharp_text(img, (15, 21), height, (145, 210, 235), f["text"])
     station_w = draw.textbbox((0, 0), station, font=f["tiny"])[2]
-    draw_sharp_text(img, (127 - station_w, 23), station, (145, 165, 182), f["tiny"])
+    draw_sharp_text(img, (127 - station_w, 22), station, (145, 165, 182), f["tiny"])
 
 
 def _render(rows, station_name, units, width):

@@ -257,7 +257,7 @@ def _draw_frame(rows, offset, width, font, result_font, bold):
 
     image = Image.new("RGB", (width, 32), (3, 8, 12))
     draw = ImageDraw.Draw(image)
-    draw.rectangle((0, 0, width - 1, 8), fill=(4, 24, 20))
+    draw.rectangle((0, 0, width - 1, 6), fill=(4, 24, 20))
     title = "WORLD CUP TODAY" if width == 128 else "WC TODAY"
     draw_sharp_text(image, (1, -3), title, _COLOR, bold)
 

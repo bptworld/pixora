@@ -52,7 +52,7 @@ def render(options=None):
         big = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 14)
     except Exception:
         font = bold = big = ImageFont.load_default()
-    draw.rectangle((0, 0, width - 1, 8), fill=(36, 14, 58))
+    draw.rectangle((0, 0, width - 1, 6), fill=(36, 14, 58))
     title = "YAHOO FANTASY"
     tw = draw.textbbox((0, 0), title, font=bold)[2]
     draw_sharp_text(image, ((width - tw) // 2, -3), title, (190, 130, 255), bold)

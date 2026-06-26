@@ -38,7 +38,7 @@ def _draw(rows, width, offset=0):
         bold = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
     except Exception:
         font = bold = ImageFont.load_default()
-    draw.rectangle((0, 0, width - 1, 8), fill=(36, 14, 58))
+    draw.rectangle((0, 0, width - 1, 6), fill=(36, 14, 58))
     title = "YAHOO LINEUP"
     tw = draw.textbbox((0, 0), title, font=bold)[2]
     draw_sharp_text(image, ((width - tw) // 2, -3), title, (190, 130, 255), bold)

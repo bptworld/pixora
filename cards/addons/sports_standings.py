@@ -234,7 +234,7 @@ def _draw_header(image, title, color, font, bold, width=64):
     from PIL import ImageDraw
 
     draw = ImageDraw.Draw(image)
-    draw.rectangle((0, 0, width - 1, 8), fill=(6, 18, 26))
+    draw.rectangle((0, 0, width - 1, 6), fill=(6, 18, 26))
     if width == 128:
         text = f"{title} STANDINGS"
         tw = _tight_text_width(text, bold, spacing=-1)

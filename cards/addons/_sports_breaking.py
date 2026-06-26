@@ -1052,7 +1052,7 @@ def render_score_alert_frames(team, kind="score"):
         image = Image.new("RGB", (width, 32), bg if step % 2 == 0 else (0, 0, 0))
         draw = ImageDraw.Draw(image)
         if not _draw_player_goal_device_frame(image, draw, team, kind, step, width, color, alt, small, big):
-            draw.rectangle((0, 0, width - 1, 8), fill=(0, 0, 0))
+            draw.rectangle((0, 0, width - 1, 6), fill=(0, 0, 0))
             abbr_w = draw.textbbox((0, 0), abbr, font=small)[2]
             draw_sharp_text(image, ((width - abbr_w) // 2, -3), abbr, alt, small)
             line1_w = draw.textbbox((0, 0), line1, font=big)[2]

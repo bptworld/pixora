@@ -129,7 +129,7 @@ def render(options=None):
     if opts.get("_target") == "matrixportal-s3-128x32":
         image = Image.new("RGB", (128, 32), (0, 5, 12))
         draw = ImageDraw.Draw(image)
-        draw.rectangle((0, 0, 127, 8), fill=(5, 18, 25))
+        draw.rectangle((0, 0, 127, 6), fill=(5, 18, 25))
         title = "MUSIC ASST"
         tw = draw.textbbox((0, 0), title, font=bold)[2]
         draw_sharp_text(image, ((128 - tw) // 2, -3), title, color, bold)
@@ -140,12 +140,12 @@ def render(options=None):
         draw_sharp_text(image, (26, 17), (info["artist"] or info["player"] or "PLAYER")[:20].upper(), (150, 170, 185), font)
         state = "PLAY" if info["playing"] else "IDLE"
         sw = draw.textbbox((0, 0), state, font=font)[2]
-        draw_sharp_text(image, (126 - sw, 24), state, color, font)
+        draw_sharp_text(image, (126 - sw, 22), state, color, font)
         out = BytesIO()
         image.save(out, "WEBP", lossless=True, quality=100)
         return out.getvalue()
 
-    draw.rectangle((0, 0, 63, 8), fill=(5, 18, 25))
+    draw.rectangle((0, 0, 63, 6), fill=(5, 18, 25))
     draw_sharp_text(image, (1, -3), "MUSIC ASST", color, bold)
     draw.ellipse((3, 12, 14, 23), outline=color, width=2)
     draw.rectangle((13, 9, 16, 19), fill=color)
@@ -154,7 +154,7 @@ def render(options=None):
     draw_sharp_text(image, (24, 17), (info["artist"] or info["player"] or "PLAYER")[:9].upper(), (150, 170, 185), font)
     state = "PLAY" if info["playing"] else "IDLE"
     sw = draw.textbbox((0, 0), state, font=font)[2]
-    draw_sharp_text(image, (63 - sw, 24), state, color, font)
+    draw_sharp_text(image, (63 - sw, 22), state, color, font)
 
     out = BytesIO()
     image.save(out, "WEBP", lossless=True, quality=100)

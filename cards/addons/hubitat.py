@@ -142,7 +142,7 @@ def render(options=None):
     if opts.get("_target") == "matrixportal-s3-128x32":
         image = Image.new("RGB", (128, 32), (0, 5, 15))
         draw = ImageDraw.Draw(image)
-        draw.rectangle((0, 0, 127, 8), fill=(0, 15, 40))
+        draw.rectangle((0, 0, 127, 6), fill=(0, 15, 40))
         lbl = device_label[:20]
         lw = draw.textbbox((0, 0), lbl, font=bold)[2]
         draw_sharp_text(image, ((128 - lw) // 2, -3), lbl, (160, 190, 230), bold)
@@ -160,7 +160,7 @@ def render(options=None):
         return out.getvalue()
 
     # Header bar: device label
-    draw.rectangle((0, 0, 63, 8), fill=(0, 15, 40))
+    draw.rectangle((0, 0, 63, 6), fill=(0, 15, 40))
     lbl = device_label[:10]
     lw  = draw.textbbox((0, 0), lbl, font=bold)[2]
     draw_sharp_text(image, ((64 - lw) // 2, -3), lbl, (160, 190, 230), bold)

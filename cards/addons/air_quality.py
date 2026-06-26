@@ -171,7 +171,7 @@ def render(options=None):
     except Exception:
         font = bold = ImageFont.load_default()
 
-    draw.rectangle((0, 0, width - 1, 8), fill=(5, 18, 23))
+    draw.rectangle((0, 0, width - 1, 6), fill=(5, 18, 23))
     _center_text(image, "AIR QUALITY" if is_wide else "AIR", 0, width - 1, -3, (125, 220, 255), bold)
 
     cols = [(2, 39), (44, 83), (88, 125)] if is_wide else [(0, 20), (22, 42), (44, 63)]

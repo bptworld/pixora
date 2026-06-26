@@ -291,7 +291,7 @@ def render(options=None):
     except Exception:
         font = bold = ImageFont.load_default()
 
-    draw.rectangle((0, 0, width - 1, 8), fill=(45, 14, 0))
+    draw.rectangle((0, 0, width - 1, 6), fill=(45, 14, 0))
     title = "WEATHER ALERT" if is_wide else "WX ALERT"
     draw_sharp_text(image, (1, -3), title, color, bold)
     icon_x = width - 16

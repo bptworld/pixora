@@ -307,7 +307,7 @@ def _draw_wide_flight(row):
         bold = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
     except Exception:
         font = bold = ImageFont.load_default()
-    draw.rectangle((0, 0, 127, 8), fill=(0, 15, 45))
+    draw.rectangle((0, 0, 127, 6), fill=(0, 15, 45))
     title = "FLIGHTS OVERHEAD"
     tw = draw.textbbox((0, 0), title, font=bold)[2]
     draw_sharp_text(image, ((128 - tw) // 2, -3), title, (100, 190, 255), bold)
@@ -377,7 +377,7 @@ def _draw_64_flight(row):
     except Exception:
         font = bold = ImageFont.load_default()
 
-    draw.rectangle((0, 0, 63, 8), fill=(0, 15, 45))
+    draw.rectangle((0, 0, 63, 6), fill=(0, 15, 45))
     logo = fetch_airline_logo(row["iata"]) if row["iata"] else None
     tx = 1
     airline_x = 1
@@ -398,7 +398,7 @@ def _draw_64_flight(row):
     sw = draw.textbbox((0, 0), spd_str, font=font)[2]
     draw_sharp_text(image, (63 - sw, 15), spd_str, (200, 230, 255), font)
     line4 = f"{format_distance_miles(row['distance'], 0)} {row['direction']}"
-    draw_sharp_text(image, (1, 23), line4[:14], (150, 200, 255), font)
+    draw_sharp_text(image, (1, 22), line4[:14], (150, 200, 255), font)
     return image
 
 

@@ -370,7 +370,7 @@ def _draw_board(rows, airport, board_type, width, offset=0):
     except Exception:
         font = ImageFont.load_default()
 
-    draw.rectangle((0, 0, width - 1, 8), fill=(12, 24, 36))
+    draw.rectangle((0, 0, width - 1, 6), fill=(12, 24, 36))
     first_direction = rows[0]["direction"] if rows else "DEP"
     title = f"{airport} {'BOARD' if board_type == 'both' else first_direction}"
     draw_sharp_text(image, (2 if width == 128 else 1, -3), title[:16 if width == 128 else 9], (100, 190, 255), font)
@@ -420,7 +420,7 @@ def _render_empty(airport, board_type, width):
         font = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
     except Exception:
         font = ImageFont.load_default()
-    draw.rectangle((0, 0, width - 1, 8), fill=(12, 24, 36))
+    draw.rectangle((0, 0, width - 1, 6), fill=(12, 24, 36))
     label = "DEP" if board_type == "departures" else ("ARR" if board_type == "arrivals" else "BOARD")
     draw_sharp_text(image, (2 if width == 128 else 1, -3), f"{airport} {label}"[:16 if width == 128 else 9], (100, 190, 255), font)
     msg = "NO UPCOMING FLIGHTS" if width == 128 else "NO FLIGHTS"

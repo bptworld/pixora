@@ -116,7 +116,7 @@ def render(options=None):
     except Exception:
         font = bold = ImageFont.load_default()
 
-    draw.rectangle((0, 0, width - 1, 8), fill=(5, 18, 25))
+    draw.rectangle((0, 0, width - 1, 6), fill=(5, 18, 25))
     _center(image, draw, "SECTOR HEAT" if is_wide else "SECTORS", -3, (100, 190, 255), bold, 0, width - 1)
     rows = quotes[:3]
     y = 8

@@ -148,7 +148,7 @@ def render(options=None):
         font = bold = big = ImageFont.load_default()
 
     if width == 128:
-        draw.rectangle((0, 0, 127, 8), fill=(0, 18, 38))
+        draw.rectangle((0, 0, 127, 6), fill=(0, 18, 38))
         title = title[:20].upper()
         tw = draw.textbbox((0, 0), title, font=bold)[2]
         draw_sharp_text(image, ((128 - tw) // 2, -3), title, (120, 200, 255), bold)
@@ -158,9 +158,9 @@ def render(options=None):
         draw_sharp_text(image, ((128 - vw) // 2, 6 if value_font == big else 10), value_text, value_color, value_font)
         meta = attribute.upper()[:18]
         mw = draw.textbbox((0, 0), meta, font=font)[2]
-        draw_sharp_text(image, ((128 - mw) // 2, 24), meta, (80, 105, 130), font)
+        draw_sharp_text(image, ((128 - mw) // 2, 22), meta, (80, 105, 130), font)
     else:
-        draw.rectangle((0, 0, 63, 8), fill=(0, 18, 38))
+        draw.rectangle((0, 0, 63, 6), fill=(0, 18, 38))
         title = title[:12].upper()
         tw = draw.textbbox((0, 0), title, font=bold)[2]
         draw_sharp_text(image, ((64 - tw) // 2, -3), title, (120, 200, 255), bold)
@@ -170,7 +170,7 @@ def render(options=None):
         draw_sharp_text(image, ((64 - vw) // 2, 6 if value_font == big else 10), value_text, value_color, value_font)
         meta = attribute.upper()[:12]
         mw = draw.textbbox((0, 0), meta, font=font)[2]
-        draw_sharp_text(image, ((64 - mw) // 2, 24), meta, (80, 105, 130), font)
+        draw_sharp_text(image, ((64 - mw) // 2, 22), meta, (80, 105, 130), font)
 
     out = BytesIO()
     image.save(out, "WEBP", lossless=True, quality=100)

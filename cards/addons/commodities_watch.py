@@ -112,7 +112,7 @@ def render(options=None):
     except Exception:
         font = bold = ImageFont.load_default()
 
-    draw.rectangle((0, 0, width - 1, 8), fill=(25, 18, 5))
+    draw.rectangle((0, 0, width - 1, 6), fill=(25, 18, 5))
     title = "COMMODITIES" if is_wide else "CMDTY"
     tw = _text_width(draw, title, bold)
     draw_sharp_text(image, ((width - tw) // 2, -3), title, (255, 205, 80), bold)

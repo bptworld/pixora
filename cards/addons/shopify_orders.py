@@ -240,7 +240,7 @@ def render(options=None):
     except Exception:
         font = bold = big = ImageFont.load_default()
 
-    draw.rectangle((0, 0, width - 1, 8), fill=(6, 22, 26))
+    draw.rectangle((0, 0, width - 1, 6), fill=(6, 22, 26))
     title = _card_label(opts, width)
     while title and draw.textbbox((0, 0), title, font=bold)[2] > width - 2:
         title = title[:-1]

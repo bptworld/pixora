@@ -232,7 +232,7 @@ def _render_matchup(event, selected, width, font, bold):
 
     image = Image.new("RGB", (width, 32), (3, 8, 12))
     draw = ImageDraw.Draw(image)
-    draw.rectangle((0, 0, width - 1, 8), fill=(4, 24, 20))
+    draw.rectangle((0, 0, width - 1, 6), fill=(4, 24, 20))
     title = f"{selected[:4].upper()} {_round_label(event)}"
     draw_sharp_text(image, (1, -3), title[:18 if width == 128 else 10], _COLOR, bold)
 
@@ -286,7 +286,7 @@ def _draw_group_frame(rows, title, selected, color, offset, width, font, bold):
             pts = f"P{row['points']}"
             pw = draw.textbbox((0, 0), pts, font=font)[2]
             draw_sharp_text(image, (63 - pw, y), pts, muted, font)
-    draw.rectangle((0, 0, width - 1, 8), fill=(4, 24, 20))
+    draw.rectangle((0, 0, width - 1, 6), fill=(4, 24, 20))
     draw_sharp_text(image, (1, -3), title[:18 if width == 128 else 10], color, bold)
     return image
 

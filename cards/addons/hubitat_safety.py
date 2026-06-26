@@ -138,7 +138,7 @@ def render(options=None):
         def frame(offset):
             image = Image.new("RGB", (128, 32), (0, 5, 15))
             draw = ImageDraw.Draw(image)
-            draw.rectangle((0, 0, 127, 8), fill=(45, 0, 0))
+            draw.rectangle((0, 0, 127, 6), fill=(45, 0, 0))
             title = _fit_text(draw, (custom_header or "CHECK DEVICES").upper(), bold, 126)
             tw = draw.textbbox((0, 0), title, font=bold)[2]
             draw_sharp_text(image, ((128 - tw) // 2, -3), title, (255, 90, 80), bold)
@@ -179,7 +179,7 @@ def render(options=None):
         def frame(offset):
             image = Image.new("RGB", (64, 32), (0, 5, 15))
             draw = ImageDraw.Draw(image)
-            draw.rectangle((0, 0, 63, 8), fill=(45, 0, 0))
+            draw.rectangle((0, 0, 63, 6), fill=(45, 0, 0))
             title = _fit_text(draw, (custom_header or "CHECK").upper(), bold, 62)
             tw = draw.textbbox((0, 0), title, font=bold)[2]
             draw_sharp_text(image, ((64 - tw) // 2, -3), title, (255, 90, 80), bold)

@@ -189,7 +189,7 @@ def render(options=None):
         color = (90, 225, 205)
         days = pickups[0][2]
         barrels = [(2, (60, 165, 255)), (14, (70, 210, 120))]
-        draw.rectangle((0, 0, width - 1, 8), fill=(4, 18, 20))
+        draw.rectangle((0, 0, width - 1, 6), fill=(4, 18, 20))
         _center_text(image, title, -3, color, bold)
         _center_tight_text_in(image, _when_text(days), 27, width - 1, 9, (245, 250, 255), bold)
         _center_text_in(image, format_short_date(pickups[0][1]).upper(), 27, width - 1, 18, (160, 190, 210), font)
@@ -197,7 +197,7 @@ def render(options=None):
         name, pickup, days, color = pickups[0]
         barrel_color = (70, 210, 120) if name == "RECYCLE" else (60, 165, 255)
         barrels = [(3, barrel_color)]
-        draw.rectangle((0, 0, width - 1, 8), fill=(5, 18, 15))
+        draw.rectangle((0, 0, width - 1, 6), fill=(5, 18, 15))
         _center_text(image, name, -3, barrel_color, bold)
         _center_tight_text_in(image, _when_text(days), 15, width - 1, 9, (245, 250, 255), bold)
         _center_text_in(image, format_short_date(pickup).upper(), 15, width - 1, 18, (160, 190, 210), font)

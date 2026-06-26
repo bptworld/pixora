@@ -74,7 +74,7 @@ def _draw(data, width=64):
     except Exception:
         font = bold = ImageFont.load_default()
 
-    draw.rectangle((0, 0, width - 1, 8), fill=(5, 24, 20))
+    draw.rectangle((0, 0, width - 1, 6), fill=(5, 24, 20))
     _center(image, "MEGABUCKS", -3, (70, 230, 170), bold, x2=width - 1)
     nums = data["numbers"]
     if width == 128:
@@ -83,7 +83,7 @@ def _draw(data, width=64):
     else:
         _center_numbers(image, " ".join(nums[:3]), 8, (245, 250, 255))
         _center_numbers(image, " ".join(nums[3:6]), 16, (245, 250, 255))
-        _center(image, (data.get("date") or "")[:13].upper(), 23, (120, 190, 170), font)
+        _center(image, (data.get("date") or "")[:13].upper(), 22, (120, 190, 170), font)
 
     out = BytesIO()
     image.save(out, "WEBP", lossless=True, quality=100)

@@ -81,7 +81,7 @@ def render(options=None):
     except Exception:
         font = bold = ImageFont.load_default()
 
-    draw.rectangle((0, 0, width - 1, 8), fill=(5, 20, 24))
+    draw.rectangle((0, 0, width - 1, 6), fill=(5, 20, 24))
     _draw_center(image, draw, "PIXORA UPDATE", 0, width - 1, -3, (80, 225, 205), bold)
 
     y = 9
@@ -100,7 +100,7 @@ def render(options=None):
         y += 9
 
     if app_new and card_delta > 0:
-        _draw_center(image, draw, "BOTH READY", 0, width - 1, 24, (150, 170, 185), font)
+        _draw_center(image, draw, "BOTH READY", 0, width - 1, 22, (150, 170, 185), font)
     elif app_new:
         _draw_center(image, draw, "NEW RELEASE", 0, width - 1, 22, (150, 170, 185), font)
     else:

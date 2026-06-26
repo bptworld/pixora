@@ -507,7 +507,7 @@ def _render_card(data, opts):
         tw = draw.textbbox((0, 0), value, font=big)[2]
         draw_sharp_text(image, ((width - tw) // 2, 8), value, white, big)
         bw = draw.textbbox((0, 0), revenue, font=font)[2]
-        draw_sharp_text(image, ((width - bw) // 2, 23), revenue, green, font)
+        draw_sharp_text(image, ((width - bw) // 2, 22), revenue, green, font)
     elif view == "week":
         orders = data.get("week_orders") or 0
         revenue = _money_text(float(data.get("week_revenue") or 0), data.get("week_currency"))
@@ -517,7 +517,7 @@ def _render_card(data, opts):
         tw = draw.textbbox((0, 0), value, font=big)[2]
         draw_sharp_text(image, ((width - tw) // 2, 8), value, white, big)
         bw = draw.textbbox((0, 0), revenue, font=font)[2]
-        draw_sharp_text(image, ((width - bw) // 2, 23), revenue, green, font)
+        draw_sharp_text(image, ((width - bw) // 2, 22), revenue, green, font)
     else:
         admirers = shop.get("num_favorers") or shop.get("num_favorites") or shop.get("favorite_count") or 0
         sales = shop.get("transaction_sold_count") or shop.get("sales_count") or 0

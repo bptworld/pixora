@@ -68,7 +68,7 @@ def _render_scroll(label, headline, width=64):
     for step in range(0, width + text_w + 16, 2):
         image = Image.new("RGB", (width, 32), (0, 5, 12))
         draw = ImageDraw.Draw(image)
-        draw.rectangle((0, 0, width - 1, 8), fill=(5, 18, 25))
+        draw.rectangle((0, 0, width - 1, 6), fill=(5, 18, 25))
         draw_sharp_text(image, (1, -3), label[:20 if width == 128 else 10].upper(), (80, 220, 170), bold)
         draw_sharp_text(image, (width - step, 14), text, (245, 250, 255), font)
         frames.append(image)

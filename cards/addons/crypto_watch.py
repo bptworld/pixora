@@ -111,7 +111,7 @@ def _render_wide(quotes, font, bold):
 
     image = Image.new("RGB", (128, 32), (0, 4, 12))
     draw = ImageDraw.Draw(image)
-    draw.rectangle((0, 0, 127, 8), fill=(5, 18, 25))
+    draw.rectangle((0, 0, 127, 6), fill=(5, 18, 25))
     _center_text(image, "CRYPTO WATCH", -3, (255, 200, 80), bold, 0, 127)
 
     y = 8

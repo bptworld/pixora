@@ -179,7 +179,7 @@ def _draw_shell(width, title):
 
     image = Image.new("RGB", (width, 32), _BG)
     draw = ImageDraw.Draw(image)
-    draw.rectangle((0, 0, width - 1, 8), fill=(5, 18, 25))
+    draw.rectangle((0, 0, width - 1, 6), fill=(5, 18, 25))
     font = _font()
     bold = _font("Silkscreen-Bold.ttf")
     _center(image, draw, title.upper(), -3, _COLOR, bold)

@@ -43,7 +43,7 @@ def _draw(rows, width, week, offset=0):
         bold = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
     except Exception:
         font = bold = ImageFont.load_default()
-    draw.rectangle((0, 0, width - 1, 8), fill=(15, 17, 38))
+    draw.rectangle((0, 0, width - 1, 6), fill=(15, 17, 38))
     title = f"LINEUP W{week}"
     tw = draw.textbbox((0, 0), title, font=bold)[2]
     draw_sharp_text(image, ((width - tw) // 2, -3), title, (160, 120, 255), bold)

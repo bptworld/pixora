@@ -107,7 +107,7 @@ def render(options=None):
     except Exception:
         font = bold = ImageFont.load_default()
 
-    draw.rectangle((0, 0, width - 1, 8), fill=(5, 18, 28))
+    draw.rectangle((0, 0, width - 1, 6), fill=(5, 18, 28))
     title = "CURRENCY RATES" if is_wide else "FX RATES"
     tw = _text_width(draw, title, bold)
     draw_sharp_text(image, ((width - tw) // 2, -3), title, (120, 220, 255), bold)

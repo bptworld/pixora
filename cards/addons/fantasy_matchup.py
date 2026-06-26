@@ -65,7 +65,7 @@ def render(options=None):
     except Exception:
         font = bold = big = ImageFont.load_default()
 
-    draw.rectangle((0, 0, width - 1, 8), fill=(15, 17, 38))
+    draw.rectangle((0, 0, width - 1, 6), fill=(15, 17, 38))
     title = f"FANTASY W{week}"
     tw = draw.textbbox((0, 0), title, font=bold)[2]
     draw_sharp_text(image, ((width - tw) // 2, -3), title, (160, 120, 255), bold)

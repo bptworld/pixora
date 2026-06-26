@@ -57,7 +57,7 @@ def render(options=None):
         bold = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
     except Exception:
         font = bold = ImageFont.load_default()
-    draw.rectangle((0, 0, width - 1, 8), fill=(8, 20, 32))
+    draw.rectangle((0, 0, width - 1, 6), fill=(8, 20, 32))
     w = draw.textbbox((0, 0), word, font=bold)[2]
     draw_sharp_text(image, ((width - w) // 2, -3), word, (100, 200, 255), bold)
     words = meaning.upper().split()

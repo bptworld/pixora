@@ -1005,7 +1005,7 @@ def _draw_main_panel(flight, opts, width):
 
     image = Image.new("RGB", (width, 32), (0, 5, 18))
     draw = ImageDraw.Draw(image)
-    draw.rectangle((0, 0, width - 1, 8), fill=(0, 17, 45))
+    draw.rectangle((0, 0, width - 1, 6), fill=(0, 17, 45))
     status, status_color = _status(flight)
     sw = draw.textbbox((0, 0), status, font=FONT_7)[2] if width > 64 else 0
     ident_max = width - 24 - sw if width > 64 else width - 21
@@ -1040,7 +1040,7 @@ def _draw_detail_panel(flight, opts, width):
     location = _fit(draw, _location_line(flight, opts), FONT_7, width - 2)
     schedule = _fit(draw, _schedule_line(flight) or flight.get("over_state") or "", FONT_7, width - 2)
 
-    draw.rectangle((0, 0, width - 1, 8), fill=(0, 17, 45))
+    draw.rectangle((0, 0, width - 1, 6), fill=(0, 17, 45))
     draw_sharp_text(image, (1, -3), tail, (245, 250, 255), FONT_BOLD)
     row_y = (7, 15, 22) if width <= 64 else (6, 14, 21)
     draw_sharp_text(image, (1, row_y[0]), location, (255, 220, 90), FONT_7)
@@ -1410,7 +1410,7 @@ def _draw_wide_panel(flight, opts):
     image = Image.new("RGB", (width, 32), (0, 5, 18))
     draw = ImageDraw.Draw(image)
     status, status_color = _status(flight)
-    draw.rectangle((0, 0, width - 1, 8), fill=(0, 17, 45))
+    draw.rectangle((0, 0, width - 1, 6), fill=(0, 17, 45))
     draw.line((63, 9, 63, 31), fill=(70, 130, 190))
 
     _logo_or_plane(image, draw, flight, 1, 0)

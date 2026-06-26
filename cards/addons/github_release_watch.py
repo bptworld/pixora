@@ -78,12 +78,12 @@ def render(options=None):
     except Exception:
         font = bold = ImageFont.load_default()
 
-    draw.rectangle((0, 0, width - 1, 8), fill=(10, 18, 28))
+    draw.rectangle((0, 0, width - 1, 6), fill=(10, 18, 28))
     draw_sharp_text(image, (1, -3), "GITHUB", (145, 180, 255), bold)
     draw_sharp_text(image, (1, 8), (owner + "/" + repo).upper()[:22] if width == 128 else name, (245, 250, 255), bold)
     draw_sharp_text(image, (1, 16), latest_tag[:28 if width == 128 else 16], (80, 220, 170), font)
     aw = draw.textbbox((0, 0), age, font=font)[2]
-    draw_sharp_text(image, (width - 1 - aw, 24), age, (150, 170, 185), font)
+    draw_sharp_text(image, (width - 1 - aw, 22), age, (150, 170, 185), font)
 
     out = BytesIO()
     image.save(out, "WEBP", lossless=True, quality=100)

@@ -261,7 +261,7 @@ def _fit_text(draw, text, font, max_width):
 
 
 def _draw_header(image, draw, width, bold):
-    draw.rectangle((0, 0, width - 1, 8), fill=(155, 8, 18))
+    draw.rectangle((0, 0, width - 1, 6), fill=(155, 8, 18))
     draw.rectangle((0, 8, width - 1, 9), fill=(245, 245, 245))
     _, font = _fonts()
     draw_sharp_text(image, (2, -3), "CINEMARK", (245, 245, 245), bold)

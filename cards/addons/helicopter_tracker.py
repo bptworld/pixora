@@ -788,7 +788,7 @@ def _draw_64(home_lat, home_lon, selected_key, selected_point, zip_code, view_mi
     label = _bottom_label(draw, home_lat, home_lon, selected_point, 62, compact=True)
     lw = draw.textbbox((0, 0), label, font=FONT_7)[2]
     draw.rectangle((0, 23, 63, 31), fill=(0, 12, 28))
-    draw_sharp_text(image, (max(1, 63 - lw), 23), label, (255, 220, 90), FONT_7)
+    draw_sharp_text(image, (max(1, 63 - lw), 22), label, (255, 220, 90), FONT_7)
     return image
 
 

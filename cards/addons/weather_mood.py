@@ -71,12 +71,12 @@ def _draw_text(image, width, info, font, bold):
     draw = ImageDraw.Draw(image)
     temp = f"{info['temp']}{str(info['unit'])[:1]}"
     if width == 128:
-        draw.rectangle((0, 0, 127, 8), fill=(4, 16, 28))
+        draw.rectangle((0, 0, 127, 6), fill=(4, 16, 28))
         draw_sharp_text(image, (2, -3), info["label"], (120, 220, 255), bold)
         tw = draw.textbbox((0, 0), temp, font=bold)[2]
         draw_sharp_text(image, (126 - tw, -3), temp, (245, 250, 255), bold)
     else:
-        draw.rectangle((0, 0, 63, 8), fill=(4, 16, 28))
+        draw.rectangle((0, 0, 63, 6), fill=(4, 16, 28))
         label = info["label"][:7]
         draw_sharp_text(image, (1, -3), label, (120, 220, 255), bold)
         tw = draw.textbbox((0, 0), temp, font=font)[2]

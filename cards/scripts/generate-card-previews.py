@@ -81,7 +81,7 @@ def _fallback(card_id, name):
 def _simple_header(title, color=(24, 210, 190)):
     image = Image.new("RGB", (64, 32), (0, 5, 12))
     draw = ImageDraw.Draw(image)
-    draw.rectangle((0, 0, 63, 8), fill=(5, 18, 25))
+    draw.rectangle((0, 0, 63, 6), fill=(5, 18, 25))
     _center(image, title[:12].upper(), -3, color, BOLD)
     return image, draw
 
@@ -126,7 +126,7 @@ def _clock_calendar():
 def _clock_day_progress():
     image = Image.new("RGB", (64, 32), (0, 4, 8))
     draw = ImageDraw.Draw(image)
-    draw.rectangle((0, 0, 63, 7), fill=(5, 15, 22))
+    draw.rectangle((0, 0, 63, 6), fill=(5, 15, 22))
     draw_sharp_text(image, (1, -4), "FRI", (150, 178, 196), FONT)
     draw_sharp_text(image, (48, -4), "50%", (62, 224, 150), FONT)
     time_text = "12:00"
@@ -151,7 +151,7 @@ def _clock_week_strip():
         if active:
             _center(image, label, -3, (245, 250, 255), FONT, x1, x2)
     _center(image, "12:00", 5, (235, 247, 255), BIG)
-    _center(image, "FRI 06/05", 24, (92, 185, 255), FONT)
+    _center(image, "FRI 06/05", 22, (92, 185, 255), FONT)
     return _webp(image)
 
 
@@ -181,7 +181,7 @@ def _weather_alert():
 def _weather_radar_loop():
     image = Image.new("RGB", (64, 32), (0, 4, 8))
     draw = ImageDraw.Draw(image)
-    draw.rectangle((0, 0, 63, 8), fill=(0, 8, 14))
+    draw.rectangle((0, 0, 63, 6), fill=(0, 8, 14))
     draw_sharp_text(image, (1, -3), "RADAR RAIN", (118, 245, 210), FONT)
     cx, cy = 20, 20
     for r in (7, 13, 19):
@@ -214,7 +214,7 @@ def _air_quality():
 def _sport(title="TOP 7TH", away="HOU", home="BOS", score="3-1", color=(245, 150, 65)):
     image = Image.new("RGB", (64, 32), (5, 7, 10))
     draw = ImageDraw.Draw(image)
-    draw.rectangle((0, 0, 63, 8), fill=(8, 18, 28))
+    draw.rectangle((0, 0, 63, 6), fill=(8, 18, 28))
     _center(image, title[:18].upper(), -3, color, FONT)
     sw = draw.textbbox((0, 0), score, font=BOLD)[2]
     draw.rounded_rectangle((32 - sw // 2 - 3, 7, 32 + (sw + 1) // 2 + 3, 20), radius=3, fill=(18, 29, 39), outline=(69, 87, 104))
@@ -259,7 +259,7 @@ def _event_sport(title, icon="race"):
 def _fifa_world_cup():
     image = Image.new("RGB", (64, 32), (3, 8, 12))
     draw = ImageDraw.Draw(image)
-    draw.rectangle((0, 0, 63, 8), fill=(4, 24, 20))
+    draw.rectangle((0, 0, 63, 6), fill=(4, 24, 20))
     draw_sharp_text(image, (1, -3), "WORLD CUP", (70, 220, 125), BOLD)
     draw.ellipse((1, 10, 14, 23), outline=(70, 220, 125), width=2)
     draw.ellipse((49, 10, 62, 23), outline=(90, 150, 255), width=2)
@@ -273,7 +273,7 @@ def _fifa_world_cup():
 def _world_cup_today():
     image = Image.new("RGB", (64, 32), (3, 8, 12))
     draw = ImageDraw.Draw(image)
-    draw.rectangle((0, 0, 63, 8), fill=(4, 24, 20))
+    draw.rectangle((0, 0, 63, 6), fill=(4, 24, 20))
     draw_sharp_text(image, (1, -3), "WC TODAY", (70, 220, 125), BOLD)
     rows = ["USA VS MEX", "CAN VS BRA", "ENG VS FRA"]
     y = 8
@@ -336,7 +336,7 @@ def _market():
 def _market_status():
     image, draw = _simple_header("MARKET", (100, 190, 255))
     _center(image, "OPEN", 5, (80, 220, 120), BIG)
-    _center(image, "CLOSES 2H", 23, (160, 180, 195), FONT)
+    _center(image, "CLOSES 2H", 22, (160, 180, 195), FONT)
     return _webp(image)
 
 
@@ -386,7 +386,7 @@ def _flight():
     draw_sharp_text(image, (19, -3), "DL2887", (245, 250, 255), BOLD)
     draw_sharp_text(image, (19, 6), "A321", (180, 200, 210), FONT)
     draw_sharp_text(image, (19, 14), "BOS>MCO", (180, 200, 210), FONT)
-    draw_sharp_text(image, (1, 23), "ETA 6:26", (80, 220, 170), FONT)
+    draw_sharp_text(image, (1, 22), "ETA 6:26", (80, 220, 170), FONT)
     return _webp(image)
 
 
@@ -418,7 +418,7 @@ def _helicopter_tracker():
     draw_sharp_text(image, (39, 8), "R22", (180, 205, 220), FONT)
     draw_sharp_text(image, (39, 16), "1075", (160, 210, 255), FONT)
     draw.rectangle((0, 23, 63, 31), fill=(0, 12, 28))
-    draw_sharp_text(image, (4, 23), "3.2E DRACUT", (255, 220, 90), FONT)
+    draw_sharp_text(image, (4, 22), "3.2E DRACUT", (255, 220, 90), FONT)
     return _webp(image)
 
 
@@ -426,7 +426,7 @@ def _airport():
     image, draw = _simple_header("AIRPORT", (80, 220, 170))
     _center(image, "BOS", 7, (245, 250, 255), BOLD)
     _center(image, "NO DELAYS", 16, (80, 220, 120), FONT)
-    _center(image, "FAA STATUS", 24, (150, 170, 185), FONT)
+    _center(image, "FAA STATUS", 22, (150, 170, 185), FONT)
     return _webp(image)
 
 
@@ -452,7 +452,7 @@ def _dns():
     draw_sharp_text(image, (39, 8), "1.2K", (245, 250, 255), BOLD)
     draw_sharp_text(image, (1, 18), "TOTAL", (145, 165, 182), FONT)
     draw_sharp_text(image, (40, 18), "22K", (200, 220, 235), FONT)
-    draw_sharp_text(image, (41, 25), "5.4%", (255, 210, 80), FONT)
+    draw_sharp_text(image, (41, 22), "5.4%", (255, 210, 80), FONT)
     return _webp(image)
 
 
@@ -460,14 +460,14 @@ def _github():
     image, draw = _simple_header("GITHUB", (145, 180, 255))
     draw_sharp_text(image, (1, 8), "PIXORA", (245, 250, 255), BOLD)
     draw_sharp_text(image, (1, 16), "v1.3.18", (80, 220, 170), FONT)
-    draw_sharp_text(image, (25, 24), "TODAY", (150, 170, 185), FONT)
+    draw_sharp_text(image, (25, 22), "TODAY", (150, 170, 185), FONT)
     return _webp(image)
 
 
 def _github_issues():
     image, draw = _simple_header("GITHUB", (145, 180, 255))
     _center(image, "7", 5, (245, 250, 255), BIG)
-    _center(image, "ISSUES", 23, (150, 170, 185), FONT)
+    _center(image, "ISSUES", 22, (150, 170, 185), FONT)
     return _webp(image)
 
 
@@ -477,7 +477,7 @@ def _pixora_update():
     draw_sharp_text(image, (35, 8), "v1.3.19", (245, 250, 255), BOLD)
     draw_sharp_text(image, (1, 18), "CARDS", (145, 165, 182), FONT)
     draw_sharp_text(image, (48, 17), "+4", (255, 210, 80), BOLD)
-    _center(image, "BOTH READY", 24, (150, 170, 185), FONT)
+    _center(image, "BOTH READY", 22, (150, 170, 185), FONT)
     return _webp(image)
 
 
@@ -491,14 +491,14 @@ def _rss():
 def _uptime():
     image, draw = _simple_header("SITE", (80, 180, 255))
     _center(image, "UP", 5, (80, 220, 120), BIG)
-    _center(image, "142ms", 23, (150, 170, 185), FONT)
+    _center(image, "142ms", 22, (150, 170, 185), FONT)
     return _webp(image)
 
 
 def _ping():
     image, draw = _simple_header("PING", (80, 220, 170))
     _center(image, "24ms", 5, (80, 220, 120), BIG)
-    _center(image, "1.1.1.1", 23, (150, 170, 185), FONT)
+    _center(image, "1.1.1.1", 22, (150, 170, 185), FONT)
     return _webp(image)
 
 
@@ -508,7 +508,7 @@ def _lastfm():
     draw.polygon([(12, 16), (18, 12), (18, 24)], fill=(220, 35, 50))
     draw_sharp_text(image, (23, 8), "SONG", (245, 250, 255), FONT)
     draw_sharp_text(image, (23, 17), "ARTIST", (150, 170, 185), FONT)
-    draw_sharp_text(image, (47, 24), "LIVE", (80, 220, 120), FONT)
+    draw_sharp_text(image, (47, 22), "LIVE", (80, 220, 120), FONT)
     return _webp(image)
 
 
@@ -519,14 +519,14 @@ def _music_assistant():
     draw.line((16, 9, 20, 11), fill=(80, 220, 170), width=2)
     draw_sharp_text(image, (24, 8), "SONG", (245, 250, 255), FONT)
     draw_sharp_text(image, (24, 17), "ARTIST", (150, 170, 185), FONT)
-    draw_sharp_text(image, (43, 24), "PLAY", (80, 220, 170), FONT)
+    draw_sharp_text(image, (43, 22), "PLAY", (80, 220, 170), FONT)
     return _webp(image)
 
 
 def _home_assistant():
     image, draw = _simple_header("OUTDOOR", (65, 190, 255))
     _center(image, "72.4F", 6, (245, 250, 255), BIG)
-    draw_sharp_text(image, (1, 24), "SENSOR", (150, 170, 185), FONT)
+    draw_sharp_text(image, (1, 22), "SENSOR", (150, 170, 185), FONT)
     return _webp(image)
 
 
@@ -613,7 +613,7 @@ def _mega_millions():
     image, draw = _simple_header("MEGA MILL", (255, 215, 70))
     _center(image, "37 47 49", 8, (245, 250, 255), BOLD)
     _center(image, "51 58 +16", 17, (255, 220, 80), BOLD)
-    _center(image, "$215 MILLION", 25, (175, 150, 205), FONT)
+    _center(image, "$215 MILLION", 22, (175, 150, 205), FONT)
     return _webp(image)
 
 
@@ -621,7 +621,7 @@ def _megabucks():
     image, draw = _simple_header("MEGABUCKS", (70, 230, 170))
     _center(image, "4 7 15", 8, (245, 250, 255), BOLD)
     _center(image, "20 24 25", 17, (245, 250, 255), BOLD)
-    _center(image, "MAY 11 2026", 25, (120, 190, 170), FONT)
+    _center(image, "MAY 11 2026", 22, (120, 190, 170), FONT)
     return _webp(image)
 
 
@@ -643,9 +643,8 @@ def _fantasy(kind="MATCHUP", platform="FANTASY", color=(117, 231, 214)):
     draw.rectangle((35, 11, 62, 21), fill=(13, 28, 36), outline=(48, 82, 96))
     _center(image, "YOU", 10, (245, 250, 255), BOLD, 2, 29)
     _center(image, "OPP", 10, (245, 250, 255), BOLD, 35, 62)
-    _center(image, "88", 21, (80, 225, 150), BOLD, 2, 29)
-    _center(image, "82", 21, (255, 190, 70), BOLD, 35, 62)
-    _center(image, kind, 24, (160, 180, 195), FONT)
+    _center(image, "88", 20, (80, 225, 150), BOLD, 2, 29)
+    _center(image, "82", 20, (255, 190, 70), BOLD, 35, 62)
     return _webp(image)
 
 

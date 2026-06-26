@@ -95,7 +95,7 @@ def _draw_frame(rows, offset, width, font, bold):
             goals = str(row["goals"])
             gw = draw.textbbox((0, 0), goals, font=bold)[2]
             draw_sharp_text(image, (63 - gw, y - 1), goals, _COLOR, bold)
-    draw.rectangle((0, 0, width - 1, 8), fill=(26, 18, 4))
+    draw.rectangle((0, 0, width - 1, 6), fill=(26, 18, 4))
     draw_sharp_text(image, (1, -3), "GOLDEN BOOT" if width == 128 else "GOLD BOOT", _COLOR, bold)
     return image
 

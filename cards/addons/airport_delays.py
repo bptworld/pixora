@@ -131,7 +131,7 @@ def _render_ok_image(code, width=64):
     except Exception:
         font = bold = ImageFont.load_default()
 
-    draw.rectangle((0, 0, width - 1, 8), fill=(12, 24, 24))
+    draw.rectangle((0, 0, width - 1, 6), fill=(12, 24, 24))
     if width == 128:
         title = "AIRPORT STATUS"
         tw = draw.textbbox((0, 0), title, font=bold)[2]
@@ -150,7 +150,7 @@ def _render_ok_image(code, width=64):
         draw_sharp_text(image, (1, -4), "AIRPORT", (100, 190, 255), bold)
         draw_sharp_text(image, (1, 6), (code or "FAA")[:4], (255, 255, 255), bold)
         draw_sharp_text(image, (1, 15), "NO DELAYS", (100, 220, 140), font)
-        draw_sharp_text(image, (1, 23), "FAA STATUS", (150, 170, 185), font)
+        draw_sharp_text(image, (1, 22), "FAA STATUS", (150, 170, 185), font)
     out = BytesIO()
     image.save(out, "WEBP", lossless=True, quality=100)
     return out.getvalue()
@@ -188,7 +188,7 @@ def render(options=None):
     except Exception:
         font = bold = ImageFont.load_default()
 
-    draw.rectangle((0, 0, width - 1, 8), fill=(24, 30, 42))
+    draw.rectangle((0, 0, width - 1, 6), fill=(24, 30, 42))
     title = "AIRPORT DELAYS" if width == 128 else "AIR DELAY"
     tw = draw.textbbox((0, 0), title, font=bold)[2]
     draw_sharp_text(image, (((width - tw) // 2) if width == 128 else 1, -3), title, (255, 190, 80), bold)

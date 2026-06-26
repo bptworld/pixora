@@ -85,7 +85,7 @@ def render(options=None):
     draw_sharp_text(image, ((width - sw) // 2, 5), status, color, big)
     ms = f"{data['ms']}ms" if data["ok"] else "NO REPLY"
     mw = draw.textbbox((0, 0), ms, font=font)[2]
-    draw_sharp_text(image, ((width - mw) // 2, 23), ms, (150, 170, 185), font)
+    draw_sharp_text(image, ((width - mw) // 2, 22), ms, (150, 170, 185), font)
     out = BytesIO()
     image.save(out, "WEBP", lossless=True, quality=100)
     return out.getvalue()

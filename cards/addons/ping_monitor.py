@@ -63,8 +63,7 @@ def render(options=None):
     draw_sharp_text(image, ((width - tw) // 2, 5), text, color, big if tw <= width - 2 else bold)
     host_text = host[:26 if width == 128 else 12].upper()
     hw = draw.textbbox((0, 0), host_text, font=font)[2]
-    draw_sharp_text(image, ((width - hw) // 2, 23), host_text, (150, 170, 185), font)
+    draw_sharp_text(image, ((width - hw) // 2, 22), host_text, (150, 170, 185), font)
     out = BytesIO()
     image.save(out, "WEBP", lossless=True, quality=100)
     return out.getvalue()
-

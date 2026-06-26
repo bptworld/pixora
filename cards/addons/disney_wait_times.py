@@ -269,7 +269,7 @@ def _fonts():
 
 
 def _draw_header(img, draw, fonts, park, age):
-    draw.rectangle((0, 0, img.width, 8), fill=(26, 14, 52))
+    draw.rectangle((0, 0, img.width, 6), fill=(26, 14, 52))
     if random.random() < 0.75:
         draw.point((img.width // 2, 2), fill=(255, 245, 170))
         draw.point((img.width // 2 + 1, 2), fill=(210, 180, 255))

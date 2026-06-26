@@ -401,7 +401,7 @@ def _draw_alert(title, line1, line2="", width=64, color=(255, 190, 90)):
     font, bold, big = _fonts()
     image = Image.new("RGB", (width, 32), (0, 0, 0))
     draw = ImageDraw.Draw(image)
-    draw.rectangle((0, 0, width - 1, 8), fill=(42, 10, 18))
+    draw.rectangle((0, 0, width - 1, 6), fill=(42, 10, 18))
     title = _fit(draw, title.upper(), bold, width - 2)
     draw_sharp_text(image, (1, -3), title, color, bold)
     draw_sharp_text(image, (1, 9), _fit(draw, line1.upper(), font, width - 2), (245, 250, 255), font)

@@ -227,7 +227,7 @@ def render(options=None):
         font = bold = ImageFont.load_default()
 
     # Header bar: when (left) + relative countdown (right)
-    draw.rectangle((0, 0, width - 1, 8), fill=(15, 25, 55))
+    draw.rectangle((0, 0, width - 1, 6), fill=(15, 25, 55))
     if not events:
         draw_sharp_text(image, (1, -3), "CALENDAR", (100, 140, 255), bold)
         msg = "No events"

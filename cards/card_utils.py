@@ -55,6 +55,7 @@ _NUMERIC_SEGMENTS = {
     "8": "abcdefg",
     "9": "abfgcd",
 }
+_PIXORA_BOLD_NUMERIC_CHARS = set(_PIXORA_BOLD_DIGITS) | set(_PIXORA_BOLD_SYMBOLS) | {" "}
 
 
 def _is_bold_font(font):
@@ -103,6 +104,44 @@ def draw_pixora_bold_number(draw, xy, text, color, scale=1, spacing=1):
             x += 3 * scale + spacing
         else:
             x += 4 * scale + spacing
+
+
+def _bold_mixed_number_parts(text):
+    text = str(text or "")
+    parts = []
+    idx = 0
+    while idx < len(text):
+        ch = text[idx]
+        is_numeric = ch in _PIXORA_BOLD_NUMERIC_CHARS
+        start = idx
+        idx += 1
+        while idx < len(text) and ((text[idx] in _PIXORA_BOLD_NUMERIC_CHARS) == is_numeric):
+            idx += 1
+        value = text[start:idx]
+        parts.append((is_numeric and any(c.isdigit() for c in value), value))
+    return parts
+
+
+def pixora_mixed_bold_number_size(text, font, scale=1, spacing=1):
+    parts = _bold_mixed_number_parts(text)
+    if not parts:
+        return 0, 0
+    width = 0
+    height = 0
+    for is_numeric, value in parts:
+        if is_numeric:
+            part_w, part_h = pixora_bold_number_size(value, scale=scale, spacing=spacing)
+        else:
+            try:
+                bbox = font.getbbox(value)
+                part_w = max(0, bbox[2] - bbox[0])
+                part_h = max(0, bbox[3] - bbox[1])
+            except Exception:
+                part_w = len(value) * 4 * scale
+                part_h = 7 * scale
+        width += part_w
+        height = max(height, part_h)
+    return width, height
 
 
 def _settings_value(key, default=""):
@@ -652,7 +691,7 @@ def render_counter_card(title, label, value, color=(80, 180, 255), sublabel="FOL
     except Exception:
         font = bold = big = ImageFont.load_default()
 
-    draw.rectangle((0, 0, width - 1, 8), fill=(5, 18, 28))
+    draw.rectangle((0, 0, width - 1, 6), fill=(5, 18, 28))
     title = str(title or "")[:20 if width == 128 else 12].upper()
     tw = draw.textbbox((0, 0), title, font=bold)[2]
     draw_sharp_text(image, ((width - tw) // 2, -3), title, color, bold)
@@ -836,7 +875,7 @@ def openweather_alerts_for_zip(zip_code):
 def draw_sharp_text(image, xy, text, fill, font):
     from PIL import Image, ImageDraw
     text = str(text or "")
-    if text and any(ch.isdigit() for ch in text) and _BOLD_NUMERIC_RE.match(text) and _is_bold_font(font):
+    if text and any(ch.isdigit() for ch in text) and _is_bold_font(font):
         try:
             bbox = font.getbbox(text)
         except Exception:
@@ -844,7 +883,14 @@ def draw_sharp_text(image, xy, text, fill, font):
         old_w = max(0, bbox[2] - bbox[0])
         scale = max(1, int(round(getattr(font, "size", 8) / 8)))
         spacing = scale
-        new_w = pixora_bold_number_size(text, scale=scale, spacing=spacing)[0]
+        parts = _bold_mixed_number_parts(text)
+        use_mixed = any(is_numeric for is_numeric, _value in parts)
+        if not use_mixed:
+            mask = Image.new("1", image.size, 0)
+            ImageDraw.Draw(mask).text(xy, text, fill=1, font=font)
+            image.paste(Image.new("RGB", image.size, fill), (0, 0), mask)
+            return
+        new_w = pixora_mixed_bold_number_size(text, font, scale=scale, spacing=spacing)[0]
         x = int(xy[0])
         y = int(xy[1]) + int(bbox[1])
         right_margin = image.width - (x + old_w)
@@ -854,7 +900,22 @@ def draw_sharp_text(image, xy, text, fill, font):
         elif old_w > new_w and (right_margin <= 2 or x > image.width // 2):
             x += old_w - new_w
         mask = Image.new("1", image.size, 0)
-        draw_pixora_bold_number(ImageDraw.Draw(mask), (x, y), text, 1, scale=scale, spacing=spacing)
+        mask_draw = ImageDraw.Draw(mask)
+        cursor = x
+        for is_numeric, value in parts:
+            if is_numeric:
+                draw_pixora_bold_number(mask_draw, (cursor, y), value, 1, scale=scale, spacing=spacing)
+                cursor += pixora_bold_number_size(value, scale=scale, spacing=spacing)[0]
+            else:
+                try:
+                    part_bbox = font.getbbox(value)
+                    text_y = y - int(part_bbox[1])
+                    part_w = max(0, part_bbox[2] - part_bbox[0])
+                except Exception:
+                    text_y = xy[1]
+                    part_w = len(value) * 4 * scale
+                mask_draw.text((cursor, text_y), value, fill=1, font=font)
+                cursor += part_w
         image.paste(Image.new("RGB", image.size, fill), (0, 0), mask)
         return
     mask = Image.new("1", image.size, 0)
@@ -1277,7 +1338,7 @@ def render_sport_card(options, url, cache, status_color, fallback_text):
     except Exception:
         tiny = small = score_font = ImageFont.load_default()
 
-    draw.rectangle((0, 0, 63, 8), fill=(8, 18, 28))
+    draw.rectangle((0, 0, 63, 6), fill=(8, 18, 28))
     header_status = status.upper()
     if outs is not None:
         while header_status and draw.textbbox((0, 0), header_status, font=tiny)[2] > 45:
@@ -1519,7 +1580,7 @@ def _render_sport_card_128(away, home, away_team, home_team, status, score, stat
     except Exception:
         tiny = small = score_font = regular_score_font = ImageFont.load_default()
 
-    draw.rectangle((0, 0, 127, 8), fill=(8, 18, 28))
+    draw.rectangle((0, 0, 127, 6), fill=(8, 18, 28))
     status_text = (status or "").upper()
     status_w = draw.textbbox((0, 0), status_text, font=tiny)[2]
     draw_sharp_text(image, ((128 - status_w) // 2, -3), status_text[:30], status_color, tiny)
@@ -1716,7 +1777,7 @@ def render_flight_image(flight_num, airline_name, iata, alt_ft, speed_kt, line4)
         bold = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
     except Exception:
         font = bold = ImageFont.load_default()
-    draw.rectangle((0, 0, 63, 8), fill=(0, 15, 45))
+    draw.rectangle((0, 0, 63, 6), fill=(0, 15, 45))
     logo = fetch_airline_logo(iata) if iata else None
     tx = 1
     if logo:

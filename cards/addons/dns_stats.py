@@ -105,7 +105,7 @@ def render(options=None):
     if opts.get("_target") == "matrixportal-s3-128x32":
         image = Image.new("RGB", (128, 32), (0, 5, 12))
         draw = ImageDraw.Draw(image)
-        draw.rectangle((0, 0, 127, 8), fill=(5, 18, 24))
+        draw.rectangle((0, 0, 127, 6), fill=(5, 18, 24))
         title_w = draw.textbbox((0, 0), title[:16], font=bold)[2]
         draw_sharp_text(image, ((128 - title_w) // 2, -3), title[:16], (80, 220, 170), bold)
         rows = [
@@ -123,7 +123,7 @@ def render(options=None):
         image.save(out, "WEBP", lossless=True, quality=100)
         return out.getvalue()
 
-    draw.rectangle((0, 0, 63, 8), fill=(5, 18, 24))
+    draw.rectangle((0, 0, 63, 6), fill=(5, 18, 24))
     draw_sharp_text(image, (1, -3), title[:12], (80, 220, 170), bold)
     draw_sharp_text(image, (1, 9), "BLOCK", (145, 165, 182), font)
     b = format_compact_number(blocked)
@@ -135,7 +135,7 @@ def render(options=None):
     draw_sharp_text(image, (63 - tw, 18), t, (200, 220, 235), font)
     p = f"{float(pct or 0):.1f}%"
     pw = draw.textbbox((0, 0), p, font=font)[2]
-    draw_sharp_text(image, (63 - pw, 25), p, (255, 210, 80), font)
+    draw_sharp_text(image, (63 - pw, 22), p, (255, 210, 80), font)
 
     out = BytesIO()
     image.save(out, "WEBP", lossless=True, quality=100)

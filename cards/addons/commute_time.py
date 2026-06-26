@@ -96,7 +96,7 @@ def _draw_base_card(label, minutes, miles, color, font, bold, width=64):
 
     image = Image.new("RGB", (width, 32), (3, 8, 11))
     draw = ImageDraw.Draw(image)
-    draw.rectangle((0, 0, width - 1, 8), fill=(6, 18, 26))
+    draw.rectangle((0, 0, width - 1, 6), fill=(6, 18, 26))
     title = label[:20 if width == 128 else 10]
     tw = draw.textbbox((0, 0), title, font=font)[2]
     draw_sharp_text(image, (((width - tw) // 2) if width == 128 else 1, -3), title, (115, 205, 255), font)

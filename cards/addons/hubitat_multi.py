@@ -193,7 +193,7 @@ def render(options=None):
         def frame(offset):
             image = Image.new("RGB", (128, 32), (0, 5, 15))
             draw = ImageDraw.Draw(image)
-            draw.rectangle((0, 0, 127, 7), fill=(0, 15, 40))
+            draw.rectangle((0, 0, 127, 6), fill=(0, 15, 40))
             draw_sharp_text(image, (2, -3), "HUBITAT MULTI", (120, 190, 255), bold)
             image.paste(content.crop((0, offset, 128, offset + visible_h)), (0, header_h))
             return image
@@ -209,7 +209,7 @@ def render(options=None):
             frame(0).save(out, "WEBP", lossless=True, quality=100)
         return out.getvalue()
 
-    draw.rectangle((0, 0, 63, 8), fill=(0, 15, 40))
+    draw.rectangle((0, 0, 63, 6), fill=(0, 15, 40))
     draw_sharp_text(image, (1, -3), "HUB MULTI", (120, 190, 255), bold)
     y = 7
     for label, value, color, row_attr in rows:

@@ -263,7 +263,7 @@ def _draw_radar_frame(image, info, frame, font, bold):
             detail = f"SNOW {info['prob']}%"
         draw_sharp_text(image, (panel_x + 3, 19), detail[:12], (210, 230, 238), font)
     else:
-        draw.rectangle((0, 0, 63, 8), fill=(0, 8, 14))
+        draw.rectangle((0, 0, 63, 6), fill=(0, 8, 14))
         label = {"dry": "RADAR DRY", "rain": "RADAR RAIN", "snow": "RADAR SNOW", "mix": "RADAR MIX"}[kind]
         draw_sharp_text(image, (1, -3), label[:11], (118, 245, 210), font)
 

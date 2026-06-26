@@ -61,8 +61,7 @@ def render(options=None):
     draw_sharp_text(image, ((width - tw) // 2, 5), text, (245, 250, 255), big)
     bottom = "ISSUES" if not assignee else "ASSIGNED"
     bw = draw.textbbox((0, 0), bottom, font=font)[2]
-    draw_sharp_text(image, ((width - bw) // 2, 23), bottom, (150, 170, 185), font)
+    draw_sharp_text(image, ((width - bw) // 2, 22), bottom, (150, 170, 185), font)
     out = BytesIO()
     image.save(out, "WEBP", lossless=True, quality=100)
     return out.getvalue()
-

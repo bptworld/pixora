@@ -455,7 +455,7 @@ def _fonts():
 
 
 def _draw_header(image, draw, width, bold):
-    draw.rectangle((0, 0, width - 1, 8), fill=(175, 12, 22))
+    draw.rectangle((0, 0, width - 1, 6), fill=(175, 12, 22))
     draw.rectangle((0, 8, width - 1, 9), fill=(255, 204, 43))
     _, font, _ = _fonts()
     draw_sharp_text(image, (2, -3), "AMC", (255, 235, 90), bold)

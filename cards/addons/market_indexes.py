@@ -94,7 +94,7 @@ def render(options=None):
     except Exception:
         font = bold = ImageFont.load_default()
 
-    draw.rectangle((0, 0, width - 1, 8), fill=(6, 18, 30))
+    draw.rectangle((0, 0, width - 1, 6), fill=(6, 18, 30))
     if is_wide:
         title_w = _tight_text_width("MARKET INDEXES", bold, spacing=0)
         _draw_tight_text(image, ((width - title_w) // 2, -3), "MARKET INDEXES", (100, 190, 255), bold, spacing=0)

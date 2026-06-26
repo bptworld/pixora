@@ -103,7 +103,7 @@ def render(options=None):
         font = bold = big = ImageFont.load_default()
 
     if is_wide:
-        draw.rectangle((0, 0, width - 1, 8), fill=(6, 18, 30))
+        draw.rectangle((0, 0, width - 1, 6), fill=(6, 18, 30))
         title = "PORTFOLIO PULSE"
         tw = draw.textbbox((0, 0), title, font=bold)[2]
         draw_sharp_text(image, ((width - tw) // 2, -3), title, (100, 190, 255), bold)

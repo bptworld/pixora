@@ -165,19 +165,19 @@ def _draw(data, width=64):
     except Exception:
         font = bold = ImageFont.load_default()
 
-    draw.rectangle((0, 0, width - 1, 8), fill=(23, 9, 38))
+    draw.rectangle((0, 0, width - 1, 6), fill=(23, 9, 38))
     _center(image, "MEGA MILLIONS" if width == 128 else "MEGA MILL", -3, (255, 215, 70), bold, x2=width - 1)
     nums = data["numbers"]
     if width == 128:
         _center_numbers(image, " ".join(nums[:5]) + f" +{data['special']}", 9, (245, 250, 255), x2=width - 1)
         _center(image, data.get("next") or "", 15, (120, 230, 255), font, x2=width - 1)
         bottom = (data.get("jackpot") or data.get("date") or "")[:26].upper()
-        _center(image, bottom, 23, (175, 150, 205), font, x2=width - 1)
+        _center(image, bottom, 22, (175, 150, 205), font, x2=width - 1)
     else:
         _center_numbers(image, " ".join(nums[:3]), 8, (245, 250, 255))
         _center_numbers(image, f"{nums[3]} {nums[4]} +{data['special']}", 16, (255, 220, 80))
         bottom = (data.get("jackpot") or data.get("date") or "")[:12].upper()
-        _center(image, bottom, 23, (175, 150, 205), font)
+        _center(image, bottom, 22, (175, 150, 205), font)
 
     out = BytesIO()
     image.save(out, "WEBP", lossless=True, quality=100)

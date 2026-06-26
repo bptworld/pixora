@@ -530,7 +530,7 @@ def _render_event(event, width):
     score = _score_text(away, home, state)
     status = _status_text(event, state).upper()
 
-    draw.rectangle((0, 0, width - 1, 8), fill=(4, 24, 20))
+    draw.rectangle((0, 0, width - 1, 6), fill=(4, 24, 20))
     header = "WORLD CUP"
     draw_sharp_text(image, (1, -3), header, (70, 220, 125), bold)
     status_w = draw.textbbox((0, 0), status, font=font)[2]
