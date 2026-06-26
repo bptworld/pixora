@@ -148,17 +148,26 @@ def _webp_frames(frames, duration=120):
     return out.getvalue()
 
 
+def _option_setting(opts, key, default=""):
+    opts = opts or {}
+    settings = opts.get("_settings") if isinstance(opts.get("_settings"), dict) else {}
+    value = settings.get(key)
+    if value not in (None, ""):
+        return value
+    return _settings_value(key, default)
+
+
 def _clean_zip(opts):
     value = re.sub(r"\D", "", str((opts or {}).get("zipCode") or ""))[:5]
     if value:
         return value
-    return re.sub(r"\D", "", str(_settings_value("defaultZipCode", "") or ""))[:5]
+    return re.sub(r"\D", "", str(_option_setting(opts, "defaultZipCode", "") or ""))[:5]
 
 
-def _location(zip_code):
+def _location(zip_code, opts=None):
     if len(zip_code) != 5:
-        lat = str(_settings_value("defaultLatitude", "") or "").strip()
-        lon = str(_settings_value("defaultLongitude", "") or "").strip()
+        lat = str(_option_setting(opts, "defaultLatitude", "") or "").strip()
+        lon = str(_option_setting(opts, "defaultLongitude", "") or "").strip()
         if lat and lon:
             return float(lat), float(lon)
         raise ValueError("location")
@@ -247,7 +256,7 @@ def _data(opts):
     zip_code = _clean_zip(opts)
     cloud = None
     try:
-        lat, lon = _location(zip_code)
+        lat, lon = _location(zip_code, opts)
         cloud = _cloud_cover(lat, lon)
     except Exception:
         pass
