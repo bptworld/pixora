@@ -34,7 +34,17 @@ firmware/sdkconfig.old
 firmware/secrets.cmake
 firmware/secrets.json
 firmware/main/setup_pages.h
-/firmware/
+!/firmware/
+/firmware/*
+!/firmware/matrixportal-s3/
+!/firmware/matrixportal-s3/README.md
+!/firmware/matrixportal-s3/platformio.ini
+!/firmware/matrixportal-s3/partitions.csv
+!/firmware/matrixportal-s3/src/
+!/firmware/matrixportal-s3/src/**
+!/firmware/matrixportal-s3/tools/
+!/firmware/matrixportal-s3/tools/**
+/firmware/matrixportal-s3/.pio/
 .esp-idf/
 
 # Local Pixora runtime/source files. The public repo exposes cards and official
