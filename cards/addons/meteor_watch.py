@@ -7,7 +7,6 @@ import urllib.parse
 from card_utils import (
     _settings_value,
     draw_pixora_bold_number,
-    draw_sharp_text,
     fetch_json_request,
     fetch_json_with_headers,
     pixora_bold_number_size,
@@ -49,23 +48,103 @@ _SHOWERS = [
 ]
 
 
-def _font(size=8, bold=False):
-    from PIL import ImageFont
-    try:
-        name = "Silkscreen-Bold.ttf" if bold else "Silkscreen-Regular.ttf"
-        return ImageFont.truetype("assets/fonts/" + name, size)
-    except Exception:
-        return ImageFont.load_default()
+_PIXEL = {
+    "A": ("010", "101", "111", "101", "101"),
+    "B": ("110", "101", "110", "101", "110"),
+    "C": ("011", "100", "100", "100", "011"),
+    "D": ("110", "101", "101", "101", "110"),
+    "E": ("111", "100", "110", "100", "111"),
+    "F": ("111", "100", "110", "100", "100"),
+    "G": ("011", "100", "101", "101", "011"),
+    "H": ("101", "101", "111", "101", "101"),
+    "I": ("111", "010", "010", "010", "111"),
+    "J": ("001", "001", "001", "101", "010"),
+    "K": ("101", "101", "110", "101", "101"),
+    "L": ("100", "100", "100", "100", "111"),
+    "M": ("101", "111", "111", "101", "101"),
+    "N": ("101", "111", "111", "111", "101"),
+    "O": ("010", "101", "101", "101", "010"),
+    "P": ("110", "101", "110", "100", "100"),
+    "Q": ("010", "101", "101", "111", "011"),
+    "R": ("110", "101", "110", "101", "101"),
+    "S": ("011", "100", "010", "001", "110"),
+    "T": ("111", "010", "010", "010", "010"),
+    "U": ("101", "101", "101", "101", "111"),
+    "V": ("101", "101", "101", "101", "010"),
+    "W": ("101", "101", "111", "111", "101"),
+    "X": ("101", "101", "010", "101", "101"),
+    "Y": ("101", "101", "010", "010", "010"),
+    "Z": ("111", "001", "010", "100", "111"),
+    "0": ("111", "101", "101", "101", "111"),
+    "1": ("010", "110", "010", "010", "111"),
+    "2": ("110", "001", "010", "100", "111"),
+    "3": ("110", "001", "010", "001", "110"),
+    "4": ("101", "101", "111", "001", "001"),
+    "5": ("111", "100", "110", "001", "110"),
+    "6": ("011", "100", "110", "101", "010"),
+    "7": ("111", "001", "010", "010", "010"),
+    "8": ("010", "101", "010", "101", "010"),
+    "9": ("010", "101", "011", "001", "110"),
+    "/": ("001", "001", "010", "100", "100"),
+    "%": ("101", "001", "010", "100", "101"),
+    "-": ("000", "000", "111", "000", "000"),
+}
 
 
-FONT = _font(8)
-SMALL = _font(6)
-TINY = _font(5)
+def _pixel_width(text, spacing=1):
+    width = 0
+    for ch in str(text or "").upper():
+        if ch == " ":
+            char_width = 2
+        else:
+            glyph = _PIXEL.get(ch)
+            char_width = len(glyph[0]) if glyph else 3
+        width += char_width + spacing
+    return max(0, width - spacing)
+
+
+def _pixel_fit(text, max_width):
+    text = str(text or "").upper()
+    while text and _pixel_width(text) > max_width:
+        text = text[:-1].rstrip()
+    return text or "-"
+
+
+def _draw_pixel_text(draw, xy, text, color, spacing=1):
+    x, y = xy
+    for ch in str(text or "").upper():
+        if ch == " ":
+            x += 2 + spacing
+            continue
+        glyph = _PIXEL.get(ch)
+        if not glyph:
+            x += 3 + spacing
+            continue
+        for gy, row in enumerate(glyph):
+            for gx, pixel in enumerate(row):
+                if pixel == "1":
+                    draw.point((x + gx, y + gy), fill=color)
+        x += len(glyph[0]) + spacing
 
 
 def _webp(image):
     out = BytesIO()
     image.save(out, "WEBP", lossless=True, quality=100)
+    return out.getvalue()
+
+
+def _webp_frames(frames, duration=120):
+    out = BytesIO()
+    frames[0].save(
+        out,
+        "WEBP",
+        save_all=True,
+        append_images=frames[1:],
+        duration=duration,
+        loop=1,
+        lossless=True,
+        quality=100,
+    )
     return out.getvalue()
 
 
@@ -177,13 +256,6 @@ def _data(opts):
     return {"zip": zip_code, "cloud": cloud, "moon": moon, "moon_age": age, "shower": shower, "score": _score(shower, cloud, moon)}
 
 
-def _fit(draw, text, font, max_width):
-    text = str(text or "")
-    while text and draw.textbbox((0, 0), text, font=font)[2] > max_width:
-        text = text[:-1].rstrip()
-    return text or "-"
-
-
 def _score_color(score):
     if score >= 75:
         return (95, 230, 135)
@@ -199,67 +271,90 @@ def _draw_score_number(draw, score, x, y, color, scale=2):
 
 
 def _draw_stars(draw, width, offset=0):
-    stars = [(3, 3), (12, 14), (21, 5), (31, 23), (43, 8), (55, 25), (70, 4), (86, 20), (101, 8), (119, 25)]
+    stars = [(4, 3), (54, 4), (75, 4), (101, 8), (119, 25)]
     for x, y in stars:
         if x < width:
             draw.point((x, y), fill=(88, 130, 165) if (x + y + offset) % 3 else (150, 200, 230))
 
 
-def _draw_meteor(draw, x, y, color=(95, 230, 255)):
-    draw.line((x - 10, y + 5, x, y), fill=(18, 80, 110))
-    draw.line((x - 6, y + 3, x, y), fill=color)
-    draw.point((x + 1, y), fill=(255, 255, 255))
+def _draw_fireball(draw, width, height, step, total):
+    t = step / max(1, total - 1)
+    x = int(round(width + 4 - t * (width + 18)))
+    y = int(round(7 + t * (height + 4)))
+    radius = 1 + int(round(t * 5))
+    tail = [
+        (4, -2, (95, 230, 255)),
+        (8, -4, (60, 180, 225)),
+        (12, -6, (34, 120, 170)),
+        (16, -8, (18, 72, 112)),
+    ]
+    for dx, dy, color in reversed(tail):
+        px, py = x + dx, y + dy
+        if -2 <= px < width + 2 and -2 <= py < height + 2:
+            draw.rectangle((px, py, px + 1, py + 1), fill=color)
+    flame = (255, 190, 75) if radius >= 3 else (95, 230, 255)
+    glow = (255, 90, 80) if radius >= 3 else (80, 210, 240)
+    draw.ellipse((x - radius, y - radius, x + radius, y + radius), fill=glow)
+    inner = max(1, radius - 1)
+    draw.ellipse((x - inner, y - inner, x + inner, y + inner), fill=flame)
+    draw.point((x - 1, y - 1), fill=(255, 255, 255))
 
 
-def _render_64(data, mode):
+def _draw_header(draw, width, title="METEOR"):
+    draw.rectangle((0, 0, width - 1, 6), fill=(9, 42, 58))
+    _draw_pixel_text(draw, (1, 1), title, (95, 230, 255))
+
+
+def _render_64(data, mode, meteor_step=0, meteor_total=1):
     from PIL import Image, ImageDraw
     image = Image.new("RGB", (64, 32), (1, 5, 18))
     draw = ImageDraw.Draw(image)
     _draw_stars(draw, 64)
-    _draw_meteor(draw, 58, 3)
+    _draw_header(draw, 64)
+    _draw_fireball(draw, 64, 32, meteor_step, meteor_total)
     shower = data["shower"]
     score = data["score"]
     color = _score_color(score)
     if mode == "shower":
-        title = _fit(draw, shower["short"], FONT, 62)
-        draw_sharp_text(image, (1, 0), title, (95, 230, 255), FONT)
         days = abs(int(shower.get("days", 0)))
-        _draw_score_number(draw, days if not shower.get("active") else shower["zhr"], 30, 8, (255, 255, 255), scale=2)
+        value = days if not shower.get("active") else shower["zhr"]
+        _draw_score_number(draw, value, 24, 11, (255, 255, 255), scale=1)
         suffix = "/HR" if shower.get("active") else "D"
-        draw_sharp_text(image, (44, 10), suffix, (95, 230, 135), FONT)
+        _draw_pixel_text(draw, (35, 12), suffix, (95, 230, 135))
+        _draw_pixel_text(draw, (1, 20), "NEXT PEAK" if not shower.get("active") else "ACTIVE", (255, 220, 90))
         if shower.get("active"):
             footer = f"MOON {data['moon']}%"
         else:
             footer = shower["peak_date"].strftime("%b %d").upper()
-        draw_sharp_text(image, (1, 20), footer, (160, 190, 230), FONT)
+        _draw_pixel_text(draw, (1, 26), _pixel_fit(footer, 62), (160, 190, 230))
     else:
-        draw_sharp_text(image, (1, 0), "METEOR", (95, 230, 255), FONT)
-        _draw_score_number(draw, score, 24, 8, color, scale=2)
-        draw_sharp_text(image, (43, 9), "/99", (180, 210, 230), FONT)
+        _draw_score_number(draw, score, 25, 9, color, scale=1)
+        _draw_pixel_text(draw, (36, 10), "/99", (180, 210, 230))
         cloud = "--" if data["cloud"] is None else str(data["cloud"])
-        draw_sharp_text(image, (1, 20), _fit(draw, shower["short"], FONT, 36), (255, 220, 90), FONT)
-        draw_sharp_text(image, (43, 20), _fit(draw, f"C{cloud}%", FONT, 20), (155, 205, 255), FONT)
+        peak = shower["peak_date"].strftime("%b %d").upper()
+        _draw_pixel_text(draw, (1, 19), _pixel_fit(f"CLOUD {cloud}%", 62), (155, 205, 255))
+        _draw_pixel_text(draw, (1, 26), _pixel_fit(f"PEAK {peak}", 62), (255, 220, 90))
     return image
 
 
-def _render_128(data, mode):
+def _render_128(data, mode, meteor_step=0, meteor_total=1):
     from PIL import Image, ImageDraw
     image = Image.new("RGB", (128, 32), (1, 5, 18))
     draw = ImageDraw.Draw(image)
     _draw_stars(draw, 128)
-    _draw_meteor(draw, 118, 4)
+    _draw_header(draw, 128)
+    _draw_fireball(draw, 128, 32, meteor_step, meteor_total)
     shower = data["shower"]
     score = data["score"]
     color = _score_color(score)
-    draw_sharp_text(image, (1, 0), "METEOR", (95, 230, 255), FONT)
-    _draw_score_number(draw, score, 21, 10, color, scale=2)
-    draw_sharp_text(image, (39, 12), "/99", (180, 210, 230), FONT)
-    name = _fit(draw, shower["name"], FONT, 72)
-    draw_sharp_text(image, (55, 0), name, (255, 220, 90), FONT)
+    _draw_score_number(draw, score, 18, 11, color, scale=1)
+    _draw_pixel_text(draw, (29, 12), "/99", (180, 210, 230))
+    name = _pixel_fit(shower["name"], 72)
+    _draw_pixel_text(draw, (52, 10), name, (255, 220, 90))
     status = "ACTIVE" if shower.get("active") else f"PEAK {shower['peak_date'].strftime('%b').upper()} {shower['peak_date'].day}"
     cloud = "--" if data["cloud"] is None else str(data["cloud"])
-    detail = f"{status} {shower['zhr']}/HR C{cloud}% M{data['moon']}%"
-    draw_sharp_text(image, (55, 18), _fit(draw, detail, FONT, 72), (155, 205, 255), FONT)
+    detail = f"{status} CLOUD {cloud}% MOON {data['moon']}%"
+    _draw_pixel_text(draw, (52, 20), _pixel_fit(detail, 74), (155, 205, 255))
     return image
 
 
@@ -273,5 +368,9 @@ def render(options=None):
     mode = str(opts.get("mode") or "auto").lower()
     if mode == "auto":
         mode = "shower" if data["shower"].get("active") and abs(data["shower"].get("days", 0)) <= 2 else "score"
-    image = _render_128(data, mode) if width == 128 else _render_64(data, mode)
-    return _webp(image)
+    frame_count = 10
+    if width == 128:
+        frames = [_render_128(data, mode, idx, frame_count) for idx in range(frame_count)]
+    else:
+        frames = [_render_64(data, mode, idx, frame_count) for idx in range(frame_count)]
+    return _webp_frames(frames)
