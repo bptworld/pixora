@@ -468,10 +468,59 @@ void performOta(const String &otaUrl) {
   ESP.restart();
 }
 
-bool drawRgb565Stream(WiFiClient *stream, int length, bool showErrors) {
+int frameDurationMs(const String &durations, int frameIndex) {
+  int start = 0;
+  for (int i = 0; i < frameIndex; i++) {
+    start = durations.indexOf(',', start);
+    if (start < 0) {
+      return 100;
+    }
+    start++;
+  }
+  int end = durations.indexOf(',', start);
+  String value = end >= 0 ? durations.substring(start, end) : durations.substring(start);
+  int duration = value.toInt();
+  return constrain(duration > 0 ? duration : 100, 35, 1000);
+}
+
+bool readFullFrame(WiFiClient *stream, uint8_t *frame, int expected) {
+  int received = 0;
+  uint32_t lastDataMs = millis();
+  while (received < expected) {
+    serviceUsbConfig();
+    int readCount = stream->readBytes(frame + received, expected - received);
+    if (readCount > 0) {
+      received += readCount;
+      lastDataMs = millis();
+      continue;
+    }
+    if (millis() - lastDataMs > 15000) {
+      break;
+    }
+    delay(1);
+  }
+  return received == expected;
+}
+
+void drawRgb565Frame(const uint8_t *frame) {
+  int index = 0;
+  for (int y = 0; y < PIXORA_PANEL_HEIGHT; y++) {
+    for (int x = 0; x < PIXORA_PANEL_WIDTH; x++) {
+      uint8_t lo = frame[index++];
+      uint8_t hi = frame[index++];
+      uint16_t pixel = (uint16_t)lo | ((uint16_t)hi << 8);
+      matrix.drawPixel(x, y, scaleColor565(pixel));
+    }
+  }
+  matrix.show();
+}
+
+bool drawRgb565Stream(WiFiClient *stream, int length, bool showErrors, int frameCount, const String &durations) {
   const int expected = PIXORA_PANEL_WIDTH * PIXORA_PANEL_HEIGHT * 2;
-  if (length >= 0 && length != expected) {
-    Serial.printf("Unexpected rgb565 length: %d expected %d\n", length, expected);
+  frameCount = constrain(frameCount, 1, 120);
+  int totalExpected = expected * frameCount;
+  if (length >= 0 && length != totalExpected) {
+    Serial.printf("Unexpected rgb565 length: %d expected %d\n", length, totalExpected);
     if (showErrors) {
       showStatus("BAD FRAME", "SIZE", color565Scaled(255, 90, 90));
     }
@@ -488,49 +537,27 @@ bool drawRgb565Stream(WiFiClient *stream, int length, bool showErrors) {
   }
 
   stream->setTimeout(15000);
-  int received = 0;
-  uint32_t lastDataMs = millis();
-  while (received < expected) {
-    serviceUsbConfig();
-    int readCount = stream->readBytes(frame + received, expected - received);
-    if (readCount > 0) {
-      received += readCount;
-      lastDataMs = millis();
-      continue;
+  for (int frameIndex = 0; frameIndex < frameCount; frameIndex++) {
+    if (!readFullFrame(stream, frame, expected)) {
+      Serial.printf("Short rgb565 frame %d/%d\n", frameIndex + 1, frameCount);
+      free(frame);
+      if (showErrors) {
+        showStatus("FRAME", "SHORT", color565Scaled(255, 90, 90));
+      }
+      return false;
     }
-    if (millis() - lastDataMs > 15000) {
-      break;
+
+    uint32_t hash = frameHash(frame, expected);
+    if (frameCount > 1 || !hasDisplayedFrame || hash != lastFrameHash) {
+      drawRgb565Frame(frame);
+      lastFrameHash = hash;
     }
-    delay(1);
+    if (frameIndex < frameCount - 1) {
+      delay(frameDurationMs(durations, frameIndex));
+    }
   }
 
-  if (received != expected) {
-    Serial.printf("Short rgb565 frame: %d expected %d\n", received, expected);
-    free(frame);
-    if (showErrors) {
-      showStatus("FRAME", "SHORT", color565Scaled(255, 90, 90));
-    }
-    return false;
-  }
-
-  uint32_t hash = frameHash(frame, expected);
-  if (hasDisplayedFrame && hash == lastFrameHash) {
-    free(frame);
-    return true;
-  }
-  lastFrameHash = hash;
-
-  int index = 0;
-  for (int y = 0; y < PIXORA_PANEL_HEIGHT; y++) {
-    for (int x = 0; x < PIXORA_PANEL_WIDTH; x++) {
-      uint8_t lo = frame[index++];
-      uint8_t hi = frame[index++];
-      uint16_t pixel = (uint16_t)lo | ((uint16_t)hi << 8);
-      matrix.drawPixel(x, y, scaleColor565(pixel));
-    }
-  }
   free(frame);
-  matrix.show();
   return true;
 }
 
@@ -554,11 +581,13 @@ void pollNextFrame() {
   const char *headers[] = {
       "Pixora-Dwell-Ms",
       "Pixora-Dwell-Secs",
+      "Pixora-Frame-Count",
+      "Pixora-Frame-Durations",
       "Pixora-Brightness",
       "Pixora-Reboot",
       "Pixora-Command",
       "Pixora-OTA-URL"};
-  http.collectHeaders(headers, 6);
+  http.collectHeaders(headers, 8);
   http.setTimeout(15000);
   http.useHTTP10(true);
   if (!beginHttp(http, secureClient, plainClient, url)) {
@@ -582,7 +611,9 @@ void pollNextFrame() {
       performOta(otaUrl);
       return;
     }
-    if (!drawRgb565Stream(http.getStreamPtr(), http.getSize(), !hasDisplayedFrame)) {
+    int frameCount = http.header("Pixora-Frame-Count").toInt();
+    String frameDurations = http.header("Pixora-Frame-Durations");
+    if (!drawRgb565Stream(http.getStreamPtr(), http.getSize(), !hasDisplayedFrame, frameCount > 0 ? frameCount : 1, frameDurations)) {
       Serial.println("Failed to draw rgb565 frame");
     } else {
       hasDisplayedFrame = true;
