@@ -29,7 +29,7 @@
 #endif
 
 #ifndef PIXORA_BIT_DEPTH
-#define PIXORA_BIT_DEPTH 3
+#define PIXORA_BIT_DEPTH 4
 #endif
 
 #ifndef PIXORA_RESET_CONFIG_ON_BOOT
