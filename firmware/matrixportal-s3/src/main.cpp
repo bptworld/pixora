@@ -74,6 +74,7 @@ uint32_t lastPollMs = 0;
 uint32_t dwellMs = 10000;
 uint8_t brightnessPercent = 70;
 bool hasDisplayedFrame = false;
+uint32_t lastFrameHash = 0;
 
 String trimSlashes(String value) {
   value.trim();
@@ -140,6 +141,15 @@ uint16_t scaleColor565(uint16_t pixel) {
 
 uint16_t color565Scaled(uint8_t r, uint8_t g, uint8_t b) {
   return color565(scaleChannel(r), scaleChannel(g), scaleChannel(b));
+}
+
+uint32_t frameHash(const uint8_t *data, int length) {
+  uint32_t hash = 2166136261UL;
+  for (int i = 0; i < length; i++) {
+    hash ^= data[i];
+    hash *= 16777619UL;
+  }
+  return hash;
 }
 
 void setBrightnessPercent(uint8_t percent) {
@@ -498,6 +508,13 @@ bool drawRgb565Stream(WiFiClient *stream, int length, bool showErrors) {
     }
     return false;
   }
+
+  uint32_t hash = frameHash(frame, expected);
+  if (hasDisplayedFrame && hash == lastFrameHash) {
+    free(frame);
+    return true;
+  }
+  lastFrameHash = hash;
 
   int index = 0;
   for (int y = 0; y < PIXORA_PANEL_HEIGHT; y++) {
