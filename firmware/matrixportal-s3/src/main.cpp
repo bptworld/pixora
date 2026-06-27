@@ -454,18 +454,22 @@ void performOta(const String &otaUrl) {
   ESP.restart();
 }
 
-bool drawRgb565Stream(WiFiClient *stream, int length) {
+bool drawRgb565Stream(WiFiClient *stream, int length, bool showErrors) {
   const int expected = PIXORA_PANEL_WIDTH * PIXORA_PANEL_HEIGHT * 2;
   if (length >= 0 && length != expected) {
     Serial.printf("Unexpected rgb565 length: %d expected %d\n", length, expected);
-    showStatus("BAD FRAME", "SIZE", color565Scaled(255, 90, 90));
+    if (showErrors) {
+      showStatus("BAD FRAME", "SIZE", color565Scaled(255, 90, 90));
+    }
     return false;
   }
 
   uint8_t *frame = (uint8_t *)malloc(expected);
   if (!frame) {
     Serial.println("Failed to allocate rgb565 frame buffer");
-    showStatus("FRAME", "NO MEM", color565Scaled(255, 90, 90));
+    if (showErrors) {
+      showStatus("FRAME", "NO MEM", color565Scaled(255, 90, 90));
+    }
     return false;
   }
 
@@ -489,7 +493,9 @@ bool drawRgb565Stream(WiFiClient *stream, int length) {
   if (received != expected) {
     Serial.printf("Short rgb565 frame: %d expected %d\n", received, expected);
     free(frame);
-    showStatus("FRAME", "SHORT", color565Scaled(255, 90, 90));
+    if (showErrors) {
+      showStatus("FRAME", "SHORT", color565Scaled(255, 90, 90));
+    }
     return false;
   }
 
@@ -519,8 +525,6 @@ void pollNextFrame() {
 
   if (!hasDisplayedFrame) {
     showFirstCardStatus();
-  } else {
-    showCloudStatus();
   }
   String url = nextUrl();
   WiFiClientSecure secureClient;
@@ -537,7 +541,9 @@ void pollNextFrame() {
   http.useHTTP10(true);
   if (!beginHttp(http, secureClient, plainClient, url)) {
     Serial.println("Frame HTTP begin failed");
-    showStatus("HTTP", "BEGIN", color565Scaled(255, 90, 90));
+    if (!hasDisplayedFrame) {
+      showStatus("HTTP", "BEGIN", color565Scaled(255, 90, 90));
+    }
     return;
   }
   http.addHeader("X-Firmware-Version", PIXORA_VERSION);
@@ -554,17 +560,18 @@ void pollNextFrame() {
       performOta(otaUrl);
       return;
     }
-    if (!drawRgb565Stream(http.getStreamPtr(), http.getSize())) {
+    if (!drawRgb565Stream(http.getStreamPtr(), http.getSize(), !hasDisplayedFrame)) {
       Serial.println("Failed to draw rgb565 frame");
-      showCloudStatus();
     } else {
       hasDisplayedFrame = true;
     }
   } else {
     Serial.printf("Frame fetch failed: HTTP %d\n", code);
-    char codeText[12];
-    snprintf(codeText, sizeof(codeText), "%d", code);
-    showStatus("HTTP", codeText, color565Scaled(255, 90, 90));
+    if (!hasDisplayedFrame) {
+      char codeText[12];
+      snprintf(codeText, sizeof(codeText), "%d", code);
+      showStatus("HTTP", codeText, color565Scaled(255, 90, 90));
+    }
   }
   http.end();
 }
