@@ -364,8 +364,12 @@ String nextUrl() {
 }
 
 void applyResponseHeaders(HTTPClient &http) {
+  int dwellMsHeader = http.header("Pixora-Dwell-Ms").toInt();
+  if (dwellMsHeader > 0) {
+    dwellMs = constrain(dwellMsHeader, 35, 300000);
+  }
   int dwell = http.header("Pixora-Dwell-Secs").toInt();
-  if (dwell > 0) {
+  if (dwell > 0 && dwellMsHeader <= 0) {
     dwellMs = constrain(dwell, 1, 300) * 1000UL;
   }
   int brightness = http.header("Pixora-Brightness").toInt();
@@ -548,12 +552,13 @@ void pollNextFrame() {
   WiFiClient plainClient;
   HTTPClient http;
   const char *headers[] = {
+      "Pixora-Dwell-Ms",
       "Pixora-Dwell-Secs",
       "Pixora-Brightness",
       "Pixora-Reboot",
       "Pixora-Command",
       "Pixora-OTA-URL"};
-  http.collectHeaders(headers, 5);
+  http.collectHeaders(headers, 6);
   http.setTimeout(15000);
   http.useHTTP10(true);
   if (!beginHttp(http, secureClient, plainClient, url)) {
