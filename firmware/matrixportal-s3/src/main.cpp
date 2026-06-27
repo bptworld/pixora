@@ -458,24 +458,51 @@ bool drawRgb565Stream(WiFiClient *stream, int length) {
   const int expected = PIXORA_PANEL_WIDTH * PIXORA_PANEL_HEIGHT * 2;
   if (length >= 0 && length != expected) {
     Serial.printf("Unexpected rgb565 length: %d expected %d\n", length, expected);
+    showStatus("BAD FRAME", "SIZE", color565Scaled(255, 90, 90));
     return false;
   }
 
+  uint8_t *frame = (uint8_t *)malloc(expected);
+  if (!frame) {
+    Serial.println("Failed to allocate rgb565 frame buffer");
+    showStatus("FRAME", "NO MEM", color565Scaled(255, 90, 90));
+    return false;
+  }
+
+  stream->setTimeout(15000);
+  int received = 0;
+  uint32_t lastDataMs = millis();
+  while (received < expected) {
+    serviceUsbConfig();
+    int readCount = stream->readBytes(frame + received, expected - received);
+    if (readCount > 0) {
+      received += readCount;
+      lastDataMs = millis();
+      continue;
+    }
+    if (millis() - lastDataMs > 15000) {
+      break;
+    }
+    delay(1);
+  }
+
+  if (received != expected) {
+    Serial.printf("Short rgb565 frame: %d expected %d\n", received, expected);
+    free(frame);
+    showStatus("FRAME", "SHORT", color565Scaled(255, 90, 90));
+    return false;
+  }
+
+  int index = 0;
   for (int y = 0; y < PIXORA_PANEL_HEIGHT; y++) {
     for (int x = 0; x < PIXORA_PANEL_WIDTH; x++) {
-      uint32_t deadline = millis() + 3000;
-      while (stream->available() < 2 && millis() < deadline) {
-        delay(1);
-      }
-      if (stream->available() < 2) {
-        return false;
-      }
-      uint8_t lo = stream->read();
-      uint8_t hi = stream->read();
+      uint8_t lo = frame[index++];
+      uint8_t hi = frame[index++];
       uint16_t pixel = (uint16_t)lo | ((uint16_t)hi << 8);
       matrix.drawPixel(x, y, scaleColor565(pixel));
     }
   }
+  free(frame);
   matrix.show();
   return true;
 }
@@ -507,9 +534,10 @@ void pollNextFrame() {
       "Pixora-OTA-URL"};
   http.collectHeaders(headers, 5);
   http.setTimeout(15000);
+  http.useHTTP10(true);
   if (!beginHttp(http, secureClient, plainClient, url)) {
     Serial.println("Frame HTTP begin failed");
-    showCloudStatus();
+    showStatus("HTTP", "BEGIN", color565Scaled(255, 90, 90));
     return;
   }
   http.addHeader("X-Firmware-Version", PIXORA_VERSION);
@@ -534,7 +562,9 @@ void pollNextFrame() {
     }
   } else {
     Serial.printf("Frame fetch failed: HTTP %d\n", code);
-    showCloudStatus();
+    char codeText[12];
+    snprintf(codeText, sizeof(codeText), "%d", code);
+    showStatus("HTTP", codeText, color565Scaled(255, 90, 90));
   }
   http.end();
 }
