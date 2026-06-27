@@ -28,6 +28,10 @@
 #define PIXORA_PANEL_CHAIN 1
 #endif
 
+#ifndef PIXORA_BIT_DEPTH
+#define PIXORA_BIT_DEPTH 3
+#endif
+
 #ifndef PIXORA_RESET_CONFIG_ON_BOOT
 #define PIXORA_RESET_CONFIG_ON_BOOT 0
 #endif
@@ -47,8 +51,8 @@ static constexpr uint8_t oePin = 14;
 
 Adafruit_Protomatter matrix(
     PIXORA_PANEL_WIDTH,
-    4,
-    1,
+    PIXORA_BIT_DEPTH,
+    PIXORA_PANEL_CHAIN,
     rgbPins,
     addrPinCount,
     addrPins,
