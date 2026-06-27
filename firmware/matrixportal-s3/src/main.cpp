@@ -79,6 +79,7 @@ uint32_t dwellMs = 10000;
 uint8_t brightnessPercent = 70;
 bool hasDisplayedFrame = false;
 uint32_t lastFrameHash = 0;
+static uint8_t rgb565FrameBuffer[PIXORA_PANEL_WIDTH * PIXORA_PANEL_HEIGHT * 2];
 
 String trimSlashes(String value) {
   value.trim();
@@ -343,6 +344,7 @@ bool connectWifi() {
   }
   showWifiStatus();
   WiFi.mode(WIFI_STA);
+  WiFi.setSleep(false);
   if (!config.hostname.isEmpty()) {
     WiFi.setHostname(config.hostname.c_str());
   }
@@ -364,7 +366,7 @@ bool connectWifi() {
 String nextUrl() {
   String base = normalizeBaseUrl(config.imageUrl);
   String separator = base.indexOf('?') >= 0 ? "&" : "?";
-  return base + "/next" + separator + "device=" + urlEncode(cloudDeviceId()) + "&target=" + PIXORA_DEVICE_TARGET + "-" + String(PIXORA_PANEL_WIDTH) + "x32&format=rgb565";
+  return base + "/next" + separator + "device=" + urlEncode(cloudDeviceId()) + "&target=" + PIXORA_DEVICE_TARGET + "-" + String(PIXORA_PANEL_WIDTH) + "x32&format=rgb565&depth=" + String(PIXORA_BIT_DEPTH);
 }
 
 void applyResponseHeaders(HTTPClient &http) {
@@ -508,6 +510,7 @@ bool readFullFrame(WiFiClient *stream, uint8_t *frame, int expected) {
 
 void drawRgb565Frame(const uint8_t *frame) {
   int index = 0;
+  matrix.fillScreen(0);
   for (int y = 0; y < PIXORA_PANEL_HEIGHT; y++) {
     for (int x = 0; x < PIXORA_PANEL_WIDTH; x++) {
       uint8_t lo = frame[index++];
@@ -531,20 +534,12 @@ bool drawRgb565Stream(WiFiClient *stream, int length, bool showErrors, int frame
     return false;
   }
 
-  uint8_t *frame = (uint8_t *)malloc(expected);
-  if (!frame) {
-    Serial.println("Failed to allocate rgb565 frame buffer");
-    if (showErrors) {
-      showStatus("FRAME", "NO MEM", color565Scaled(255, 90, 90));
-    }
-    return false;
-  }
+  uint8_t *frame = rgb565FrameBuffer;
 
   stream->setTimeout(15000);
   for (int frameIndex = 0; frameIndex < frameCount; frameIndex++) {
     if (!readFullFrame(stream, frame, expected)) {
       Serial.printf("Short rgb565 frame %d/%d\n", frameIndex + 1, frameCount);
-      free(frame);
       if (showErrors) {
         showStatus("FRAME", "SHORT", color565Scaled(255, 90, 90));
       }
@@ -552,16 +547,13 @@ bool drawRgb565Stream(WiFiClient *stream, int length, bool showErrors, int frame
     }
 
     uint32_t hash = frameHash(frame, expected);
-    if (frameCount > 1 || !hasDisplayedFrame || hash != lastFrameHash) {
-      drawRgb565Frame(frame);
-      lastFrameHash = hash;
-    }
+    drawRgb565Frame(frame);
+    lastFrameHash = hash;
     if (frameIndex < frameCount - 1) {
       delay(frameDurationMs(durations, frameIndex));
     }
   }
 
-  free(frame);
   return true;
 }
 
@@ -604,6 +596,7 @@ void pollNextFrame() {
   http.addHeader("X-Firmware-Version", PIXORA_VERSION);
   http.addHeader("X-Pixora-Target", String(PIXORA_DEVICE_TARGET) + "-" + String(PIXORA_PANEL_WIDTH) + "x32");
   http.addHeader("X-Pixora-Accept", "rgb565");
+  http.addHeader("X-Pixora-Color-Depth", String(PIXORA_BIT_DEPTH));
   http.addHeader("X-Pixora-Uptime", String(millis() / 1000));
 
   int code = http.GET();
