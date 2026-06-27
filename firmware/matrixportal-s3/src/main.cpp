@@ -7,6 +7,9 @@
 #include <WiFiClientSecure.h>
 #include <Adafruit_Protomatter.h>
 #include <Update.h>
+extern "C" {
+#include <webp/decode.h>
+}
 
 #ifndef PIXORA_VERSION
 #define PIXORA_VERSION "2.0.0-rebuild"
@@ -79,7 +82,7 @@ uint32_t dwellMs = 10000;
 uint8_t brightnessPercent = 70;
 bool hasDisplayedFrame = false;
 uint32_t lastFrameHash = 0;
-static uint8_t rgb565FrameBuffer[PIXORA_PANEL_WIDTH * PIXORA_PANEL_HEIGHT * 2];
+static uint8_t webpRgbBuffer[PIXORA_PANEL_WIDTH * PIXORA_PANEL_HEIGHT * 3];
 
 String trimSlashes(String value) {
   value.trim();
@@ -366,7 +369,7 @@ bool connectWifi() {
 String nextUrl() {
   String base = normalizeBaseUrl(config.imageUrl);
   String separator = base.indexOf('?') >= 0 ? "&" : "?";
-  return base + "/next" + separator + "device=" + urlEncode(cloudDeviceId()) + "&target=" + PIXORA_DEVICE_TARGET + "-" + String(PIXORA_PANEL_WIDTH) + "x32&format=rgb565&depth=" + String(PIXORA_BIT_DEPTH);
+  return base + "/next" + separator + "device=" + urlEncode(cloudDeviceId()) + "&target=" + PIXORA_DEVICE_TARGET + "-" + String(PIXORA_PANEL_WIDTH) + "x32&format=webp";
 }
 
 void applyResponseHeaders(HTTPClient &http) {
@@ -474,27 +477,12 @@ void performOta(const String &otaUrl) {
   ESP.restart();
 }
 
-int frameDurationMs(const String &durations, int frameIndex) {
-  int start = 0;
-  for (int i = 0; i < frameIndex; i++) {
-    start = durations.indexOf(',', start);
-    if (start < 0) {
-      return 100;
-    }
-    start++;
-  }
-  int end = durations.indexOf(',', start);
-  String value = end >= 0 ? durations.substring(start, end) : durations.substring(start);
-  int duration = value.toInt();
-  return constrain(duration > 0 ? duration : 100, 35, 1000);
-}
-
-bool readFullFrame(WiFiClient *stream, uint8_t *frame, int expected) {
+bool readFullBody(WiFiClient *stream, uint8_t *body, int expected) {
   int received = 0;
   uint32_t lastDataMs = millis();
   while (received < expected) {
     serviceUsbConfig();
-    int readCount = stream->readBytes(frame + received, expected - received);
+    int readCount = stream->readBytes(body + received, expected - received);
     if (readCount > 0) {
       received += readCount;
       lastDataMs = millis();
@@ -508,52 +496,79 @@ bool readFullFrame(WiFiClient *stream, uint8_t *frame, int expected) {
   return received == expected;
 }
 
-void drawRgb565Frame(const uint8_t *frame) {
+void drawDecodedWebpFrame(const uint8_t *frame) {
   int index = 0;
   matrix.fillScreen(0);
   for (int y = 0; y < PIXORA_PANEL_HEIGHT; y++) {
     for (int x = 0; x < PIXORA_PANEL_WIDTH; x++) {
-      uint8_t lo = frame[index++];
-      uint8_t hi = frame[index++];
-      uint16_t pixel = (uint16_t)lo | ((uint16_t)hi << 8);
-      matrix.drawPixel(x, y, scaleColor565(pixel));
+      uint8_t r = frame[index++];
+      uint8_t g = frame[index++];
+      uint8_t b = frame[index++];
+      matrix.drawPixel(x, y, color565Scaled(r, g, b));
     }
   }
   matrix.show();
 }
 
-bool drawRgb565Stream(WiFiClient *stream, int length, bool showErrors, int frameCount, const String &durations) {
-  const int expected = PIXORA_PANEL_WIDTH * PIXORA_PANEL_HEIGHT * 2;
-  frameCount = constrain(frameCount, 1, 120);
-  int totalExpected = expected * frameCount;
-  if (length >= 0 && length != totalExpected) {
-    Serial.printf("Unexpected rgb565 length: %d expected %d\n", length, totalExpected);
+bool drawWebpStream(WiFiClient *stream, int length, bool showErrors) {
+  if (length <= 0 || length > 131072) {
+    Serial.printf("Unexpected webp length: %d\n", length);
     if (showErrors) {
       showStatus("BAD FRAME", "SIZE", color565Scaled(255, 90, 90));
     }
     return false;
   }
 
-  uint8_t *frame = rgb565FrameBuffer;
-
+  uint8_t *body = (uint8_t *)malloc(length);
+  if (!body) {
+    Serial.println("Failed to allocate webp body buffer");
+    if (showErrors) {
+      showStatus("WEBP", "NO MEM", color565Scaled(255, 90, 90));
+    }
+    return false;
+  }
   stream->setTimeout(15000);
-  for (int frameIndex = 0; frameIndex < frameCount; frameIndex++) {
-    if (!readFullFrame(stream, frame, expected)) {
-      Serial.printf("Short rgb565 frame %d/%d\n", frameIndex + 1, frameCount);
-      if (showErrors) {
-        showStatus("FRAME", "SHORT", color565Scaled(255, 90, 90));
-      }
-      return false;
+  if (!readFullBody(stream, body, length)) {
+    Serial.println("Short webp frame");
+    free(body);
+    if (showErrors) {
+      showStatus("WEBP", "SHORT", color565Scaled(255, 90, 90));
     }
-
-    uint32_t hash = frameHash(frame, expected);
-    drawRgb565Frame(frame);
-    lastFrameHash = hash;
-    if (frameIndex < frameCount - 1) {
-      delay(frameDurationMs(durations, frameIndex));
-    }
+    return false;
   }
 
+  int webpWidth = 0;
+  int webpHeight = 0;
+  if (!WebPGetInfo(body, length, &webpWidth, &webpHeight)) {
+    Serial.println("WebPGetInfo failed");
+    free(body);
+    if (showErrors) {
+      showStatus("WEBP", "BAD", color565Scaled(255, 90, 90));
+    }
+    return false;
+  }
+  if (webpWidth != PIXORA_PANEL_WIDTH || webpHeight != PIXORA_PANEL_HEIGHT) {
+    Serial.printf("Unexpected webp size: %dx%d\n", webpWidth, webpHeight);
+    free(body);
+    if (showErrors) {
+      showStatus("WEBP", "SIZE", color565Scaled(255, 90, 90));
+    }
+    return false;
+  }
+
+  uint8_t *decoded = WebPDecodeRGBInto(body, length, webpRgbBuffer, sizeof(webpRgbBuffer), PIXORA_PANEL_WIDTH * 3);
+  free(body);
+  if (!decoded) {
+    Serial.println("WebPDecodeRGBInto failed");
+    if (showErrors) {
+      showStatus("WEBP", "DECODE", color565Scaled(255, 90, 90));
+    }
+    return false;
+  }
+
+  uint32_t hash = frameHash(webpRgbBuffer, sizeof(webpRgbBuffer));
+  drawDecodedWebpFrame(webpRgbBuffer);
+  lastFrameHash = hash;
   return true;
 }
 
@@ -577,13 +592,11 @@ void pollNextFrame() {
   const char *headers[] = {
       "Pixora-Dwell-Ms",
       "Pixora-Dwell-Secs",
-      "Pixora-Frame-Count",
-      "Pixora-Frame-Durations",
       "Pixora-Brightness",
       "Pixora-Reboot",
       "Pixora-Command",
       "Pixora-OTA-URL"};
-  http.collectHeaders(headers, 8);
+  http.collectHeaders(headers, 6);
   http.setTimeout(15000);
   http.useHTTP10(true);
   if (!beginHttp(http, secureClient, plainClient, url)) {
@@ -595,8 +608,7 @@ void pollNextFrame() {
   }
   http.addHeader("X-Firmware-Version", PIXORA_VERSION);
   http.addHeader("X-Pixora-Target", String(PIXORA_DEVICE_TARGET) + "-" + String(PIXORA_PANEL_WIDTH) + "x32");
-  http.addHeader("X-Pixora-Accept", "rgb565");
-  http.addHeader("X-Pixora-Color-Depth", String(PIXORA_BIT_DEPTH));
+  http.addHeader("X-Pixora-Accept", "webp");
   http.addHeader("X-Pixora-Uptime", String(millis() / 1000));
 
   int code = http.GET();
@@ -608,10 +620,8 @@ void pollNextFrame() {
       performOta(otaUrl);
       return;
     }
-    int frameCount = http.header("Pixora-Frame-Count").toInt();
-    String frameDurations = http.header("Pixora-Frame-Durations");
-    if (!drawRgb565Stream(http.getStreamPtr(), http.getSize(), !hasDisplayedFrame, frameCount > 0 ? frameCount : 1, frameDurations)) {
-      Serial.println("Failed to draw rgb565 frame");
+    if (!drawWebpStream(http.getStreamPtr(), http.getSize(), !hasDisplayedFrame)) {
+      Serial.println("Failed to draw webp frame");
     } else {
       hasDisplayedFrame = true;
     }
