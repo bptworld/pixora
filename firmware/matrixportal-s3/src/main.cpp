@@ -52,7 +52,7 @@ static constexpr uint8_t oePin = 14;
 Adafruit_Protomatter matrix(
     PIXORA_PANEL_WIDTH,
     PIXORA_BIT_DEPTH,
-    PIXORA_PANEL_CHAIN,
+    1,
     rgbPins,
     addrPinCount,
     addrPins,
