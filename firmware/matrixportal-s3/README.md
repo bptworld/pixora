@@ -37,10 +37,10 @@ Use the MatrixPortal S3 BOOT/RESET buttons if Windows does not expose the USB se
 The package script writes three names for each panel size:
 
 - `*-user-ota-firmware.bin`: use this for customer/cloud updates. It is meant to preserve existing setup.
-- `*-factory-firmware.bin`: use this label for pre-ship install/testing on your side.
-- `*-ota-firmware.bin`: compatibility alias for existing Pixora tooling.
+- `*-factory-firmware.bin`: use this label for pre-ship install/testing on your side. It clears Pixora setup on first boot.
+- `*-ota-firmware.bin`: compatibility alias for existing Pixora tooling. It clears Pixora setup on first boot.
 
-The app does not intentionally erase setup. It reads and writes only the current `pixora` settings namespace using the short setup keys `ssid`, `pass`, `url`, `mode`, and `host`. A full chip erase or flashing the wrong full image can still clear setup; customer updates should use the user OTA `.bin`.
+Only the user OTA file is meant to preserve setup. The factory and plain OTA files are built with a reset marker that clears the current `pixora` settings namespace once for that build, then allows newly saved setup to persist normally. The firmware reads and writes the short setup keys `ssid`, `pass`, `url`, `mode`, and `host`.
 
 ## USB Setup
 

@@ -18,7 +18,11 @@ if (!(Test-Path -LiteralPath $pio)) {
 if ($Build) {
   Push-Location $projectRoot
   try {
-    & $pio run -e matrixportal_s3_64x32 -e matrixportal_s3_128x32
+    & $pio run `
+      -e matrixportal_s3_64x32 `
+      -e matrixportal_s3_128x32 `
+      -e matrixportal_s3_64x32_reset `
+      -e matrixportal_s3_128x32_reset
   } finally {
     Pop-Location
   }
@@ -28,25 +32,30 @@ New-Item -ItemType Directory -Force -Path $releaseDir | Out-Null
 New-Item -ItemType Directory -Force -Path $dropDir | Out-Null
 
 $targets = @(
-  @{ Env = "matrixportal_s3_64x32"; Name = "64x32" },
-  @{ Env = "matrixportal_s3_128x32"; Name = "128x32" }
+  @{ PreserveEnv = "matrixportal_s3_64x32"; ResetEnv = "matrixportal_s3_64x32_reset"; Name = "64x32" },
+  @{ PreserveEnv = "matrixportal_s3_128x32"; ResetEnv = "matrixportal_s3_128x32_reset"; Name = "128x32" }
 )
 
 foreach ($target in $targets) {
-  $source = Join-Path $projectRoot ".pio\build\$($target.Env)\firmware.bin"
-  if (!(Test-Path -LiteralPath $source)) {
-    throw "Missing build output: $source. Run with -Build first."
+  $preserveSource = Join-Path $projectRoot ".pio\build\$($target.PreserveEnv)\firmware.bin"
+  $resetSource = Join-Path $projectRoot ".pio\build\$($target.ResetEnv)\firmware.bin"
+  if (!(Test-Path -LiteralPath $preserveSource)) {
+    throw "Missing build output: $preserveSource. Run with -Build first."
   }
-  $names = @(
-    "pixora-v$Version-$($target.Name)-user-ota-firmware.bin",
-    "pixora-v$Version-$($target.Name)-factory-firmware.bin",
-    "pixora-v$Version-$($target.Name)-ota-firmware.bin"
+  if (!(Test-Path -LiteralPath $resetSource)) {
+    throw "Missing build output: $resetSource. Run with -Build first."
+  }
+  $outputs = @(
+    @{ Source = $preserveSource; Name = "pixora-v$Version-$($target.Name)-user-ota-firmware.bin" },
+    @{ Source = $resetSource; Name = "pixora-v$Version-$($target.Name)-factory-firmware.bin" },
+    @{ Source = $resetSource; Name = "pixora-v$Version-$($target.Name)-ota-firmware.bin" }
   )
-  foreach ($name in $names) {
+  foreach ($output in $outputs) {
+    $name = $output.Name
     $dest = Join-Path $releaseDir $name
     $drop = Join-Path $dropDir $name
-    Copy-Item -LiteralPath $source -Destination $dest -Force
-    Copy-Item -LiteralPath $source -Destination $drop -Force
+    Copy-Item -LiteralPath $output.Source -Destination $dest -Force
+    Copy-Item -LiteralPath $output.Source -Destination $drop -Force
     Write-Host "Wrote $dest"
     Write-Host "Wrote $drop"
   }

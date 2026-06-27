@@ -28,10 +28,19 @@
 #define PIXORA_PANEL_CHAIN 1
 #endif
 
+#ifndef PIXORA_RESET_CONFIG_ON_BOOT
+#define PIXORA_RESET_CONFIG_ON_BOOT 0
+#endif
+
+#ifndef PIXORA_RESET_CONFIG_MARKER
+#define PIXORA_RESET_CONFIG_MARKER "none"
+#endif
+
 // Adafruit MatrixPortal S3 HUB75 pin mapping.
 // These names are supplied by the Adafruit board package.
 static uint8_t rgbPins[] = {42, 41, 40, 38, 39, 37};
 static uint8_t addrPins[] = {45, 36, 48, 35, 21};
+static constexpr uint8_t addrPinCount = 4;
 static constexpr uint8_t clockPin = 2;
 static constexpr uint8_t latchPin = 47;
 static constexpr uint8_t oePin = 14;
@@ -41,7 +50,7 @@ Adafruit_Protomatter matrix(
     4,
     1,
     rgbPins,
-    5,
+    addrPinCount,
     addrPins,
     clockPin,
     latchPin,
@@ -84,6 +93,34 @@ String normalizeBaseUrl(String url) {
     url = url.substring(0, nextIndex);
   }
   return trimSlashes(url);
+}
+
+String urlEncode(const String &value) {
+  const char *hex = "0123456789ABCDEF";
+  String out;
+  out.reserve(value.length());
+  for (size_t i = 0; i < value.length(); i++) {
+    uint8_t ch = (uint8_t)value[i];
+    bool unreserved =
+        (ch >= 'A' && ch <= 'Z') ||
+        (ch >= 'a' && ch <= 'z') ||
+        (ch >= '0' && ch <= '9') ||
+        ch == '-' || ch == '_' || ch == '.' || ch == '~';
+    if (unreserved) {
+      out += (char)ch;
+    } else {
+      out += '%';
+      out += hex[(ch >> 4) & 0x0F];
+      out += hex[ch & 0x0F];
+    }
+  }
+  return out;
+}
+
+String cloudDeviceId() {
+  String id = config.hostname;
+  id.trim();
+  return id.isEmpty() ? deviceId : id;
 }
 
 uint16_t color565(uint8_t r, uint8_t g, uint8_t b) {
@@ -174,7 +211,16 @@ void showFirstCardStatus() {
 }
 
 void showSetupStatus() {
-  showStatus("USB", "SETUP", color565Scaled(255, 210, 80));
+  uint16_t color = color565Scaled(255, 210, 80);
+  matrix.fillScreen(0);
+  matrix.setTextWrap(false);
+  matrix.setTextColor(color);
+  matrix.setTextSize(1);
+  matrix.setCursor(centeredX("SETUP WIFI", 1), 7);
+  matrix.print("SETUP WIFI");
+  matrix.setCursor(centeredX("OVER USB", 1), 21);
+  matrix.print("OVER USB");
+  matrix.show();
 }
 
 void makeDeviceId() {
@@ -193,6 +239,19 @@ void loadConfig() {
   config.hostname = prefs.getString("host", "");
   config.swapColors = prefs.getBool("swap", false);
   prefs.end();
+}
+
+void resetConfigIfRequested() {
+#if PIXORA_RESET_CONFIG_ON_BOOT
+  prefs.begin("pixora", false);
+  String marker = prefs.getString("resetMarker", "");
+  if (marker != PIXORA_RESET_CONFIG_MARKER) {
+    prefs.clear();
+    prefs.putString("resetMarker", PIXORA_RESET_CONFIG_MARKER);
+    Serial.println("Pixora settings cleared by this firmware image");
+  }
+  prefs.end();
+#endif
 }
 
 bool saveConfig(const Config &next) {
@@ -291,7 +350,7 @@ bool connectWifi() {
 String nextUrl() {
   String base = normalizeBaseUrl(config.imageUrl);
   String separator = base.indexOf('?') >= 0 ? "&" : "?";
-  return base + "/next" + separator + "device=" + deviceId + "&target=" + PIXORA_DEVICE_TARGET + "-" + String(PIXORA_PANEL_WIDTH) + "x32&format=rgb565";
+  return base + "/next" + separator + "device=" + urlEncode(cloudDeviceId()) + "&target=" + PIXORA_DEVICE_TARGET + "-" + String(PIXORA_PANEL_WIDTH) + "x32&format=rgb565";
 }
 
 void applyResponseHeaders(HTTPClient &http) {
@@ -485,6 +544,7 @@ void setup() {
   delay(250);
   LittleFS.begin(true);
   makeDeviceId();
+  resetConfigIfRequested();
   loadConfig();
 
   ProtomatterStatus status = matrix.begin();
@@ -494,7 +554,7 @@ void setup() {
   setBrightnessPercent(brightnessPercent);
   showStatus("PIXORA", "BOOT");
 
-  Serial.printf("Pixora firmware %s device=%s target=%s width=%d\n", PIXORA_VERSION, deviceId.c_str(), PIXORA_DEVICE_TARGET, PIXORA_PANEL_WIDTH);
+  Serial.printf("Pixora firmware %s hardware=%s cloud=%s target=%s width=%d\n", PIXORA_VERSION, deviceId.c_str(), cloudDeviceId().c_str(), PIXORA_DEVICE_TARGET, PIXORA_PANEL_WIDTH);
   if (connectWifi()) {
     pollNextFrame();
     lastPollMs = millis();
