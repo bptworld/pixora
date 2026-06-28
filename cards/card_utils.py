@@ -1414,10 +1414,8 @@ def render_sport_card(options, url, cache, status_color, fallback_text):
     if home_logo:
         image.paste(home_logo, (52, 7), home_logo)
     if batting_side == "away":
-        draw_baseball_bat_marker(draw, 10, 12, "away")
         draw_baseball_diamond(draw, 10, 19, bases, size=3)
     elif batting_side == "home":
-        draw_baseball_bat_marker(draw, 54, 12, "home")
         draw_baseball_diamond(draw, 54, 19, bases, size=3)
     out = BytesIO()
     image.save(out, "WEBP", lossless=True, quality=100)

@@ -286,6 +286,68 @@ def _fit_regular_font(text, max_width, sizes):
     return fallback
 
 
+_TINY_GLYPHS = {
+    "0": ("111", "101", "101", "101", "111"),
+    "1": ("010", "110", "010", "010", "111"),
+    "2": ("111", "001", "111", "100", "111"),
+    "3": ("111", "001", "111", "001", "111"),
+    "4": ("101", "101", "111", "001", "001"),
+    "5": ("111", "100", "111", "001", "111"),
+    "6": ("111", "100", "111", "101", "111"),
+    "7": ("111", "001", "010", "010", "010"),
+    "8": ("111", "101", "111", "101", "111"),
+    "9": ("111", "101", "111", "001", "111"),
+    "A": ("010", "101", "111", "101", "101"),
+    "B": ("110", "101", "110", "101", "110"),
+    "C": ("111", "100", "100", "100", "111"),
+    "D": ("110", "101", "101", "101", "110"),
+    "E": ("111", "100", "110", "100", "111"),
+    "F": ("111", "100", "110", "100", "100"),
+    "G": ("111", "100", "101", "101", "111"),
+    "H": ("101", "101", "111", "101", "101"),
+    "I": ("111", "010", "010", "010", "111"),
+    "J": ("001", "001", "001", "101", "111"),
+    "K": ("101", "101", "110", "101", "101"),
+    "L": ("100", "100", "100", "100", "111"),
+    "M": ("1001", "1111", "1111", "1001", "1001"),
+    "N": ("1001", "1101", "1011", "1001", "1001"),
+    "O": ("111", "101", "101", "101", "111"),
+    "P": ("110", "101", "110", "100", "100"),
+    "Q": ("111", "101", "101", "111", "001"),
+    "R": ("110", "101", "110", "101", "101"),
+    "S": ("111", "100", "111", "001", "111"),
+    "T": ("111", "010", "010", "010", "010"),
+    "U": ("101", "101", "101", "101", "111"),
+    "V": ("101", "101", "101", "101", "010"),
+    "W": ("101", "101", "111", "111", "101"),
+    "X": ("101", "101", "010", "101", "101"),
+    "Y": ("101", "101", "010", "010", "010"),
+    "Z": ("111", "001", "010", "100", "111"),
+    ".": ("0", "0", "0", "0", "1"),
+    "-": ("000", "000", "111", "000", "000"),
+    " ": ("0", "0", "0", "0", "0"),
+}
+
+
+def _tiny_text_size(text):
+    width = 0
+    for char in str(text or "").upper():
+        glyph = _TINY_GLYPHS.get(char, _TINY_GLYPHS[" "])
+        width += len(glyph[0]) + 1
+    return max(0, width - 1), 5
+
+
+def _draw_tiny_text(draw, x, y, text, color):
+    cursor = int(x)
+    for char in str(text or "").upper():
+        glyph = _TINY_GLYPHS.get(char, _TINY_GLYPHS[" "])
+        for row, bits in enumerate(glyph):
+            for col, bit in enumerate(bits):
+                if bit == "1":
+                    draw.point((cursor + col, int(y) + row), fill=color)
+        cursor += len(glyph[0]) + 1
+
+
 def _format_batting_stats(stats, width):
     stats = stats if isinstance(stats, dict) else {}
     h_ab = str(stats.get("H-AB") or "").strip()
@@ -304,6 +366,48 @@ def _format_batting_stats(stats, width):
     return "  ".join(parts) or "AT BAT"
 
 
+def _format_batting_stat_lines(stats, width):
+    stats = stats if isinstance(stats, dict) else {}
+    h_ab = str(stats.get("H-AB") or "").strip()
+    avg = str(stats.get("AVG") or "").strip()
+    rbi = str(stats.get("RBI") or "").strip()
+    hr = str(stats.get("HR") or "").strip()
+
+    primary = []
+    secondary = []
+    if h_ab:
+        primary.append(h_ab)
+    if rbi and rbi not in ("0", "0.0"):
+        primary.append(f"RBI {rbi}")
+    if hr and hr not in ("0", "0.0"):
+        secondary.append(f"HR {hr}")
+    if avg:
+        secondary.append(f"AVG {avg}" if width >= 96 else avg)
+
+    lines = ["  ".join(line) for line in (primary, secondary) if line]
+    if not lines:
+        return ["AT BAT"]
+    return lines[:2]
+
+
+def _draw_mlb_player_moment_layout(image, draw, *, label, name, stat_lines, text_left, text_width, color, width):
+    label = str(label or "").upper()
+    name = str(name or "").strip() or "Scoring Play"
+    draw.rectangle((0, 0, width - 1, 6), fill=color + (255,))
+    label_w, _label_h = _tiny_text_size(label)
+    label_x = text_left + max(0, (text_width - label_w) // 2)
+    _draw_tiny_text(draw, label_x, 1, label, (255, 255, 255))
+    name_font = _fit_regular_font(name, text_width, (12, 11, 10, 9, 8) if width >= 96 else (9, 8, 7, 6))
+    name_bbox = draw.textbbox((0, 0), name, font=name_font)
+    name_x = text_left + max(0, (text_width - (name_bbox[2] - name_bbox[0])) // 2)
+    draw_sharp_text(image, (name_x, 7 - name_bbox[1]), name, (245, 248, 250), name_font)
+    stat_ys = (22,) if len(stat_lines) == 1 and width >= 96 else (21,) if len(stat_lines) == 1 else (19, 25) if width >= 96 else (18, 24)
+    for stat, y in zip(stat_lines, stat_ys):
+        stat_w, _stat_h = _tiny_text_size(stat)
+        stats_x = text_left + max(0, (text_width - stat_w) // 2)
+        _draw_tiny_text(draw, stats_x, y, stat, (255, 255, 255))
+
+
 def _render_now_batting_frames(team):
     from PIL import Image, ImageDraw
 
@@ -317,13 +421,9 @@ def _render_now_batting_frames(team):
         width = 64
     width = max(64, min(512, width))
 
-    image = Image.new("RGBA", (width, 32), (1, 5, 8, 255))
+    image = Image.new("RGBA", (width, 32), (0, 0, 0, 255))
     draw = ImageDraw.Draw(image)
-    for y in range(0, 32, 2):
-        shade = 8 + (y // 2)
-        draw.line((0, y, width - 1, y), fill=(1, shade, 13, 255))
-    draw.rectangle((0, 0, width - 1, 2), fill=color + (255,))
-    draw.line((0, 31, width - 1, 31), fill=tuple(max(12, c // 3) for c in color) + (255,))
+    draw.line((0, 31, width - 1, 31), fill=tuple(max(0, c // 3) for c in color) + (255,))
 
     if width < 96:
         text_left = 2
@@ -331,26 +431,15 @@ def _render_now_batting_frames(team):
         text_width = max(28, text_right - text_left)
         label = "AT BAT"
         name = _display_player_name(team.get("playerName"), width)
-        stats = _format_batting_stats(team.get("playerStats"), width)
-        label_font = _font_from_file("PixelifySans-Bold.ttf", 6)
-        name_font = _fit_regular_font(name, text_width, (9, 8, 7, 6))
-        stats_font = _fit_regular_font(stats, text_width, (6, 5))
-        label_bbox = draw.textbbox((0, 0), label, font=label_font)
-        name_bbox = draw.textbbox((0, 0), name, font=name_font)
-        stats_bbox = draw.textbbox((0, 0), stats, font=stats_font)
-        label_x = text_left + max(0, (text_width - (label_bbox[2] - label_bbox[0])) // 2)
-        name_x = text_left + max(0, (text_width - (name_bbox[2] - name_bbox[0])) // 2)
-        stats_x = text_left + max(0, (text_width - (stats_bbox[2] - stats_bbox[0])) // 2)
-        draw_sharp_text(image, (label_x, 4 - label_bbox[1]), label, color, label_font)
-        draw_sharp_text(image, (name_x, 13 - name_bbox[1]), name, (245, 248, 250), name_font)
-        draw_sharp_text(image, (stats_x, 23 - stats_bbox[1]), stats, (255, 255, 255), stats_font)
+        stat_lines = _format_batting_stat_lines(team.get("playerStats"), width)
+        _draw_mlb_player_moment_layout(image, draw, label=label, name=name, stat_lines=stat_lines, text_left=text_left, text_width=text_width, color=color, width=width)
         return [image.convert("RGB")], [5000]
 
     headshot = _fetch_headshot(team.get("playerHeadshot"), 25)
     if headshot:
         hx = 2
         hy = 5
-        draw.rounded_rectangle((hx - 1, hy - 1, hx + headshot.width, hy + headshot.height), radius=2, fill=(3, 9, 13, 255), outline=color + (255,))
+        draw.rounded_rectangle((hx - 1, hy - 1, hx + headshot.width, hy + headshot.height), radius=2, fill=(0, 0, 0, 255), outline=color + (255,))
         image.alpha_composite(headshot, (hx, hy))
         text_left = hx + headshot.width + 4
     else:
@@ -359,16 +448,10 @@ def _render_now_batting_frames(team):
 
     text_right = width - 2
     text_width = max(28, text_right - text_left)
+    label = "AT BAT"
     name = _display_player_name(team.get("playerName"), width)
-    stats = _format_batting_stats(team.get("playerStats"), width)
-    name_font = _fit_regular_font(name, text_width, (12, 11, 10, 9, 8))
-    stats_font = _fit_regular_font(stats, text_width, (8, 7, 6, 5))
-    name_bbox = draw.textbbox((0, 0), name, font=name_font)
-    stats_bbox = draw.textbbox((0, 0), stats, font=stats_font)
-    name_x = text_left + max(0, (text_width - (name_bbox[2] - name_bbox[0])) // 2)
-    stats_x = text_left + max(0, (text_width - (stats_bbox[2] - stats_bbox[0])) // 2)
-    draw_sharp_text(image, (name_x, 6 - name_bbox[1]), name, (245, 248, 250), name_font)
-    draw_sharp_text(image, (stats_x, 19 - stats_bbox[1]), stats, (255, 255, 255), stats_font)
+    stat_lines = _format_batting_stat_lines(team.get("playerStats"), width)
+    _draw_mlb_player_moment_layout(image, draw, label=label, name=name, stat_lines=stat_lines, text_left=text_left, text_width=text_width, color=color, width=width)
 
     return [image.convert("RGB")], [5000]
 
@@ -386,19 +469,15 @@ def _render_rbi_card(team, kind="rbi"):
         width = 64
     width = max(64, min(512, width))
 
-    image = Image.new("RGBA", (width, 32), (1, 5, 8, 255))
+    image = Image.new("RGBA", (width, 32), (0, 0, 0, 255))
     draw = ImageDraw.Draw(image)
-    for y in range(0, 32, 2):
-        shade = 8 + (y // 2)
-        draw.line((0, y, width - 1, y), fill=(1, shade, 13, 255))
-    draw.rectangle((0, 0, width - 1, 2), fill=color + (255,))
-    draw.line((0, 31, width - 1, 31), fill=tuple(max(12, c // 3) for c in color) + (255,))
+    draw.line((0, 31, width - 1, 31), fill=tuple(max(0, c // 3) for c in color) + (255,))
 
     headshot = _fetch_headshot(team.get("playerHeadshot"), 24) if width >= 96 else None
     if headshot:
         hx = 2
         hy = 6
-        draw.rounded_rectangle((hx - 1, hy - 1, hx + headshot.width, hy + headshot.height), radius=2, fill=(3, 9, 13, 255), outline=color + (255,))
+        draw.rounded_rectangle((hx - 1, hy - 1, hx + headshot.width, hy + headshot.height), radius=2, fill=(0, 0, 0, 255), outline=color + (255,))
         image.alpha_composite(headshot, (hx, hy))
         text_left = hx + headshot.width + 4
     elif width >= 96:
@@ -413,28 +492,10 @@ def _render_rbi_card(team, kind="rbi"):
     name = _display_player_name(team.get("playerName"), width)
     if not team.get("playerName"):
         name = "Scoring Play"
-    stats = _format_batting_stats(team.get("playerStats"), width)
-    if stats == "AT BAT":
-        stats = "RUN SCORED"
-
-    headline_font = _font_from_file("PixelifySans-Bold.ttf", 12 if width >= 96 else 9)
-    name_font = _fit_regular_font(name, text_width, (10, 9, 8, 7) if width >= 96 else (8, 7, 6))
-    stats_font = _fit_regular_font(stats, text_width, (7, 6, 5) if width >= 96 else (6, 5))
-    headline_bbox = draw.textbbox((0, 0), headline, font=headline_font)
-    name_bbox = draw.textbbox((0, 0), name, font=name_font)
-    stats_bbox = draw.textbbox((0, 0), stats, font=stats_font)
-    headline_x = text_left + max(0, (text_width - (headline_bbox[2] - headline_bbox[0])) // 2)
-    name_x = text_left + max(0, (text_width - (name_bbox[2] - name_bbox[0])) // 2)
-    stats_x = text_left + max(0, (text_width - (stats_bbox[2] - stats_bbox[0])) // 2)
-    if width < 96:
-        headline_color = alt if sum(alt) >= 140 else color
-        draw_sharp_text(image, (headline_x, 4 - headline_bbox[1]), headline, headline_color, headline_font)
-        draw_sharp_text(image, (name_x, 13 - name_bbox[1]), name, (245, 248, 250), name_font)
-        draw_sharp_text(image, (stats_x, 23 - stats_bbox[1]), stats, (255, 255, 255), stats_font)
-    else:
-        draw_sharp_text(image, (headline_x, 2 - headline_bbox[1]), headline, alt, headline_font)
-        draw_sharp_text(image, (name_x, 15 - name_bbox[1]), name, (245, 248, 250), name_font)
-        draw_sharp_text(image, (stats_x, 24 - stats_bbox[1]), stats, (255, 255, 255), stats_font)
+    stat_lines = _format_batting_stat_lines(team.get("playerStats"), width)
+    if stat_lines == ["AT BAT"]:
+        stat_lines = ["RUN SCORED"] if width >= 96 else ["SCORED"]
+    _draw_mlb_player_moment_layout(image, draw, label=headline, name=name, stat_lines=stat_lines, text_left=text_left, text_width=text_width, color=color, width=width)
 
     out = BytesIO()
     image.convert("RGB").save(out, "WEBP", lossless=True, quality=100)
@@ -475,29 +536,16 @@ def _render_compact_moment_card(team, kind="run"):
     if stats == "AT BAT":
         stats = "SCORED"
 
-    image = Image.new("RGBA", (width, 32), (1, 5, 8, 255))
+    image = Image.new("RGBA", (width, 32), (0, 0, 0, 255))
     draw = ImageDraw.Draw(image)
-    for y in range(0, 32, 2):
-        shade = 8 + (y // 2)
-        draw.line((0, y, width - 1, y), fill=(1, shade, 13, 255))
-    draw.rectangle((0, 0, width - 1, 2), fill=color + (255,))
-    draw.line((0, 31, width - 1, 31), fill=tuple(max(12, c // 3) for c in color) + (255,))
+    draw.line((0, 31, width - 1, 31), fill=tuple(max(0, c // 3) for c in color) + (255,))
 
     text_left = 2
     text_width = width - 4
-    headline_font = _fit_regular_font(headline, text_width, (8, 7, 6))
-    name_font = _fit_regular_font(name, text_width, (8, 7, 6))
-    stats_font = _fit_regular_font(stats, text_width, (6, 5))
-    headline_bbox = draw.textbbox((0, 0), headline, font=headline_font)
-    name_bbox = draw.textbbox((0, 0), name, font=name_font)
-    stats_bbox = draw.textbbox((0, 0), stats, font=stats_font)
-    headline_x = text_left + max(0, (text_width - (headline_bbox[2] - headline_bbox[0])) // 2)
-    name_x = text_left + max(0, (text_width - (name_bbox[2] - name_bbox[0])) // 2)
-    stats_x = text_left + max(0, (text_width - (stats_bbox[2] - stats_bbox[0])) // 2)
-    headline_color = alt if sum(alt) >= 140 else color
-    draw_sharp_text(image, (headline_x, 4 - headline_bbox[1]), headline, headline_color, headline_font)
-    draw_sharp_text(image, (name_x, 13 - name_bbox[1]), name, (245, 248, 250), name_font)
-    draw_sharp_text(image, (stats_x, 23 - stats_bbox[1]), stats, (255, 255, 255), stats_font)
+    stat_lines = _format_batting_stat_lines(team.get("playerStats"), width)
+    if stat_lines == ["AT BAT"]:
+        stat_lines = ["SCORED"]
+    _draw_mlb_player_moment_layout(image, draw, label=headline, name=name, stat_lines=stat_lines, text_left=text_left, text_width=text_width, color=color, width=width)
 
     out = BytesIO()
     image.convert("RGB").save(out, "WEBP", lossless=True, quality=100)
