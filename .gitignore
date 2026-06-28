@@ -7,6 +7,7 @@ releases/cloud-server/*
 !releases/server/
 releases/server/*
 !releases/server/PixoraSetup-v1.3.88.exe
+!releases/server/PixoraCloudSetup-v2.0.0-rebuild.exe
 !releases/firmware/
 releases/firmware/*
 !releases/firmware/pixora-v2.0.0-rebuild-64x32-user-ota-firmware.bin
