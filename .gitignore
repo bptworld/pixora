@@ -9,8 +9,8 @@ releases/server/*
 !releases/server/PixoraSetup-v1.3.88.exe
 !releases/firmware/
 releases/firmware/*
-!releases/firmware/*-ota-firmware.bin
-!releases/firmware/*-factory-firmware.bin
+!releases/firmware/pixora-v2.0.0-rebuild-64x32-user-ota-firmware.bin
+!releases/firmware/pixora-v2.0.0-rebuild-128x32-user-ota-firmware.bin
 data/
 tmp/
 internal-firmware/
@@ -35,16 +35,7 @@ firmware/sdkconfig.old
 firmware/secrets.cmake
 firmware/secrets.json
 firmware/main/setup_pages.h
-!/firmware/
-/firmware/*
-!/firmware/matrixportal-s3/
-!/firmware/matrixportal-s3/README.md
-!/firmware/matrixportal-s3/platformio.ini
-!/firmware/matrixportal-s3/partitions.csv
-!/firmware/matrixportal-s3/src/
-!/firmware/matrixportal-s3/src/**
-!/firmware/matrixportal-s3/tools/
-!/firmware/matrixportal-s3/tools/**
+/firmware/
 /firmware/matrixportal-s3/.pio/
 .esp-idf/
 
