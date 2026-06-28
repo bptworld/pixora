@@ -1,7 +1,6 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <HTTPClient.h>
-#include <LittleFS.h>
 #include <Preferences.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
@@ -81,7 +80,6 @@ static uint8_t prefetchedRgbBuffer[PIXORA_PANEL_WIDTH * PIXORA_PANEL_HEIGHT * 3]
 bool prefetchedFrameReady = false;
 bool prefetchAttempted = false;
 uint32_t prefetchedDwellMs = 10000;
-const char *cachedFramePath = "/last.rgb";
 
 String trimSlashes(String value) {
   value.trim();
@@ -361,14 +359,10 @@ bool connectWifi() {
   return false;
 }
 
-String nextUrl(bool preferCached = false) {
+String nextUrl() {
   String base = normalizeBaseUrl(config.imageUrl);
   String separator = base.indexOf('?') >= 0 ? "&" : "?";
-  String url = base + "/next" + separator + "device=" + urlEncode(cloudDeviceId()) + "&target=" + PIXORA_DEVICE_TARGET + "-" + String(PIXORA_PANEL_WIDTH) + "x32&format=webp";
-  if (preferCached) {
-    url += "&cached=1";
-  }
-  return url;
+  return base + "/next" + separator + "device=" + urlEncode(cloudDeviceId()) + "&target=" + PIXORA_DEVICE_TARGET + "-" + String(PIXORA_PANEL_WIDTH) + "x32&format=webp";
 }
 
 uint32_t responseDwellMs(HTTPClient &http, uint32_t fallbackMs) {
@@ -403,8 +397,11 @@ void applyResponseHeaders(HTTPClient &http, bool updateDwell = true) {
 bool beginHttp(HTTPClient &http, WiFiClientSecure &secureClient, WiFiClient &plainClient, const String &url) {
   if (url.startsWith("https://")) {
     secureClient.setInsecure();
+    secureClient.setHandshakeTimeout(20);
+    secureClient.setTimeout(20000);
     return http.begin(secureClient, url);
   }
+  plainClient.setTimeout(20000);
   return http.begin(plainClient, url);
 }
 
@@ -515,50 +512,6 @@ void drawDecodedWebpFrame(const uint8_t *frame) {
   matrix.flipDMABuffer();
 }
 
-bool loadCachedFrame() {
-  File file = LittleFS.open(cachedFramePath, "r");
-  if (!file) {
-    return false;
-  }
-  const size_t expected = sizeof(webpRgbBuffer);
-  if (file.size() != expected) {
-    file.close();
-    LittleFS.remove(cachedFramePath);
-    return false;
-  }
-  size_t read = file.read(webpRgbBuffer, expected);
-  file.close();
-  if (read != expected) {
-    return false;
-  }
-  drawDecodedWebpFrame(webpRgbBuffer);
-  lastFrameHash = frameHash(webpRgbBuffer, sizeof(webpRgbBuffer));
-  hasDisplayedFrame = true;
-  prefs.begin("pixora", true);
-  dwellMs = prefs.getUInt("lastDwell", dwellMs);
-  prefs.end();
-  Serial.println("Displayed cached Pixora frame");
-  return true;
-}
-
-void saveCachedFrame(const uint8_t *frame, uint32_t frameDwellMs) {
-  File file = LittleFS.open(cachedFramePath, "w");
-  if (!file) {
-    Serial.println("Could not open cached frame for write");
-    return;
-  }
-  size_t written = file.write(frame, sizeof(webpRgbBuffer));
-  file.close();
-  if (written != sizeof(webpRgbBuffer)) {
-    Serial.println("Cached frame write short");
-    LittleFS.remove(cachedFramePath);
-    return;
-  }
-  prefs.begin("pixora", false);
-  prefs.putUInt("lastDwell", frameDwellMs);
-  prefs.end();
-}
-
 bool decodeWebpStream(WiFiClient *stream, int length, bool showErrors, uint8_t *targetBuffer) {
   if (length <= 0 || length > 131072) {
     Serial.printf("Unexpected webp length: %d\n", length);
@@ -631,7 +584,7 @@ bool fetchNextFrame(bool drawNow) {
   if (!hasDisplayedFrame && drawNow) {
     showFirstCardStatus();
   }
-  String url = nextUrl(!hasDisplayedFrame && drawNow);
+  String url = nextUrl();
   WiFiClientSecure secureClient;
   WiFiClient plainClient;
   HTTPClient http;
@@ -643,7 +596,8 @@ bool fetchNextFrame(bool drawNow) {
       "Pixora-Command",
       "Pixora-OTA-URL"};
   http.collectHeaders(headers, 6);
-  http.setTimeout(7000);
+  http.setConnectTimeout(20000);
+  http.setTimeout(20000);
   http.useHTTP10(true);
   if (!beginHttp(http, secureClient, plainClient, url)) {
     Serial.println("Frame HTTP begin failed");
@@ -657,7 +611,10 @@ bool fetchNextFrame(bool drawNow) {
   http.addHeader("X-Pixora-Accept", "webp");
   http.addHeader("X-Pixora-Uptime", String(millis() / 1000));
 
+  uint32_t fetchStartMs = millis();
+  Serial.printf("Frame fetch start: %s\n", url.c_str());
   int code = http.GET();
+  Serial.printf("Frame HTTP result: %d after %lu ms size=%d\n", code, (unsigned long)(millis() - fetchStartMs), http.getSize());
   if (code == 200) {
     uint32_t nextDwellMs = responseDwellMs(http, dwellMs);
     applyResponseHeaders(http, drawNow);
@@ -676,7 +633,6 @@ bool fetchNextFrame(bool drawNow) {
         drawDecodedWebpFrame(webpRgbBuffer);
         lastFrameHash = hash;
         dwellMs = nextDwellMs;
-        saveCachedFrame(webpRgbBuffer, dwellMs);
         hasDisplayedFrame = true;
         prefetchedFrameReady = false;
         prefetchAttempted = false;
@@ -722,7 +678,6 @@ void showPrefetchedFrame() {
 void setup() {
   Serial.begin(115200);
   delay(250);
-  LittleFS.begin(true);
   makeDeviceId();
   resetConfigIfRequested();
   loadConfig();
@@ -732,9 +687,6 @@ void setup() {
   }
   setBrightnessPercent(brightnessPercent);
   showStatus("PIXORA", "BOOT");
-  if (!config.wifiSsid.isEmpty()) {
-    loadCachedFrame();
-  }
 
   Serial.printf("Pixora firmware %s hardware=%s cloud=%s target=%s width=%d\n", PIXORA_VERSION, deviceId.c_str(), cloudDeviceId().c_str(), PIXORA_DEVICE_TARGET, PIXORA_PANEL_WIDTH);
   if (connectWifi()) {
