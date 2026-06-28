@@ -11,7 +11,7 @@ releases/server/*
 releases/firmware/*
 !releases/firmware/pixora-v2.0.0-64x32-user-ota-firmware.bin
 !releases/firmware/pixora-v2.0.0-128x32-user-ota-firmware.bin
-!releases/firmware/pixora-v1.3.78-tidbyt-user-ota-firmware.bin
+!releases/firmware/pixora-v2.0.0-tidbyt-user-ota-firmware.bin
 data/
 tmp/
 internal-firmware/
