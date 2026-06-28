@@ -77,6 +77,11 @@ uint8_t brightnessPercent = 70;
 bool hasDisplayedFrame = false;
 uint32_t lastFrameHash = 0;
 static uint8_t webpRgbBuffer[PIXORA_PANEL_WIDTH * PIXORA_PANEL_HEIGHT * 3];
+static uint8_t prefetchedRgbBuffer[PIXORA_PANEL_WIDTH * PIXORA_PANEL_HEIGHT * 3];
+bool prefetchedFrameReady = false;
+bool prefetchAttempted = false;
+uint32_t prefetchedDwellMs = 10000;
+const char *cachedFramePath = "/last.rgb";
 
 String trimSlashes(String value) {
   value.trim();
@@ -356,20 +361,31 @@ bool connectWifi() {
   return false;
 }
 
-String nextUrl() {
+String nextUrl(bool preferCached = false) {
   String base = normalizeBaseUrl(config.imageUrl);
   String separator = base.indexOf('?') >= 0 ? "&" : "?";
-  return base + "/next" + separator + "device=" + urlEncode(cloudDeviceId()) + "&target=" + PIXORA_DEVICE_TARGET + "-" + String(PIXORA_PANEL_WIDTH) + "x32&format=webp";
+  String url = base + "/next" + separator + "device=" + urlEncode(cloudDeviceId()) + "&target=" + PIXORA_DEVICE_TARGET + "-" + String(PIXORA_PANEL_WIDTH) + "x32&format=webp";
+  if (preferCached) {
+    url += "&cached=1";
+  }
+  return url;
 }
 
-void applyResponseHeaders(HTTPClient &http) {
+uint32_t responseDwellMs(HTTPClient &http, uint32_t fallbackMs) {
   int dwellMsHeader = http.header("Pixora-Dwell-Ms").toInt();
   if (dwellMsHeader > 0) {
-    dwellMs = constrain(dwellMsHeader, 35, 300000);
+    return constrain(dwellMsHeader, 35, 300000);
   }
   int dwell = http.header("Pixora-Dwell-Secs").toInt();
-  if (dwell > 0 && dwellMsHeader <= 0) {
-    dwellMs = constrain(dwell, 1, 300) * 1000UL;
+  if (dwell > 0) {
+    return constrain(dwell, 1, 300) * 1000UL;
+  }
+  return fallbackMs;
+}
+
+void applyResponseHeaders(HTTPClient &http, bool updateDwell = true) {
+  if (updateDwell) {
+    dwellMs = responseDwellMs(http, dwellMs);
   }
   int brightness = http.header("Pixora-Brightness").toInt();
   if (brightness > 0) {
@@ -499,7 +515,51 @@ void drawDecodedWebpFrame(const uint8_t *frame) {
   matrix.flipDMABuffer();
 }
 
-bool drawWebpStream(WiFiClient *stream, int length, bool showErrors) {
+bool loadCachedFrame() {
+  File file = LittleFS.open(cachedFramePath, "r");
+  if (!file) {
+    return false;
+  }
+  const size_t expected = sizeof(webpRgbBuffer);
+  if (file.size() != expected) {
+    file.close();
+    LittleFS.remove(cachedFramePath);
+    return false;
+  }
+  size_t read = file.read(webpRgbBuffer, expected);
+  file.close();
+  if (read != expected) {
+    return false;
+  }
+  drawDecodedWebpFrame(webpRgbBuffer);
+  lastFrameHash = frameHash(webpRgbBuffer, sizeof(webpRgbBuffer));
+  hasDisplayedFrame = true;
+  prefs.begin("pixora", true);
+  dwellMs = prefs.getUInt("lastDwell", dwellMs);
+  prefs.end();
+  Serial.println("Displayed cached Pixora frame");
+  return true;
+}
+
+void saveCachedFrame(const uint8_t *frame, uint32_t frameDwellMs) {
+  File file = LittleFS.open(cachedFramePath, "w");
+  if (!file) {
+    Serial.println("Could not open cached frame for write");
+    return;
+  }
+  size_t written = file.write(frame, sizeof(webpRgbBuffer));
+  file.close();
+  if (written != sizeof(webpRgbBuffer)) {
+    Serial.println("Cached frame write short");
+    LittleFS.remove(cachedFramePath);
+    return;
+  }
+  prefs.begin("pixora", false);
+  prefs.putUInt("lastDwell", frameDwellMs);
+  prefs.end();
+}
+
+bool decodeWebpStream(WiFiClient *stream, int length, bool showErrors, uint8_t *targetBuffer) {
   if (length <= 0 || length > 131072) {
     Serial.printf("Unexpected webp length: %d\n", length);
     if (showErrors) {
@@ -545,7 +605,7 @@ bool drawWebpStream(WiFiClient *stream, int length, bool showErrors) {
     return false;
   }
 
-  uint8_t *decoded = WebPDecodeRGBInto(body, length, webpRgbBuffer, sizeof(webpRgbBuffer), PIXORA_PANEL_WIDTH * 3);
+  uint8_t *decoded = WebPDecodeRGBInto(body, length, targetBuffer, PIXORA_PANEL_WIDTH * PIXORA_PANEL_HEIGHT * 3, PIXORA_PANEL_WIDTH * 3);
   free(body);
   if (!decoded) {
     Serial.println("WebPDecodeRGBInto failed");
@@ -554,28 +614,24 @@ bool drawWebpStream(WiFiClient *stream, int length, bool showErrors) {
     }
     return false;
   }
-
-  uint32_t hash = frameHash(webpRgbBuffer, sizeof(webpRgbBuffer));
-  drawDecodedWebpFrame(webpRgbBuffer);
-  lastFrameHash = hash;
   return true;
 }
 
-void pollNextFrame() {
+bool fetchNextFrame(bool drawNow) {
   if (WiFi.status() != WL_CONNECTED) {
     if (!connectWifi()) {
-      return;
+      return false;
     }
   }
   if (config.imageUrl.isEmpty()) {
     showSetupStatus();
-    return;
+    return false;
   }
 
-  if (!hasDisplayedFrame) {
+  if (!hasDisplayedFrame && drawNow) {
     showFirstCardStatus();
   }
-  String url = nextUrl();
+  String url = nextUrl(!hasDisplayedFrame && drawNow);
   WiFiClientSecure secureClient;
   WiFiClient plainClient;
   HTTPClient http;
@@ -594,7 +650,7 @@ void pollNextFrame() {
     if (!hasDisplayedFrame) {
       showStatus("HTTP", "BEGIN", color565Scaled(255, 90, 90));
     }
-    return;
+    return false;
   }
   http.addHeader("X-Firmware-Version", PIXORA_VERSION);
   http.addHeader("X-Pixora-Target", String(PIXORA_DEVICE_TARGET) + "-" + String(PIXORA_PANEL_WIDTH) + "x32");
@@ -603,33 +659,64 @@ void pollNextFrame() {
 
   int code = http.GET();
   if (code == 200) {
-    applyResponseHeaders(http);
+    uint32_t nextDwellMs = responseDwellMs(http, dwellMs);
+    applyResponseHeaders(http, drawNow);
     String otaUrl = http.header("Pixora-OTA-URL");
     if (!otaUrl.isEmpty()) {
       http.end();
       performOta(otaUrl);
-      return;
+      return false;
     }
-    if (!drawWebpStream(http.getStreamPtr(), http.getSize(), !hasDisplayedFrame)) {
+    uint8_t *targetBuffer = drawNow ? webpRgbBuffer : prefetchedRgbBuffer;
+    if (!decodeWebpStream(http.getStreamPtr(), http.getSize(), !hasDisplayedFrame && drawNow, targetBuffer)) {
       Serial.println("Failed to draw webp frame");
     } else {
-      hasDisplayedFrame = true;
+      if (drawNow) {
+        uint32_t hash = frameHash(webpRgbBuffer, sizeof(webpRgbBuffer));
+        drawDecodedWebpFrame(webpRgbBuffer);
+        lastFrameHash = hash;
+        dwellMs = nextDwellMs;
+        saveCachedFrame(webpRgbBuffer, dwellMs);
+        hasDisplayedFrame = true;
+        prefetchedFrameReady = false;
+        prefetchAttempted = false;
+        lastPollMs = millis();
+      } else {
+        prefetchedDwellMs = nextDwellMs;
+        prefetchedFrameReady = true;
+        prefetchAttempted = true;
+      }
+      http.end();
+      return true;
     }
   } else {
     Serial.printf("Frame fetch failed: HTTP %d\n", code);
-    if (code < 0 && !hasDisplayedFrame) {
+    if (code < 0 && !hasDisplayedFrame && drawNow) {
       showFirstCardStatus();
       delay(250);
       http.end();
-      return;
+      return false;
     }
-    if (!hasDisplayedFrame) {
+    if (!hasDisplayedFrame && drawNow) {
       char codeText[12];
       snprintf(codeText, sizeof(codeText), "%d", code);
       showStatus("HTTP", codeText, color565Scaled(255, 90, 90));
     }
   }
   http.end();
+  return false;
+}
+
+void showPrefetchedFrame() {
+  memcpy(webpRgbBuffer, prefetchedRgbBuffer, sizeof(webpRgbBuffer));
+  uint32_t hash = frameHash(webpRgbBuffer, sizeof(webpRgbBuffer));
+  drawDecodedWebpFrame(webpRgbBuffer);
+  lastFrameHash = hash;
+  dwellMs = prefetchedDwellMs;
+  hasDisplayedFrame = true;
+  prefetchedFrameReady = false;
+  prefetchAttempted = false;
+  lastPollMs = millis();
 }
 
 void setup() {
@@ -645,19 +732,33 @@ void setup() {
   }
   setBrightnessPercent(brightnessPercent);
   showStatus("PIXORA", "BOOT");
+  if (!config.wifiSsid.isEmpty()) {
+    loadCachedFrame();
+  }
 
   Serial.printf("Pixora firmware %s hardware=%s cloud=%s target=%s width=%d\n", PIXORA_VERSION, deviceId.c_str(), cloudDeviceId().c_str(), PIXORA_DEVICE_TARGET, PIXORA_PANEL_WIDTH);
   if (connectWifi()) {
-    pollNextFrame();
+    fetchNextFrame(true);
   }
-  lastPollMs = millis();
+  if (!hasDisplayedFrame) {
+    lastPollMs = millis();
+  }
 }
 
 void loop() {
   serviceUsbConfig();
-  if (millis() - lastPollMs >= dwellMs) {
-    pollNextFrame();
-    lastPollMs = millis();
+  uint32_t elapsed = millis() - lastPollMs;
+  uint32_t prefetchAt = max<uint32_t>(1000, dwellMs / 2);
+  if (hasDisplayedFrame && !prefetchedFrameReady && !prefetchAttempted && elapsed >= prefetchAt) {
+    fetchNextFrame(false);
+  }
+  if (hasDisplayedFrame && elapsed >= dwellMs) {
+    if (prefetchedFrameReady) {
+      showPrefetchedFrame();
+    } else if (!fetchNextFrame(true)) {
+      lastPollMs = millis();
+      prefetchAttempted = false;
+    }
   }
   delay(10);
 }
