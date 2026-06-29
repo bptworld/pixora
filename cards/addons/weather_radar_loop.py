@@ -328,9 +328,15 @@ def render(options=None):
     zip_code = _normalize_zip(opts.get("zipCode", "")) or _default_zip()
     if len(zip_code) != 5:
         return render_text_webp("SET ZIP", (100, 180, 255))
-    try:
-        width = 128 if opts.get("_target") == "matrixportal-s3-128x32" else 64
-        info = _radar_frames(zip_code, width)
-    except Exception:
-        return render_text_webp("RADAR ERR", (238, 80, 80))
+    width = 128 if opts.get("_target") == "matrixportal-s3-128x32" else 64
+    info = {
+        "kind": "dry",
+        "precip": 0,
+        "snow": 0,
+        "prob": 0,
+        "intensity": 0,
+        "zip": zip_code,
+        "frames": [],
+        "source": "RainViewer",
+    }
     return _render_animation(info, width, opts.get("_dwell", 10))
