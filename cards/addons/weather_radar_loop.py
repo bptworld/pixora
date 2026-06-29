@@ -25,6 +25,7 @@ CARD_RULE_FIELDS = [
 _CACHE = {}
 _RAINVIEWER_URL = "https://api.rainviewer.com/public/weather-maps.json"
 _RAINVIEWER_USER_AGENT = "Pixora/1.0 (RainViewer radar card)"
+_RAINVIEWER_TILE_TIMEOUT = 2.0
 
 
 def _normalize_zip(value):
@@ -66,7 +67,7 @@ def _fetch_tile(url):
     from PIL import Image
 
     request = urllib.request.Request(url, headers={"User-Agent": _RAINVIEWER_USER_AGENT})
-    with urllib.request.urlopen(request, timeout=8) as response:
+    with urllib.request.urlopen(request, timeout=_RAINVIEWER_TILE_TIMEOUT) as response:
         body = response.read()
     image = Image.open(BytesIO(body)).convert("RGBA")
     _CACHE["tile:" + url] = {"image": image.copy(), "expires": now + timedelta(minutes=5)}
@@ -91,7 +92,8 @@ def _radar_frames(zip_code, width):
     # Keep the matrix loop light while showing enough radar history to feel
     # like a real loop. A lat/lon tile keeps the chosen ZIP centered without
     # doing map math locally.
-    selected = timeline[-10:] if len(timeline) >= 10 else timeline
+    max_frames = 6 if width <= 64 else 8
+    selected = timeline[-max_frames:] if len(timeline) >= max_frames else timeline
     tile_size = 256
     zoom = 7
     color = 2
@@ -102,7 +104,10 @@ def _radar_frames(zip_code, width):
     for index, frame in enumerate(selected):
         path = str(frame.get("path") or "")
         tile_url = f"{host}{path}/{tile_size}/{zoom}/{lat:.4f}/{lon:.4f}/{color}/{options}.png"
-        tile = _fetch_tile(tile_url)
+        try:
+            tile = _fetch_tile(tile_url)
+        except Exception:
+            continue
         output_frames.append(_matrix_radar_image(tile, radar_width, index))
         signal, _ = _radar_signal(tile)
         max_signal = max(max_signal, signal)
