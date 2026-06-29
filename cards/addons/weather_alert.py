@@ -211,28 +211,31 @@ def _render_weather_alert_frames(team, kind="severe"):
             text = text[:-1].rstrip()
         return text
 
+    if width <= 80:
+        probe = ImageDraw.Draw(Image.new("RGB", (1, 1)))
+        event = " ".join(line for line in _reason_lines_64(probe, event, font, width - 4) if line)
     event = fit(event, width - 4, font)
-    for index in range(20):
-        flash = index % 2 == 0
+    for index in range(14):
         bg = (34, 0, 8) if severity == "extreme" else (28, 8, 0)
-        image = Image.new("RGB", (width, 32), bg if flash else (4, 6, 8))
+        image = Image.new("RGB", (width, 32), bg)
         draw = ImageDraw.Draw(image)
-        rail = color if flash else tuple(max(0, c // 3) for c in color)
+        rail = tuple(max(0, c // 2) for c in color)
         draw.rectangle((0, 0, width - 1, 4), fill=rail)
         draw.rectangle((0, 28, width - 1, 31), fill=rail)
         for x in range(0, width, 12):
             offset = (x + index * 4) % max(width, 1)
-            draw.line((offset, 4, max(0, offset - 10), 28), fill=tuple(max(0, c // 2) for c in color))
-        icon_x = width - 16
-        draw.ellipse((icon_x, 9, icon_x + 11, 20), outline=color)
-        draw.polygon([(icon_x + 5, 6), (icon_x, 20), (icon_x + 6, 17), (icon_x + 2, 28), (icon_x + 14, 12), (icon_x + 7, 15)], fill=(255, 230, 80))
-        title = headline if flash else "WX ALERT"
+            draw.line((offset, 4, max(0, offset - 10), 28), fill=tuple(max(0, c // 4) for c in color))
+        if width > 80:
+            icon_x = width - 16
+            draw.ellipse((icon_x, 9, icon_x + 11, 20), outline=color)
+            draw.polygon([(icon_x + 5, 6), (icon_x, 20), (icon_x + 6, 17), (icon_x + 2, 28), (icon_x + 14, 12), (icon_x + 7, 15)], fill=(255, 230, 80))
+        title = headline if width > 80 else severity.upper()
         title_w = draw.textbbox((0, 0), title, font=bold)[2]
-        draw_sharp_text(image, (max(1, (width - title_w) // 2), 5), title, color if flash else (245, 245, 245), bold)
+        draw_sharp_text(image, (max(1, (width - title_w) // 2), 5), title, (255, 235, 150), bold)
         event_w = draw.textbbox((0, 0), event, font=font)[2]
         draw_sharp_text(image, (max(1, (width - event_w) // 2), 19), event, (245, 245, 245), font)
         frames.append(image)
-        durations.append(120 if flash else 85)
+        durations.append(160)
     return frames, durations
 
 
@@ -347,12 +350,12 @@ def render(options=None):
         draw_sharp_text(image, (1, 10), event, (245, 245, 245), font)
     else:
         line1, line2 = _reason_lines_64(draw, event_text, font, 43)
-        draw_sharp_text(image, (1, 8), line1, (245, 245, 245), font)
-        draw_sharp_text(image, (1, 16), line2, (245, 245, 245), font)
+        draw_sharp_text(image, (1, 5), line1, (245, 245, 245), font)
+        draw_sharp_text(image, (1, 13), line2, (245, 245, 245), font)
     sev = (severity or "Alert").upper()[:8]
-    draw_sharp_text(image, (1, 24), sev, color, font)
+    draw_sharp_text(image, (1, 21), sev, color, font)
     if len(alerts) > 1:
-        draw_sharp_text(image, (width - 15, 24), f"+{len(alerts)-1}", (210, 220, 225), font)
+        draw_sharp_text(image, (width - 15, 21), f"+{len(alerts)-1}", (210, 220, 225), font)
 
     out = BytesIO()
     image.save(out, "WEBP", lossless=True, quality=100)

@@ -276,6 +276,7 @@ def _draw_radar_frame(image, info, frame, font, bold):
         panel_x = 61
         draw.rectangle((panel_x, 0, 127, 31), fill=(0, 7, 13))
         draw.line((panel_x - 2, 2, panel_x - 2, 29), fill=(16, 52, 62))
+        draw.rectangle((panel_x, 0, 127, 6), fill=(0, 22, 30))
         title = {"dry": "DRY", "rain": "RAIN", "snow": "SNOW", "mix": "MIX"}[kind]
         title_color = (90, 238, 170) if kind in ("rain", "mix") else (150, 210, 255) if kind == "snow" else (120, 145, 160)
         draw_sharp_text(image, (panel_x + 3, -3), "RADAR", (118, 245, 210), bold)
@@ -285,7 +286,7 @@ def _draw_radar_frame(image, info, frame, font, bold):
             detail = f"SNOW {info['prob']}%"
         draw_sharp_text(image, (panel_x + 3, 19), detail[:12], (210, 230, 238), font)
     else:
-        draw.rectangle((0, 0, 63, 6), fill=(0, 8, 14))
+        draw.rectangle((0, 0, 63, 6), fill=(0, 22, 30))
         label = {"dry": "RADAR DRY", "rain": "RADAR RAIN", "snow": "RADAR SNOW", "mix": "RADAR MIX"}[kind]
         draw_sharp_text(image, (1, -3), label[:11], (118, 245, 210), font)
 
