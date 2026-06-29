@@ -566,16 +566,28 @@ def _fit_text(draw, text, font, max_width):
     return text
 
 
-def _render_wide_list(rows):
+def _dwell_seconds(opts):
+    try:
+        return max(3, min(120, int((opts or {}).get("_dwell") or 10)))
+    except Exception:
+        return 10
+
+
+def _limit_rows_for_dwell(rows, opts):
+    count = max(1, _dwell_seconds(opts) // 3)
+    return list(rows or [])[:count]
+
+
+def _render_wide_list(rows, opts):
     frames = []
-    for row in rows:
+    for row in _limit_rows_for_dwell(rows, opts):
         frames.append(_draw_wide_flight(row))
     return _save_cycle(frames)
 
 
-def _render_64_list(rows):
+def _render_64_list(rows, opts):
     frames = []
-    for row in rows:
+    for row in _limit_rows_for_dwell(rows, opts):
         frames.append(_draw_64_flight(row))
     return _save_cycle(frames)
 
@@ -587,14 +599,14 @@ def _save_cycle(frames):
         "WEBP",
         save_all=True,
         append_images=frames[1:],
-        duration=5000,
+        duration=3000,
         loop=0,
         lossless=True,
         quality=100,
     )
     return {
         "body": out.getvalue(),
-        "dwell_secs": max(1, len(frames) * 5),
+        "dwell_secs": max(3, len(frames) * 3),
         "_stay": False,
     }
 
@@ -631,7 +643,7 @@ def _build_snapshot(opts):
         if dist <= radius:
             flights.append((dist, row))
     flights.sort(key=lambda x: x[0])
-    rows = [_flight_row(lat, lon, item, index + 1) for index, item in enumerate(flights[:5])]
+    rows = [_flight_row(lat, lon, item, index + 1) for index, item in enumerate(flights[:20])]
     return {"rows": rows, "radius": radius, "updated": time.time()}
 
 
@@ -672,7 +684,7 @@ def _queue_snapshot_refresh(key, opts):
 def _render_snapshot(snapshot, opts, wide):
     rows = (snapshot or {}).get("rows") or []
     if rows:
-        return _render_wide_list(rows) if wide else _render_64_list(rows)
+        return _render_wide_list(rows, opts) if wide else _render_64_list(rows, opts)
     if _skip_no_data(opts):
         return None
     radius = (snapshot or {}).get("radius") or max(10, min(500, int((opts or {}).get("radiusMiles") or 50)))
