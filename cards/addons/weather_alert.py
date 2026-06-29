@@ -84,6 +84,44 @@ def _fit(draw, text, font, max_width):
     return text
 
 
+def _reason_lines_64(draw, text, font, max_width=46):
+    text = (text or "Weather Alert").upper()
+    replacements = {
+        "THUNDERSTORM": "TSTM",
+        "THUNDER": "TSTM",
+        "FLOODING": "FLOOD",
+        "WARNING": "WARN",
+        "WATCH": "WATCH",
+        "ADVISORY": "ADVY",
+        "STATEMENT": "STMT",
+        "WEATHER": "WX",
+    }
+    for source, target in replacements.items():
+        text = text.replace(source, target)
+    words = [word for word in " ".join(text.split()).split() if word not in {"MINOR", "MODERATE", "SEVERE", "EXTREME"}]
+    if len(words) <= 2:
+        lines = words[:2]
+        while len(lines) < 2:
+            lines.append("")
+        return [_fit(draw, line, font, max_width) for line in lines]
+    lines = []
+    current = ""
+    for word in words:
+        trial = f"{current} {word}".strip()
+        if not current or draw.textbbox((0, 0), trial, font=font)[2] <= max_width:
+            current = trial
+        else:
+            lines.append(current)
+            current = word
+            if len(lines) == 1:
+                break
+    if current and len(lines) < 2:
+        lines.append(current)
+    while len(lines) < 2:
+        lines.append("")
+    return [_fit(draw, line, font, max_width) for line in lines[:2]]
+
+
 def _alerts_for_zip(zip_code):
     alerts = None
     try:
@@ -277,7 +315,8 @@ def render(options=None):
         return None
 
     props = alerts[0].get("properties", {})
-    event = _short_event(props.get("event"))
+    event_text = props.get("event") or "Weather Alert"
+    event = _short_event(event_text)
     severity = props.get("severity", "")
     color = _severity_color(severity)
 
@@ -287,11 +326,13 @@ def render(options=None):
     draw = ImageDraw.Draw(image)
     try:
         font = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
+        small_font = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 6)
         bold = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
     except Exception:
-        font = bold = ImageFont.load_default()
+        font = small_font = bold = ImageFont.load_default()
 
-    draw.rectangle((0, 0, width - 1, 6), fill=(45, 14, 0))
+    header_bg = tuple(max(0, min(255, c // 3 + 18)) for c in color)
+    draw.rectangle((0, 0, width - 1, 7), fill=header_bg)
     title = "WEATHER ALERT" if is_wide else "WX ALERT"
     draw_sharp_text(image, (1, -3), title, color, bold)
     icon_x = width - 16
@@ -300,12 +341,16 @@ def render(options=None):
     draw.arc((icon_x - 11, -1, icon_x + 21, 31), 205, 335, fill=(45, 70, 90))
     draw.polygon([(icon_x + 5, 7), (icon_x - 1, 20), (icon_x + 6, 17), (icon_x + 1, 28), (icon_x + 13, 13), (icon_x + 6, 15)], fill=(255, 230, 80))
     if is_wide:
-        event = _fit(draw, (props.get("event") or "Weather Alert").upper(), font, 105)
-    draw_sharp_text(image, (1, 10), event, (245, 245, 245), font)
+        event = _fit(draw, event_text.upper(), font, 105)
+        draw_sharp_text(image, (1, 10), event, (245, 245, 245), font)
+    else:
+        line1, line2 = _reason_lines_64(draw, event_text, small_font, 43)
+        draw_sharp_text(image, (1, 8), line1, (245, 245, 245), small_font)
+        draw_sharp_text(image, (1, 14), line2, (245, 245, 245), small_font)
     sev = (severity or "Alert").upper()[:8]
-    draw_sharp_text(image, (1, 21), sev, color, font)
+    draw_sharp_text(image, (1, 23), sev, color, font)
     if len(alerts) > 1:
-        draw_sharp_text(image, (width - 15, 21), f"+{len(alerts)-1}", (210, 220, 225), font)
+        draw_sharp_text(image, (width - 15, 23), f"+{len(alerts)-1}", (210, 220, 225), font)
 
     out = BytesIO()
     image.save(out, "WEBP", lossless=True, quality=100)
