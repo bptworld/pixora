@@ -1456,19 +1456,28 @@ def _draw_wide_panel(flight, opts):
     return image
 
 
-def _save_cycle(frames, dwell=4200):
+def _cycle_frame_duration(opts, frame_count):
+    try:
+        dwell_secs = max(1, min(120, int((opts or {}).get("_dwell") or 10)))
+    except Exception:
+        dwell_secs = 10
+    return max(500, int(round((dwell_secs * 1000) / max(1, frame_count))))
+
+
+def _save_cycle(frames, opts=None):
+    frame_duration = _cycle_frame_duration(opts, len(frames))
     out = BytesIO()
     frames[0].save(
         out,
         "WEBP",
         save_all=True,
         append_images=frames[1:],
-        duration=dwell,
+        duration=frame_duration,
         loop=0,
         lossless=True,
         quality=100,
     )
-    return {"body": out.getvalue(), "_stay": False}
+    return {"body": out.getvalue(), "dwell_secs": max(1, round((frame_duration * len(frames)) / 1000)), "_stay": False}
 
 
 def _render_error_image(message, width):
@@ -1844,11 +1853,11 @@ def _render_snapshot(snapshot, opts, width):
                 if route_map is not None:
                     frames.append(route_map)
     if frames:
-        return _save_cycle(frames)
+        return _save_cycle(frames, opts)
     errors = snapshot.get("errors") or []
     if _skip_no_data(opts) and (not errors or all(_is_no_data_error(error) for error in errors)):
         return None
-    return _save_cycle([_render_error_image(errors[0], width)]) if errors else _render_error("Updating flight data", width)
+    return _save_cycle([_render_error_image(errors[0], width)], opts) if errors else _render_error("Updating flight data", width)
 
 
 def render(options=None):
