@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from io import BytesIO
+from concurrent.futures import ThreadPoolExecutor, wait
 import math
 import re
 import urllib.request
@@ -25,6 +26,7 @@ CARD_RULE_FIELDS = [
 _CACHE = {}
 _RAINVIEWER_URL = "https://api.rainviewer.com/public/weather-maps.json"
 _RAINVIEWER_USER_AGENT = "Pixora/1.0 (RainViewer radar card)"
+_RAINVIEWER_TILE_TIMEOUT = 3.0
 
 
 def _normalize_zip(value):
@@ -66,7 +68,7 @@ def _fetch_tile(url):
     from PIL import Image
 
     request = urllib.request.Request(url, headers={"User-Agent": _RAINVIEWER_USER_AGENT})
-    with urllib.request.urlopen(request, timeout=8) as response:
+    with urllib.request.urlopen(request, timeout=_RAINVIEWER_TILE_TIMEOUT) as response:
         body = response.read()
     image = Image.open(BytesIO(body)).convert("RGBA")
     _CACHE["tile:" + url] = {"image": image.copy(), "expires": now + timedelta(minutes=5)}
@@ -97,15 +99,29 @@ def _radar_frames(zip_code, width):
     color = 2
     options = "1_1"
     radar_width = 58 if width == 128 else width
-    output_frames = []
-    max_signal = 0
+    tile_jobs = []
     for index, frame in enumerate(selected):
         path = str(frame.get("path") or "")
         tile_url = f"{host}{path}/{tile_size}/{zoom}/{lat:.4f}/{lon:.4f}/{color}/{options}.png"
-        tile = _fetch_tile(tile_url)
-        output_frames.append(_matrix_radar_image(tile, radar_width, index))
-        signal, _ = _radar_signal(tile)
-        max_signal = max(max_signal, signal)
+        tile_jobs.append((index, tile_url))
+
+    output_frames = []
+    max_signal = 0
+    executor = ThreadPoolExecutor(max_workers=min(6, max(1, len(tile_jobs))))
+    try:
+        futures = {executor.submit(_fetch_tile, tile_url): index for index, tile_url in tile_jobs}
+        done, _pending = wait(futures, timeout=6)
+        for future in sorted(done, key=lambda item: futures[item]):
+            try:
+                tile = future.result()
+            except Exception:
+                continue
+            index = futures[future]
+            output_frames.append(_matrix_radar_image(tile, radar_width, index))
+            signal, _ = _radar_signal(tile)
+            max_signal = max(max_signal, signal)
+    finally:
+        executor.shutdown(wait=False, cancel_futures=True)
 
     if max_signal < 3:
         kind = "dry"
