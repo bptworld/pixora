@@ -326,31 +326,33 @@ def render(options=None):
     draw = ImageDraw.Draw(image)
     try:
         font = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
-        small_font = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 6)
         bold = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
     except Exception:
-        font = small_font = bold = ImageFont.load_default()
+        font = bold = ImageFont.load_default()
 
-    header_bg = tuple(max(0, min(255, c // 3 + 18)) for c in color)
-    draw.rectangle((0, 0, width - 1, 7), fill=header_bg)
+    header_bg = tuple(max(0, c // 4) for c in color)
+    draw.rectangle((0, 0, width - 1, 6), fill=header_bg)
     title = "WEATHER ALERT" if is_wide else "WX ALERT"
-    draw_sharp_text(image, (1, -3), title, color, bold)
+    draw_sharp_text(image, (1, -3), title, (255, 235, 150), bold)
     icon_x = width - 16
-    draw.ellipse((icon_x, 10, icon_x + 10, 20), outline=color)
-    draw.arc((icon_x - 7, 3, icon_x + 17, 27), 205, 335, fill=(80, 110, 130))
-    draw.arc((icon_x - 11, -1, icon_x + 21, 31), 205, 335, fill=(45, 70, 90))
-    draw.polygon([(icon_x + 5, 7), (icon_x - 1, 20), (icon_x + 6, 17), (icon_x + 1, 28), (icon_x + 13, 13), (icon_x + 6, 15)], fill=(255, 230, 80))
+    if is_wide:
+        draw.ellipse((icon_x, 10, icon_x + 10, 20), outline=color)
+        draw.arc((icon_x - 7, 3, icon_x + 17, 27), 205, 335, fill=(80, 110, 130))
+        draw.arc((icon_x - 11, -1, icon_x + 21, 31), 205, 335, fill=(45, 70, 90))
+        draw.polygon([(icon_x + 5, 7), (icon_x - 1, 20), (icon_x + 6, 17), (icon_x + 1, 28), (icon_x + 13, 13), (icon_x + 6, 15)], fill=(255, 230, 80))
+    else:
+        draw.polygon([(55, 9), (50, 20), (56, 17), (52, 28), (62, 14), (57, 16)], fill=(255, 230, 80))
     if is_wide:
         event = _fit(draw, event_text.upper(), font, 105)
         draw_sharp_text(image, (1, 10), event, (245, 245, 245), font)
     else:
-        line1, line2 = _reason_lines_64(draw, event_text, small_font, 43)
-        draw_sharp_text(image, (1, 8), line1, (245, 245, 245), small_font)
-        draw_sharp_text(image, (1, 14), line2, (245, 245, 245), small_font)
+        line1, line2 = _reason_lines_64(draw, event_text, font, 43)
+        draw_sharp_text(image, (1, 8), line1, (245, 245, 245), font)
+        draw_sharp_text(image, (1, 16), line2, (245, 245, 245), font)
     sev = (severity or "Alert").upper()[:8]
-    draw_sharp_text(image, (1, 23), sev, color, font)
+    draw_sharp_text(image, (1, 24), sev, color, font)
     if len(alerts) > 1:
-        draw_sharp_text(image, (width - 15, 23), f"+{len(alerts)-1}", (210, 220, 225), font)
+        draw_sharp_text(image, (width - 15, 24), f"+{len(alerts)-1}", (210, 220, 225), font)
 
     out = BytesIO()
     image.save(out, "WEBP", lossless=True, quality=100)
