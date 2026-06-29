@@ -1,11 +1,12 @@
 from datetime import datetime, timedelta
 from io import BytesIO
 from concurrent.futures import ThreadPoolExecutor, wait
+import json
 import math
 import re
 import urllib.request
 
-from card_utils import _settings_value, draw_sharp_text, fetch_json_request, render_text_webp
+from card_utils import _settings_value, draw_sharp_text, render_text_webp
 
 CARD_ID = "weather_radar_loop"
 CARD_NAME = "Weather Radar Loop"
@@ -26,7 +27,8 @@ CARD_RULE_FIELDS = [
 _CACHE = {}
 _RAINVIEWER_URL = "https://api.rainviewer.com/public/weather-maps.json"
 _RAINVIEWER_USER_AGENT = "Pixora/1.0 (RainViewer radar card)"
-_RAINVIEWER_TILE_TIMEOUT = 3.0
+_RAINVIEWER_JSON_TIMEOUT = 2.0
+_RAINVIEWER_TILE_TIMEOUT = 1.2
 
 
 def _normalize_zip(value):
@@ -42,7 +44,9 @@ def _zip_latlon(zip_code):
     now = datetime.utcnow()
     if cached and cached["expires"] > now:
         return cached["lat"], cached["lon"]
-    loc = fetch_json_request(f"https://api.zippopotam.us/us/{zip_code}", seconds=86400)
+    request = urllib.request.Request(f"https://api.zippopotam.us/us/{zip_code}", headers={"User-Agent": _RAINVIEWER_USER_AGENT})
+    with urllib.request.urlopen(request, timeout=_RAINVIEWER_JSON_TIMEOUT) as response:
+        loc = json.loads(response.read().decode("utf-8"))
     place = loc["places"][0]
     lat, lon = float(place["latitude"]), float(place["longitude"])
     _CACHE["zip:" + zip_code] = {"lat": lat, "lon": lon, "expires": now.replace(year=now.year + 1)}
@@ -50,7 +54,9 @@ def _zip_latlon(zip_code):
 
 
 def _rainviewer_timeline():
-    data = fetch_json_request(_RAINVIEWER_URL, seconds=300)
+    request = urllib.request.Request(_RAINVIEWER_URL, headers={"User-Agent": _RAINVIEWER_USER_AGENT})
+    with urllib.request.urlopen(request, timeout=_RAINVIEWER_JSON_TIMEOUT) as response:
+        data = json.loads(response.read().decode("utf-8"))
     host = str(data.get("host") or "https://tilecache.rainviewer.com").rstrip("/")
     radar = data.get("radar") or {}
     frames = list(radar.get("past") or [])
@@ -93,7 +99,7 @@ def _radar_frames(zip_code, width):
     # Keep the matrix loop light while showing enough radar history to feel
     # like a real loop. A lat/lon tile keeps the chosen ZIP centered without
     # doing map math locally.
-    selected = timeline[-10:] if len(timeline) >= 10 else timeline
+    selected = timeline[-6:] if len(timeline) >= 6 else timeline
     tile_size = 256
     zoom = 7
     color = 2
@@ -110,7 +116,7 @@ def _radar_frames(zip_code, width):
     executor = ThreadPoolExecutor(max_workers=min(6, max(1, len(tile_jobs))))
     try:
         futures = {executor.submit(_fetch_tile, tile_url): index for index, tile_url in tile_jobs}
-        done, _pending = wait(futures, timeout=6)
+        done, _pending = wait(futures, timeout=2.5)
         for future in sorted(done, key=lambda item: futures[item]):
             try:
                 tile = future.result()
