@@ -20,8 +20,11 @@ _TARGET_CHOICES = [
 CARD_OPTIONS = [
     {"key": "zipCode", "label": "ZIP Code", "type": "text", "default": "10001", "maxlength": 5, "inputmode": "numeric"},
     {"key": "severityLevels", "label": "Display Levels", "type": "multiselect", "default": "minor,moderate,severe,extreme,unknown", "size": 5, "choices": _SEVERITY_CHOICES},
+    {"key": "minorAlertTarget", "label": "Minor Alert Graphic", "type": "select", "default": "device", "choices": _TARGET_CHOICES},
+    {"key": "moderateAlertTarget", "label": "Moderate Alert Graphic", "type": "select", "default": "device", "choices": _TARGET_CHOICES},
     {"key": "severeAlertTarget", "label": "Severe Alert Graphic", "type": "select", "default": "device", "choices": _TARGET_CHOICES},
     {"key": "extremeAlertTarget", "label": "Extreme Alert Graphic", "type": "select", "default": "group_wall", "choices": _TARGET_CHOICES},
+    {"key": "unknownAlertTarget", "label": "Unknown Alert Graphic", "type": "select", "default": "device", "choices": _TARGET_CHOICES},
 ]
 CARD_RULE_FIELDS = [
     {"id": "alert_count", "label": "Alert Count"},
@@ -175,8 +178,12 @@ def _animation_width(options):
 
 
 def _target_for_severity(severity, options):
-    key = "extremeAlertTarget" if _severity_key(severity) == "extreme" else "severeAlertTarget"
-    return str((options or {}).get(key) or "device").strip().lower()
+    severity = _severity_key(severity)
+    key = f"{severity}AlertTarget"
+    fallback = "group_wall" if severity == "extreme" else "device"
+    if severity not in {"minor", "moderate", "severe", "extreme", "unknown"}:
+        key = "unknownAlertTarget"
+    return str((options or {}).get(key) or fallback).strip().lower()
 
 
 def _wall_selected(target):
@@ -193,16 +200,57 @@ def _render_weather_alert_frames(team, kind="severe"):
         width = 64
     width = max(64, min(512, width))
     severity = _severity_key(team.get("severity") or kind)
-    color = _severity_color(severity)
     event = str(team.get("event") or "WEATHER ALERT").upper()
-    headline = "EXTREME WX" if severity == "extreme" else "SEVERE WX"
+    palettes = {
+        "minor": {
+            "label": "MINOR",
+            "accent": (110, 210, 255),
+            "header": (10, 42, 62),
+            "glow": (18, 85, 116),
+            "icon": (145, 230, 255),
+        },
+        "moderate": {
+            "label": "MODERATE",
+            "accent": (255, 205, 80),
+            "header": (75, 48, 8),
+            "glow": (130, 86, 12),
+            "icon": (255, 230, 120),
+        },
+        "severe": {
+            "label": "SEVERE",
+            "accent": (255, 112, 58),
+            "header": (82, 24, 10),
+            "glow": (150, 48, 22),
+            "icon": (255, 190, 88),
+        },
+        "extreme": {
+            "label": "EXTREME",
+            "accent": (255, 54, 94),
+            "header": (88, 10, 30),
+            "glow": (160, 22, 58),
+            "icon": (255, 226, 86),
+        },
+        "unknown": {
+            "label": "WEATHER",
+            "accent": (190, 160, 255),
+            "header": (48, 32, 78),
+            "glow": (86, 62, 128),
+            "icon": (215, 198, 255),
+        },
+    }
+    palette = palettes.get(severity, palettes["unknown"])
+    accent = palette["accent"]
+    header = palette["header"]
+    glow = palette["glow"]
+    label = palette["label"]
     frames = []
     durations = []
     try:
         font = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
         bold = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 9)
+        header_font = ImageFont.truetype("assets/fonts/Jersey20-Regular.ttf", 8)
     except Exception:
-        font = bold = ImageFont.load_default()
+        font = bold = header_font = ImageFont.load_default()
 
     def fit(text, max_width, face):
         text = str(text or "")
@@ -211,31 +259,48 @@ def _render_weather_alert_frames(team, kind="severe"):
             text = text[:-1].rstrip()
         return text
 
-    if width <= 80:
-        probe = ImageDraw.Draw(Image.new("RGB", (1, 1)))
-        event = " ".join(line for line in _reason_lines_64(probe, event, font, width - 4) if line)
-    event = fit(event, width - 4, font)
-    for index in range(14):
-        bg = (34, 0, 8) if severity == "extreme" else (28, 8, 0)
-        image = Image.new("RGB", (width, 32), bg)
+    event_display = event if width <= 80 else fit(event, width - 5, font)
+
+    for index in range(18):
+        image = Image.new("RGB", (width, 32), (1, 3, 7))
         draw = ImageDraw.Draw(image)
-        rail = tuple(max(0, c // 2) for c in color)
-        draw.rectangle((0, 0, width - 1, 4), fill=rail)
-        draw.rectangle((0, 28, width - 1, 31), fill=rail)
-        for x in range(0, width, 12):
-            offset = (x + index * 4) % max(width, 1)
-            draw.line((offset, 4, max(0, offset - 10), 28), fill=tuple(max(0, c // 4) for c in color))
-        if width > 80:
-            icon_x = width - 16
-            draw.ellipse((icon_x, 9, icon_x + 11, 20), outline=color)
-            draw.polygon([(icon_x + 5, 6), (icon_x, 20), (icon_x + 6, 17), (icon_x + 2, 28), (icon_x + 14, 12), (icon_x + 7, 15)], fill=(255, 230, 80))
-        title = headline if width > 80 else severity.upper()
-        title_w = draw.textbbox((0, 0), title, font=bold)[2]
-        draw_sharp_text(image, (max(1, (width - title_w) // 2), 5), title, (255, 235, 150), bold)
-        event_w = draw.textbbox((0, 0), event, font=font)[2]
-        draw_sharp_text(image, (max(1, (width - event_w) // 2), 19), event, (245, 245, 245), font)
+        draw.rectangle((0, 0, width - 1, 6), fill=header)
+        draw.line((0, 7, width - 1, 7), fill=accent)
+
+        pulse = index % 6
+        dash_offset = (index * 3) % 14
+        for x in range(-14, width + 14, 14):
+            x0 = x + dash_offset
+            draw.line((x0, 31, x0 + 7, 24), fill=glow)
+        draw.rectangle((0, 29, width - 1, 31), fill=tuple(max(0, c // 2) for c in header))
+
+        if width <= 80:
+            badge = label[:7]
+            draw_sharp_text(image, (1, -1), badge, (255, 255, 255), header_font)
+            draw.rectangle((width - 13, 9, width - 4, 18), outline=accent)
+            draw.line((width - 9, 11, width - 9, 15), fill=palette["icon"])
+            draw.point((width - 9, 17), fill=palette["icon"])
+            line1, line2 = _reason_lines_64(draw, event_display, font, width - 18)
+            draw_sharp_text(image, (1, 9), line1, (245, 245, 245), font)
+            draw_sharp_text(image, (1, 17), line2, (245, 245, 245), font)
+            if pulse in (0, 1):
+                draw.line((width - 15, 22, width - 3, 22), fill=accent)
+        else:
+            title = "WEATHER ALERT" if severity == "unknown" else (f"{label} ALERT" if width < 180 else f"{label} WEATHER ALERT")
+            title = fit(title, width - 42, header_font)
+            draw_sharp_text(image, (2, -1), title, (255, 255, 255), header_font)
+            icon_x = width - 24
+            draw.polygon([(icon_x + 10, 8), (icon_x, 25), (icon_x + 20, 25)], outline=accent)
+            draw.line((icon_x + 10, 13, icon_x + 10, 19), fill=palette["icon"])
+            draw.point((icon_x + 10, 22), fill=palette["icon"])
+            event_x = 4 if width < 180 else 9
+            event_w = width - event_x - 32
+            draw_sharp_text(image, (event_x, 12), fit(event_display, event_w, font), (245, 245, 245), font)
+            draw.line((event_x, 23, min(width - 31, event_x + 48 + pulse * 4), 23), fill=accent)
+            if width >= 180:
+                draw_sharp_text(image, (width - 89, 22), "TAKE ACTION", accent, font)
         frames.append(image)
-        durations.append(160)
+        durations.append(120)
     return frames, durations
 
 
@@ -249,7 +314,7 @@ def _render_weather_alert_animation(team, kind="severe"):
 def _maybe_severity_animation(options, alert, zip_code):
     props = (alert or {}).get("properties") or {}
     severity = _severity_key(props.get("severity"))
-    if severity not in {"severe", "extreme"}:
+    if severity not in {"minor", "moderate", "severe", "extreme", "unknown"}:
         return None
     device_id = (options or {}).get("_device_id", "local")
     identity = _alert_identity(alert, zip_code)

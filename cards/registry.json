@@ -10659,6 +10659,38 @@
           ]
         },
         {
+          "key": "minorAlertTarget",
+          "label": "Minor Alert Graphic",
+          "type": "select",
+          "default": "device",
+          "choices": [
+            {
+              "value": "device",
+              "label": "Single Device"
+            },
+            {
+              "value": "group_wall",
+              "label": "Group Wall"
+            }
+          ]
+        },
+        {
+          "key": "moderateAlertTarget",
+          "label": "Moderate Alert Graphic",
+          "type": "select",
+          "default": "device",
+          "choices": [
+            {
+              "value": "device",
+              "label": "Single Device"
+            },
+            {
+              "value": "group_wall",
+              "label": "Group Wall"
+            }
+          ]
+        },
+        {
           "key": "severeAlertTarget",
           "label": "Severe Alert Graphic",
           "type": "select",
@@ -10679,6 +10711,22 @@
           "label": "Extreme Alert Graphic",
           "type": "select",
           "default": "group_wall",
+          "choices": [
+            {
+              "value": "device",
+              "label": "Single Device"
+            },
+            {
+              "value": "group_wall",
+              "label": "Group Wall"
+            }
+          ]
+        },
+        {
+          "key": "unknownAlertTarget",
+          "label": "Unknown Alert Graphic",
+          "type": "select",
+          "default": "device",
           "choices": [
             {
               "value": "device",
