@@ -366,6 +366,24 @@ def _format_batting_stats(stats, width):
     return "  ".join(parts) or "AT BAT"
 
 
+def _format_batting_stats_128(stats):
+    stats = stats if isinstance(stats, dict) else {}
+    h_ab = str(stats.get("H-AB") or "").strip()
+    avg = str(stats.get("AVG") or "").strip()
+    rbi = str(stats.get("RBI") or "").strip()
+    hr = str(stats.get("HR") or "").strip()
+    parts = []
+    if h_ab:
+        parts.append(h_ab)
+    if rbi and rbi not in ("0", "0.0"):
+        parts.append(f"{rbi}RBI")
+    if hr and hr not in ("0", "0.0"):
+        parts.append(f"{hr}HR")
+    if avg:
+        parts.append(avg)
+    return " ".join(parts) or "AT BAT"
+
+
 def _format_batting_stat_lines(stats, width):
     stats = stats if isinstance(stats, dict) else {}
     h_ab = str(stats.get("H-AB") or "").strip()
@@ -401,6 +419,14 @@ def _draw_mlb_player_moment_layout(image, draw, *, label, name, stat_lines, text
     name_bbox = draw.textbbox((0, 0), name, font=name_font)
     name_x = text_left + max(0, (text_width - (name_bbox[2] - name_bbox[0])) // 2)
     draw_sharp_text(image, (name_x, 7 - name_bbox[1]), name, (245, 248, 250), name_font)
+    if label == "AT BAT" and width == 128 and len(stat_lines) == 1:
+        stat = str(stat_lines[0] or "")
+        stat_max_width = max(20, text_width - 4)
+        stat_font = _fit_regular_font(stat, stat_max_width, (9, 8, 7))
+        stat_bbox = draw.textbbox((0, 0), stat, font=stat_font)
+        stat_x = text_left + max(0, (text_width - (stat_bbox[2] - stat_bbox[0])) // 2)
+        draw_sharp_text(image, (stat_x, 22 - stat_bbox[1]), stat, (255, 255, 255), stat_font)
+        return
     stat_ys = (22,) if len(stat_lines) == 1 and width >= 96 else (21,) if len(stat_lines) == 1 else (19, 25) if width >= 96 else (18, 24)
     for stat, y in zip(stat_lines, stat_ys):
         stat_w, _stat_h = _tiny_text_size(stat)
@@ -450,7 +476,7 @@ def _render_now_batting_frames(team):
     text_width = max(28, text_right - text_left)
     label = "AT BAT"
     name = _display_player_name(team.get("playerName"), width)
-    stat_lines = _format_batting_stat_lines(team.get("playerStats"), width)
+    stat_lines = [_format_batting_stats_128(team.get("playerStats"))] if width == 128 else _format_batting_stat_lines(team.get("playerStats"), width)
     _draw_mlb_player_moment_layout(image, draw, label=label, name=name, stat_lines=stat_lines, text_left=text_left, text_width=text_width, color=color, width=width)
 
     return [image.convert("RGB")], [5000]

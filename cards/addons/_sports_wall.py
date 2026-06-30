@@ -195,19 +195,27 @@ def _fetch_headshot(url, size=24):
     if key in _HEADSHOT_CACHE:
         return _HEADSHOT_CACHE[key]
     try:
-        from PIL import Image
+        from PIL import Image, ImageEnhance, ImageFilter
         request = urllib.request.Request(url, headers={"User-Agent": "Pixora/0.1"})
         with urllib.request.urlopen(request, timeout=4) as response:
             data = response.read()
         image = Image.open(BytesIO(data)).convert("RGBA")
         side = min(image.width, image.height)
         if side > 0:
-            left = max(0, (image.width - side) // 2)
-            top = max(0, (image.height - side) // 3)
-            image = image.crop((left, top, left + side, top + side))
+            crop = max(1, int(side * 0.84))
+            left = max(0, (image.width - crop) // 2)
+            top = max(0, int((image.height - crop) * 0.18))
+            image = image.crop((left, top, left + crop, top + crop))
         image.thumbnail((size, size), Image.LANCZOS)
         canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
         canvas.alpha_composite(image, ((size - image.width) // 2, (size - image.height) // 2))
+        alpha = canvas.getchannel("A")
+        detail = canvas.convert("RGB")
+        detail = ImageEnhance.Contrast(detail).enhance(1.18)
+        detail = ImageEnhance.Color(detail).enhance(1.10)
+        detail = detail.filter(ImageFilter.UnsharpMask(radius=0.6, percent=150, threshold=2))
+        canvas = detail.convert("RGBA")
+        canvas.putalpha(alpha)
         _HEADSHOT_CACHE[key] = canvas
         return canvas
     except Exception:

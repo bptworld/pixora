@@ -281,9 +281,14 @@ def _draw_radar_frame(image, info, frame, font, bold):
         title_color = (90, 238, 170) if kind in ("rain", "mix") else (150, 210, 255) if kind == "snow" else (120, 145, 160)
         draw_sharp_text(image, (panel_x + 3, -3), "RADAR", (118, 245, 210), bold)
         draw_sharp_text(image, (panel_x + 3, 8), title, title_color, bold)
-        detail = f"LIVE {info['prob']}%"
-        if kind == "snow":
-            detail = f"SNOW {info['prob']}%"
+        if kind == "dry":
+            detail = "DRY NOW"
+        elif kind == "snow":
+            detail = "SNOW HIGH" if info["prob"] >= 70 else "SNOW NOW"
+        elif kind == "mix":
+            detail = "MIX HIGH" if info["prob"] >= 70 else "MIX NOW"
+        else:
+            detail = "RAIN HIGH" if info["prob"] >= 70 else "RAIN NOW"
         draw_sharp_text(image, (panel_x + 3, 19), detail[:12], (210, 230, 238), font)
     else:
         draw.rectangle((0, 0, 63, 6), fill=(0, 22, 30))
