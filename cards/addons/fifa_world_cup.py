@@ -173,6 +173,13 @@ def _center_text(image, draw, text, y, font, color, x1=0, x2=None):
     draw_sharp_text(image, (x1 + ((x2 - x1 + 1) - width) // 2, y), text, color, font)
 
 
+def _fit_text(draw, text, font, max_width):
+    text = str(text or "").strip().upper()
+    while text and draw.textbbox((0, 0), text, font=font)[2] > max_width:
+        text = text[:-1].rstrip()
+    return text
+
+
 def _animation_width(options):
     options = options or {}
     try:
@@ -569,8 +576,15 @@ def _render_event(event, width):
         home_w = draw.textbbox((0, 0), home_abbr, font=bold)[2]
         if not home_has_mark:
             draw_sharp_text(image, (102 - home_w, 13), home_abbr, (245, 250, 255), bold)
-        detail = (event.get("name") or event.get("shortName") or "")[:24].upper()
-        _center_text(image, draw, detail, 23, font, (130, 160, 170), 24, 103)
+        if state == "pre":
+            away_name = _fit_text(draw, away_team.get("displayName") or away_team.get("name") or away_team.get("shortDisplayName") or away_abbr, font, 49)
+            home_name = _fit_text(draw, home_team.get("displayName") or home_team.get("name") or home_team.get("shortDisplayName") or home_abbr, font, 49)
+            _center_text(image, draw, away_name, 23, font, (130, 160, 170), 0, 52)
+            _center_text(image, draw, "AT", 23, font, (70, 220, 125), 53, 74)
+            _center_text(image, draw, home_name, 23, font, (130, 160, 170), 75, 127)
+        else:
+            detail = (event.get("name") or event.get("shortName") or "")[:24].upper()
+            _center_text(image, draw, detail, 23, font, (130, 160, 170), 24, 103)
     else:
         away_abbr = (away_team.get("abbreviation") or "AWY")[:3].upper()
         home_abbr = (home_team.get("abbreviation") or "HME")[:3].upper()
@@ -590,7 +604,10 @@ def _render_event(event, width):
         else:
             draw_sharp_text(image, (63 - home_w, 10), home_abbr, (245, 250, 255), bold)
         _center_text(image, draw, score, 10, bold, (245, 250, 255), 0, 63)
-        _center_text(image, draw, status[:14], 22, font, (130, 160, 170), 0, 63)
+        if state == "pre":
+            _center_text(image, draw, "AT", 22, font, (70, 220, 125), 26, 37)
+        else:
+            _center_text(image, draw, status[:14], 22, font, (130, 160, 170), 0, 63)
 
     out = BytesIO()
     image.save(out, "WEBP", lossless=True, quality=100)
