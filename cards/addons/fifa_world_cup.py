@@ -180,6 +180,10 @@ def _fit_text(draw, text, font, max_width):
     return text
 
 
+def _text_width(draw, text, font):
+    return draw.textbbox((0, 0), str(text or ""), font=font)[2]
+
+
 def _animation_width(options):
     options = options or {}
     try:
@@ -577,11 +581,19 @@ def _render_event(event, width):
         if not home_has_mark:
             draw_sharp_text(image, (102 - home_w, 13), home_abbr, (245, 250, 255), bold)
         if state == "pre":
-            away_name = _fit_text(draw, away_team.get("displayName") or away_team.get("name") or away_team.get("shortDisplayName") or away_abbr, font, 49)
-            home_name = _fit_text(draw, home_team.get("displayName") or home_team.get("name") or home_team.get("shortDisplayName") or home_abbr, font, 49)
-            _center_text(image, draw, away_name, 23, font, (130, 160, 170), 0, 52)
-            _center_text(image, draw, "AT", 23, font, (70, 220, 125), 53, 74)
-            _center_text(image, draw, home_name, 23, font, (130, 160, 170), 75, 127)
+            at_text = "AT"
+            at_w = _text_width(draw, at_text, font)
+            space_w = max(2, _text_width(draw, " ", font))
+            at_x = 64 - (at_w // 2)
+            left_max_w = max(8, at_x - space_w)
+            right_x = at_x + at_w + space_w
+            right_max_w = max(8, 127 - right_x)
+            away_name = _fit_text(draw, away_team.get("displayName") or away_team.get("name") or away_team.get("shortDisplayName") or away_abbr, font, left_max_w)
+            home_name = _fit_text(draw, home_team.get("displayName") or home_team.get("name") or home_team.get("shortDisplayName") or home_abbr, font, right_max_w)
+            draw_sharp_text(image, (0, 23), away_name, (130, 160, 170), font)
+            draw_sharp_text(image, (at_x, 23), at_text, (70, 220, 125), font)
+            home_w = _text_width(draw, home_name, font)
+            draw_sharp_text(image, (127 - home_w, 23), home_name, (130, 160, 170), font)
         else:
             detail = (event.get("name") or event.get("shortName") or "")[:24].upper()
             _center_text(image, draw, detail, 23, font, (130, 160, 170), 24, 103)
