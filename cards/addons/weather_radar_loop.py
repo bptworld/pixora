@@ -239,7 +239,7 @@ def _matrix_radar_image(tile, width, seed=0):
     return radar
 
 
-def _draw_radar_frame(image, info, frame, font, bold):
+def _draw_radar_frame(image, info, radar_frame, sweep_frame, font, bold):
     from PIL import ImageDraw
 
     width, height = image.size
@@ -248,12 +248,12 @@ def _draw_radar_frame(image, info, frame, font, bold):
     radar_frames = info.get("frames") or []
     radar_width = 58 if width == 128 else width
     if radar_frames:
-        radar = radar_frames[frame % len(radar_frames)]
+        radar = radar_frames[radar_frame % len(radar_frames)]
         image.paste(radar, (0, 0))
     else:
         for y in range(0, height, 4):
             for x in range(0, radar_width, 4):
-                if _hash(x, y, frame) > 215:
+                if _hash(x, y, radar_frame) > 215:
                     draw.point((x, y), fill=(0, 18, 24))
 
     cx = radar_width // 2
@@ -267,7 +267,7 @@ def _draw_radar_frame(image, info, frame, font, bold):
     draw.line((cx, cy - radius, cx, cy + radius), fill=(5, 34, 40))
     draw.rectangle((cx - 1, cy - 1, cx + 1, cy + 1), fill=(118, 245, 210))
 
-    sweep = (frame * 14) % 360
+    sweep = (sweep_frame * 15) % 360
     sx = cx + int(math.cos(math.radians(sweep)) * radius)
     sy = cy + int(math.sin(math.radians(sweep)) * radius)
     draw.line((cx, cy, sx, sy), fill=(42, 238, 190))
@@ -301,8 +301,18 @@ def _render_animation(info, width, dwell_secs):
 
     dwell_ms = max(3000, min(60000, int(dwell_secs or 10) * 1000))
     source_frames = info.get("frames") or []
-    frame_count = len(source_frames) if source_frames else max(10, min(24, int(round(dwell_ms / 240))))
-    frame_duration = 180 if source_frames else 120
+    frame_duration = 120
+    sweep_frames = 24
+    if source_frames:
+        background_hold_frames = 3
+        background_cycle_frames = max(1, len(source_frames) * background_hold_frames)
+        frame_count = math.lcm(sweep_frames, background_cycle_frames)
+    else:
+        background_hold_frames = 2
+        frame_count = sweep_frames
+    max_frames = max(1, min(120, int(round(dwell_ms / frame_duration))))
+    if frame_count > max_frames:
+        frame_count = max_frames
     try:
         font = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
         bold = ImageFont.truetype("assets/fonts/PixelifySans-Bold.ttf", 8)
@@ -311,8 +321,10 @@ def _render_animation(info, width, dwell_secs):
 
     frames = []
     for frame in range(frame_count):
+        radar_frame = frame // background_hold_frames if source_frames else frame // background_hold_frames
+        sweep_frame = frame
         image = Image.new("RGB", (width, 32), (0, 4, 8))
-        _draw_radar_frame(image, info, frame, font, bold)
+        _draw_radar_frame(image, info, radar_frame, sweep_frame, font, bold)
         frames.append(image)
 
     out = BytesIO()
@@ -322,7 +334,7 @@ def _render_animation(info, width, dwell_secs):
         save_all=True,
         append_images=frames[1:],
         duration=frame_duration,
-        loop=1,
+        loop=0,
         lossless=True,
         quality=100,
     )
