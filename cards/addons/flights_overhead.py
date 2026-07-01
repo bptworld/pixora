@@ -594,13 +594,14 @@ def _render_64_list(rows, opts):
 
 
 def _save_cycle(frames):
+    durations = [_FLIGHT_SLOT_SECONDS * 1000 for _ in frames]
     out = BytesIO()
     frames[0].save(
         out,
         "WEBP",
         save_all=True,
         append_images=frames[1:],
-        duration=_FLIGHT_SLOT_SECONDS * 1000,
+        duration=durations,
         loop=0,
         lossless=True,
         quality=100,
@@ -608,6 +609,7 @@ def _save_cycle(frames):
     return {
         "body": out.getvalue(),
         "dwell_secs": max(_FLIGHT_SLOT_SECONDS, len(frames) * _FLIGHT_SLOT_SECONDS),
+        "_frame_durations_ms": durations,
         "_stay": False,
     }
 

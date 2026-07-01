@@ -26,6 +26,7 @@ _PARK_ICONS = [
     "sleeping-beauty-castle.png",
     "california-adventure-wheel.png",
 ]
+_DISNEY_FRAME_MS = 110
 
 
 def _draw_magic_sky(image, draw):
@@ -275,20 +276,21 @@ def _build_128_reveal_webp(days, header_font, number_font, word_font, icon_path=
 
     steps = [0.0, 0.1, 0.2, 0.32, 0.45, 0.58, 0.72, 0.86, 1.0]
     frames = [_build_128_reveal_frame(days, header_font, number_font, word_font, progress, icon_path) for progress in steps]
-    reveal_ms = 110 * (len(steps) - 1)
-    hold_ms = max(500, int(dwell_secs * 1000) - reveal_ms)
+    reveal_ms = _DISNEY_FRAME_MS * (len(frames) - 1)
+    hold_ms = max(_DISNEY_FRAME_MS, int(dwell_secs * 1000) - reveal_ms)
+    durations = [_DISNEY_FRAME_MS] * (len(frames) - 1) + [hold_ms]
     out = BytesIO()
     frames[0].save(
         out,
         "WEBP",
         save_all=True,
         append_images=frames[1:],
-        duration=[110] * (len(steps) - 1) + [hold_ms],
+        duration=durations,
         loop=1,
         lossless=True,
         quality=100,
     )
-    return out.getvalue()
+    return out.getvalue(), durations
 
 
 def _build_countdown_frame(days, header_font, countdown_font, tiny_font, width=64, progress=1.0, icon_path=None):
@@ -317,20 +319,21 @@ def _build_countdown_webp(days, header_font, countdown_font, tiny_font, width=64
 
     steps = [0.0, 0.12, 0.25, 0.38, 0.5, 0.62, 0.75, 0.88, 1.0]
     frames = [_build_countdown_frame(days, header_font, countdown_font, tiny_font, width, progress, icon_path) for progress in steps]
-    reveal_ms = 110 * (len(steps) - 1)
-    hold_ms = max(500, int(dwell_secs * 1000) - reveal_ms)
+    reveal_ms = _DISNEY_FRAME_MS * (len(frames) - 1)
+    hold_ms = max(_DISNEY_FRAME_MS, int(dwell_secs * 1000) - reveal_ms)
+    durations = [_DISNEY_FRAME_MS] * (len(frames) - 1) + [hold_ms]
     out = BytesIO()
     frames[0].save(
         out,
         "WEBP",
         save_all=True,
         append_images=frames[1:],
-        duration=[110] * (len(steps) - 1) + [hold_ms],
+        duration=durations,
         loop=1,
         lossless=True,
         quality=100,
     )
-    return out.getvalue()
+    return out.getvalue(), durations
 
 
 def _build_countdown(days, header_font, big_font, small_font, width=64):
@@ -404,10 +407,10 @@ def render(options=None):
         return buf.getvalue()
 
     icon_path = _choose_cycle_icon(device_id)
-    body = (
+    body, durations = (
         _build_countdown_webp(days, header_font, countdown_font, tiny_font, width, icon_path, dwell)
         if width <= 64
         else _build_128_reveal_webp(days, header_font, reveal_font, reveal_word_font, icon_path, dwell)
     )
     _finish_cycle_icon(device_id)
-    return {"body": body, "dwell_secs": dwell, "_stay": False}
+    return {"body": body, "dwell_secs": dwell, "_frame_durations_ms": durations, "_stay": False}

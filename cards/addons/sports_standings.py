@@ -301,9 +301,11 @@ def render(options=None):
 
     max_offset = max(0, (len(rows) - 3) * 8)
     offsets = [0] + list(range(1, max_offset + 1))
-    frames = [_render_frame(title, color, rows, font, bold, offset, width=width) for offset in offsets]
-    durations = [_STANDINGS_HOLD_MS] + [_STANDINGS_SCROLL_MS for _ in offsets[1:]]
-    durations[-1] = _STANDINGS_HOLD_MS
+    top_frame = _render_frame(title, color, rows, font, bold, 0, width=width)
+    scroll_frames = [_render_frame(title, color, rows, font, bold, offset, width=width) for offset in offsets[1:]]
+    bottom_frame = _render_frame(title, color, rows, font, bold, max_offset, width=width)
+    frames = [top_frame] + scroll_frames + [bottom_frame]
+    durations = [_STANDINGS_HOLD_MS] + [_STANDINGS_SCROLL_MS for _ in scroll_frames] + [_STANDINGS_HOLD_MS]
     frames[0].save(
         out,
         "WEBP",
@@ -314,4 +316,4 @@ def render(options=None):
         lossless=True,
         quality=100,
     )
-    return out.getvalue()
+    return {"body": out.getvalue(), "_frame_durations_ms": durations}
