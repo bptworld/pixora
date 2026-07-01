@@ -93,9 +93,13 @@ def _draw_mickey_outline(draw, cx, cy, color=(255, 210, 50)):
 
 def _asset_path(filename):
     here = Path(__file__).resolve()
-    for root in (here.parents[2], here.parents[3] if len(here.parents) > 3 else here.parents[2]):
-        for rel in (f"graphics/assets/{filename}", f"cloud/graphics/assets/{filename}"):
-            path = root / rel
+    roots = [here.parent, *here.parents]
+    for root in roots:
+        for path in (
+            root / "graphics" / "assets" / filename,
+            root / "cloud" / "graphics" / "assets" / filename,
+            root / "render" / "graphics" / "assets" / filename,
+        ):
             if path.exists():
                 return path
     return None
@@ -266,19 +270,20 @@ def _build_128_reveal_frame(days, header_font, number_font, word_font, progress=
     return img
 
 
-def _build_128_reveal_webp(days, header_font, number_font, word_font, icon_path=None):
+def _build_128_reveal_webp(days, header_font, number_font, word_font, icon_path=None, dwell_secs=30):
     from io import BytesIO
 
     steps = [0.0, 0.1, 0.2, 0.32, 0.45, 0.58, 0.72, 0.86, 1.0]
     frames = [_build_128_reveal_frame(days, header_font, number_font, word_font, progress, icon_path) for progress in steps]
-    frames.extend([frames[-1]] * 6)
+    reveal_ms = 110 * (len(steps) - 1)
+    hold_ms = max(500, int(dwell_secs * 1000) - reveal_ms)
     out = BytesIO()
     frames[0].save(
         out,
         "WEBP",
         save_all=True,
         append_images=frames[1:],
-        duration=[110] * len(steps) + [450] * 6,
+        duration=[110] * (len(steps) - 1) + [hold_ms],
         loop=1,
         lossless=True,
         quality=100,
@@ -307,19 +312,20 @@ def _build_countdown_frame(days, header_font, countdown_font, tiny_font, width=6
     return img
 
 
-def _build_countdown_webp(days, header_font, countdown_font, tiny_font, width=64, icon_path=None):
+def _build_countdown_webp(days, header_font, countdown_font, tiny_font, width=64, icon_path=None, dwell_secs=30):
     from io import BytesIO
 
     steps = [0.0, 0.12, 0.25, 0.38, 0.5, 0.62, 0.75, 0.88, 1.0]
     frames = [_build_countdown_frame(days, header_font, countdown_font, tiny_font, width, progress, icon_path) for progress in steps]
-    frames.extend([frames[-1]] * 6)
+    reveal_ms = 110 * (len(steps) - 1)
+    hold_ms = max(500, int(dwell_secs * 1000) - reveal_ms)
     out = BytesIO()
     frames[0].save(
         out,
         "WEBP",
         save_all=True,
         append_images=frames[1:],
-        duration=[110] * len(steps) + [450] * 6,
+        duration=[110] * (len(steps) - 1) + [hold_ms],
         loop=1,
         lossless=True,
         quality=100,
@@ -397,23 +403,11 @@ def render(options=None):
         )
         return buf.getvalue()
 
-    # Toggle: default True so the very first render is always the intro
-    show_intro = _SHOW_INTRO.get(device_id, True)
-
-    if show_intro:
-        _SHOW_INTRO[device_id] = False  # next render: countdown
-        icon_path = _choose_cycle_icon(device_id)
-        body = _build_countdown_webp(days, header_font, countdown_font, tiny_font, width, icon_path) if width <= 64 else _build_128_reveal_webp(days, header_font, reveal_font, reveal_word_font, icon_path)
-        return {"body": body, "dwell_secs": 3, "_stay": True}
-    else:
-        _SHOW_INTRO[device_id] = True   # next render: intro again
-        icon_path = _current_cycle_icon(device_id)
-        frames = [
-            _build_countdown_frame(days, header_font, countdown_font, tiny_font, width, 1.0, icon_path)
-            if width <= 64
-            else _build_128_reveal_frame(days, header_font, reveal_font, reveal_word_font, 1.0, icon_path)
-            for _ in range(6)
-        ]
-        body = frames_to_webp(frames, 500)
-        _finish_cycle_icon(device_id)
-        return {"body": body, "dwell_secs": dwell - 3}
+    icon_path = _choose_cycle_icon(device_id)
+    body = (
+        _build_countdown_webp(days, header_font, countdown_font, tiny_font, width, icon_path, dwell)
+        if width <= 64
+        else _build_128_reveal_webp(days, header_font, reveal_font, reveal_word_font, icon_path, dwell)
+    )
+    _finish_cycle_icon(device_id)
+    return {"body": body, "dwell_secs": dwell, "_stay": False}

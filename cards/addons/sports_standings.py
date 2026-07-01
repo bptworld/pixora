@@ -56,6 +56,8 @@ LEAGUES = {
     "womens_college_volleyball": ("WVB", "https://site.web.api.espn.com/apis/v2/sports/volleyball/womens-college-volleyball/standings", (255, 185, 85)),
 }
 _CACHE = {}
+_STANDINGS_HOLD_MS = 2000
+_STANDINGS_SCROLL_MS = 120
 
 MLB_DIVISIONS = {
     "al_east": {"BAL", "BOS", "NYY", "TB", "TOR"},
@@ -300,8 +302,8 @@ def render(options=None):
     max_offset = max(0, (len(rows) - 3) * 8)
     offsets = [0] + list(range(1, max_offset + 1))
     frames = [_render_frame(title, color, rows, font, bold, offset, width=width) for offset in offsets]
-    durations = [2000] + [120 for _ in offsets[1:]]
-    durations[-1] = 3000
+    durations = [_STANDINGS_HOLD_MS] + [_STANDINGS_SCROLL_MS for _ in offsets[1:]]
+    durations[-1] = _STANDINGS_HOLD_MS
     frames[0].save(
         out,
         "WEBP",

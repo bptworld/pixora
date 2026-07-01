@@ -44,6 +44,7 @@ _ROUTE_CACHE_SECONDS = 3600
 _FLIGHTSTATS_CACHE_SECONDS = 600
 _SNAPSHOT_TTL_SECONDS = 20
 _EMPTY_SNAPSHOT_TTL_SECONDS = 15
+_FLIGHT_SLOT_SECONDS = 2
 _ROUTE_CACHE = {}
 _SNAPSHOT_CACHE = {}
 _SNAPSHOT_PENDING = set()
@@ -574,7 +575,7 @@ def _dwell_seconds(opts):
 
 
 def _limit_rows_for_dwell(rows, opts):
-    count = max(1, _dwell_seconds(opts) // 3)
+    count = max(1, _dwell_seconds(opts) // _FLIGHT_SLOT_SECONDS)
     return list(rows or [])[:count]
 
 
@@ -599,14 +600,14 @@ def _save_cycle(frames):
         "WEBP",
         save_all=True,
         append_images=frames[1:],
-        duration=3000,
+        duration=_FLIGHT_SLOT_SECONDS * 1000,
         loop=0,
         lossless=True,
         quality=100,
     )
     return {
         "body": out.getvalue(),
-        "dwell_secs": max(3, len(frames) * 3),
+        "dwell_secs": max(_FLIGHT_SLOT_SECONDS, len(frames) * _FLIGHT_SLOT_SECONDS),
         "_stay": False,
     }
 
