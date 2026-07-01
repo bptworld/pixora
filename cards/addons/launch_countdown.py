@@ -586,7 +586,7 @@ def render(options=None):
 
     view = str(opts.get("view") or "countdown").lower()
     seconds = _seconds_until(launch)
-    if view == "countdown" and seconds is not None:
+    if view == "countdown" and seconds is not None and not opts.get("_is_prefetch"):
         shake_key = f"{CARD_ID}|{_launch_key(launch)}|shake|{opts.get('_target', '')}"
         liftoff_key = f"{CARD_ID}|{_launch_key(launch)}|liftoff|{opts.get('_target', '')}"
         if 0 < seconds <= 120:

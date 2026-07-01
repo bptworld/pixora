@@ -96,6 +96,8 @@ def _selected_competitor(event, favorite):
 
 
 def _maybe_run_animation(options):
+    if (options or {}).get("_is_prefetch"):
+        return None
     favorite = (options or {}).get("favoriteTeam", "")
     if not str(favorite or "").strip():
         return None

@@ -1813,7 +1813,7 @@ def _render_snapshot(snapshot, opts, width):
     render_opts = dict(opts)
     render_opts["_home_latlon"] = snapshot.get("home")
     welcome = snapshot.get("welcome") or []
-    if welcome:
+    if welcome and not (opts or {}).get("_is_prefetch"):
         remaining = int(snapshot.get("welcome_remaining") or 0)
         if remaining > 0:
             snapshot["welcome_remaining"] = remaining - 1

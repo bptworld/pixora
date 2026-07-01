@@ -681,7 +681,7 @@ def render(options=None):
             if near:
                 near_by_ident[_state_key(item)] = near
 
-    alert, dwell = _alert_for(opts, items, near_by_ident)
+    alert, dwell = (None, 0) if opts.get("_is_prefetch") else _alert_for(opts, items, near_by_ident)
     if alert is not None:
         return {"body": _webp(alert), "dwell_secs": dwell, "_stay": False, "_priority_graphic": True}
 

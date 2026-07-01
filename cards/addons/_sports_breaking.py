@@ -282,6 +282,8 @@ def _status_text(competition):
 
 
 def game_moment_alert(options, card_id, state, event, competition, animation_team, sport="score", unit="quarter", default_label="TEAM"):
+    if (options or {}).get("_is_prefetch"):
+        return None
     status = (competition.get("status") or {})
     status_type = status.get("type") or {}
     game_state = str(status_type.get("state") or "").lower()
@@ -336,6 +338,8 @@ def game_moment_alert(options, card_id, state, event, competition, animation_tea
 
 
 def soccer_moment_alert(options, card_id, state, event, competition, animation_team, render=None, renderer_name="_render_score_alert_frames"):
+    if (options or {}).get("_is_prefetch"):
+        return None
     status = (competition.get("status") or {})
     status_type = status.get("type") or {}
     game_state = str(status_type.get("state") or "").lower()
@@ -1082,6 +1086,8 @@ def render_score_alert(team, kind="score"):
 
 
 def maybe_score_alert(options, card_id, url, cache, state, sport="score", default_label="TEAM", render=None, renderer_name="_render_score_alert_frames"):
+    if (options or {}).get("_is_prefetch"):
+        return None
     favorite = (options or {}).get("favoriteTeam", "")
     if not str(favorite or "").strip():
         return None

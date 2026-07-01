@@ -1004,6 +1004,8 @@ def _queue_moment(kind, options, event, competition):
 
 
 def _maybe_moment_animation(options, event, competition):
+    if (options or {}).get("_is_prefetch"):
+        return None
     status = ((competition.get("status") or {}).get("type") or {})
     state = str(status.get("state") or "").lower()
     completed = bool(status.get("completed"))

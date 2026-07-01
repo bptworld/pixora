@@ -150,6 +150,8 @@ def _scorer_for_goal(competition, competitor, score):
 
 
 def _maybe_goal_animation(options):
+    if (options or {}).get("_is_prefetch"):
+        return None
     favorite = (options or {}).get("favoriteTeam", "")
     if not str(favorite or "").strip():
         return None

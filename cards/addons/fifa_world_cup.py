@@ -407,6 +407,8 @@ def _draw_small_flag(draw, box, code):
 
 
 def _maybe_goal_animation(options):
+    if (options or {}).get("_is_prefetch"):
+        return None
     opts = options or {}
     favorite = str(opts.get("favoriteTeam") or "").strip().upper()
     if not favorite and str(opts.get("scoreAnimationTeams") or "favorite").strip().lower() not in ("both", "all", "game"):

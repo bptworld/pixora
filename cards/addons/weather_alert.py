@@ -312,6 +312,8 @@ def _render_weather_alert_animation(team, kind="severe"):
 
 
 def _maybe_severity_animation(options, alert, zip_code):
+    if (options or {}).get("_is_prefetch"):
+        return None
     props = (alert or {}).get("properties") or {}
     severity = _severity_key(props.get("severity"))
     if severity not in {"minor", "moderate", "severe", "extreme", "unknown"}:

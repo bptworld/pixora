@@ -185,6 +185,8 @@ def _scorer_for_play(play, team):
 
 
 def _maybe_score_animation(options):
+    if (options or {}).get("_is_prefetch"):
+        return None
     favorite = (options or {}).get("favoriteTeam", "")
     if not str(favorite or "").strip():
         return None
