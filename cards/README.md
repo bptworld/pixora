@@ -8,181 +8,183 @@ Add-on cards for the [Pixora](https://github.com/bptworld/pixora) display system
 
 | Card | Description |
 |------|-------------|
-| Commodities Watch | Gold, oil, and metals |
-| Crypto Watch | BTC, ETH, and more |
-| Currency Rates | FX pairs and daily moves |
-| Market Indexes | Dow, S&P, Nasdaq |
-| Market Open / Closed | NYSE/Nasdaq open status |
-| Portfolio Pulse | Value and daily gain |
-| Sector Heat | ETF sector daily moves |
-| Stock Ticker | Scrolling stocks and crypto |
+| Commodities Watch | Follow key commodities with price and daily movement. |
+| Crypto Watch | Track selected coins with price and daily movement. |
+| Currency Rates | Show selected exchange rates and daily movement. |
+| Market Indexes | Monitor major market indexes at a glance. |
+| Market Open / Closed | Show whether major markets are open or closed. |
+| Portfolio Pulse | Summarize portfolio value, change, and daily gain. |
+| Sector Heat | Compare sector performance with a compact heat view. |
+| Stock Ticker | Scroll selected tickers with current price movement. |
 
 ### Fun
 
 | Card | Description |
 |------|-------------|
-| 8-Bit Heartbeat | Pulsing pixel heart |
-| Alien March | Retro invader parade |
-| Fireplace | Pixel flames |
-| Fortune Cookie | Tiny daily fortune |
-| Lava Lamp | Drifting pixel blobs |
-| Matrix Rain | Falling green code |
-| Pac-Man Chase | Pac-Man chasing ghosts |
-| Pixel Aquarium | Fish and bubbles |
-| Pixel Globe | Tiny rotating world |
-| Pong Loop | Tiny paddles and ball |
-| Snake | Snake eats dots |
-| Tiny Traffic | Cars and signal lights |
+| 8-Bit Heartbeat | A glowing pixel heart with a gentle pulse. |
+| Alien March | Retro invaders march across the display. |
+| Fireplace | Cozy animated pixel flames for ambient display. |
+| Fortune Cookie | A small daily fortune with playful pixel charm. |
+| Lava Lamp | Soft drifting blobs for a relaxed ambient effect. |
+| Matrix Rain | Animated green code rain in classic terminal style. |
+| Pac-Man Chase | A tiny arcade chase loops across the screen. |
+| Pixel Aquarium | A calm pixel aquarium with fish and bubbles. |
+| Pixel Globe | A tiny rotating globe for ambient motion. |
+| Pong Loop | Classic paddles and ball in a looping match. |
+| Snake | A miniature snake game animation with dot chasing. |
+| Tiny Traffic | Tiny cars roll through animated signal lights. |
 
 ### Smart Home
 
 | Card | Description |
 |------|-------------|
-| DNS Stats | Pi-hole or AdGuard stats |
-| Home Assistant Entity | Live Home Assistant state |
-| Hubitat Device | Live device attribute |
-| Hubitat Multi | Several Hubitat devices |
-| Hubitat Safety | All secure or open list |
-| SmartThings Entity | Live SmartThings state |
+| DNS Stats | Show network blocking totals and recent activity. |
+| Home Assistant Entity | Display one smart home entity and its current state. |
+| Hubitat Device | Show one device attribute from your smart home. |
+| Hubitat Multi | Rotate several smart home device readings together. |
+| Hubitat Safety | Summarize door, lock, and contact sensor status. |
+| SmartThings Entity | Display one connected device and its current state. |
 
 ### Social
 
 | Card | Description |
 |------|-------------|
-| Etsy Shop Pulse | Orders and shop stats |
-| Facebook Followers | Page followers via Graph API |
-| Instagram Followers | Follower count via Instagram Graph |
-| Last.fm Now Playing | Current or recent track |
-| Music Assistant Now Playing | Direct Music Assistant player |
-| Shopify Orders | Orders this week and all time |
-| X / Twitter Followers | Follower count via X API |
-| YouTube Subscribers | Channel subscriber count |
+| Etsy Shop Pulse | Track shop orders, favorites, and audience growth. |
+| Facebook Followers | Display page follower count in a compact card. |
+| Instagram Followers | Display profile follower count in a compact card. |
+| Last.fm Now Playing | Show the current or most recent track. |
+| Music Assistant Now Playing | Show the current track from your music player. |
+| Shopify Orders | Show recent order totals and all-time store count. |
+| X / Twitter Followers | Display account follower count in a compact card. |
+| YouTube Subscribers | Display channel subscriber count in a compact card. |
 
 ### Sports
 
 | Card | Description |
 |------|-------------|
-| CFL Scores | Live ESPN CFL scoreboard |
-| College Baseball | Live ESPN college baseball scoreboard |
-| College Baseball Standings | College baseball standings |
-| College Football | Live ESPN scoreboard |
-| College Football Standings | College football conference standings |
-| College Hockey Standings | Men's college hockey standings |
-| College Softball | Live ESPN college softball scoreboard |
-| ESPN Fantasy Lineup | ESPN starter points |
-| ESPN Fantasy Matchup | ESPN weekly matchup score |
-| ESPN Fantasy Standings | ESPN league standings |
-| F1 Racing | ESPN Formula 1 status |
-| Fantasy Lineup | Sleeper starter points |
-| Fantasy Matchup | Sleeper weekly matchup score |
-| Fantasy Standings | Sleeper league standings |
-| FIFA World Cup | Selected team next match |
-| World Cup Golden Boot | World Cup top scorers |
-| World Cup Today | Today's World Cup matches |
-| World Cup Tracker | Track one World Cup team |
-| LPGA Golf | ESPN LPGA leaderboard |
-| Men's College Basketball | Live ESPN scoreboard |
-| Men's College Basketball Standings | Men's college basketball standings |
-| Men's College Lacrosse | Live ESPN men's college lacrosse scoreboard |
-| MLB Scores | Live ESPN scoreboard |
-| NASCAR | ESPN NASCAR Cup status |
-| NBA G League | Live ESPN NBA G League scoreboard |
-| NBA Scores | Live ESPN scoreboard |
-| NBA Standings | NBA conference standings |
-| NCAA Hockey | Live ESPN men's college hockey scoreboard |
-| NFL Scores | Live ESPN scoreboard |
-| NFL Standings | NFL conference standings |
-| NHL Scores | Live ESPN scoreboard |
-| NHL Standings | NHL conference standings |
-| NLL Lacrosse | Live ESPN NLL scoreboard |
-| PGA Golf | ESPN PGA leaderboard |
-| PLL Lacrosse | Live ESPN PLL scoreboard |
-| Soccer Scores | Live ESPN soccer scoreboard |
-| Soccer Standings | Soccer league table |
-| Sports Standings | Top teams from ESPN standings |
-| UFC | Live ESPN UFC fight card |
-| UFL Scores | Live ESPN UFL scoreboard |
-| WNBA Scores | Live ESPN scoreboard |
-| Women's College Basketball | Live ESPN scoreboard |
-| Women's College Basketball Standings | Women's college basketball standings |
-| Women's College Hockey Standings | Women's college hockey standings |
-| Women's College Lacrosse | Live ESPN women's college lacrosse scoreboard |
-| Women's College Volleyball | Live ESPN women's college volleyball scoreboard |
-| Women's College Volleyball Standings | Women's college volleyball standings |
-| Yahoo Fantasy Lineup | Yahoo starter points |
-| Yahoo Fantasy Matchup | Yahoo weekly matchup score |
-| Yahoo Fantasy Standings | Yahoo league standings |
+| CFL Scores | Scores, game status, and key matchup details. |
+| College Baseball | College baseball scores, status, and matchup details. |
+| College Baseball Standings | College baseball standings with ranked team records. |
+| College Football | College football scores, status, and matchup details. |
+| College Football Standings | Conference standings with records and rank context. |
+| College Hockey Standings | Men's college hockey standings and team records. |
+| College Softball | College softball scores, status, and matchup details. |
+| ESPN Fantasy Lineup | Fantasy starters with points and lineup status. |
+| ESPN Fantasy Matchup | Weekly fantasy matchup score and projected outcome. |
+| ESPN Fantasy Standings | Fantasy league standings with records and rank. |
+| F1 Racing | Race weekend status, sessions, and standings highlights. |
+| FIFA World Cup | Follow a selected team's next World Cup match. |
+| Fantasy Lineup | Fantasy starters with points and lineup status. |
+| Fantasy Matchup | Weekly fantasy matchup score and projected outcome. |
+| Fantasy Standings | Fantasy league standings with records and rank. |
+| LPGA Golf | Tournament leaderboard with player position and score. |
+| MLB Scores | Baseball scores, inning status, and game highlights. |
+| Men's College Basketball | Men's college basketball scores and game status. |
+| Men's College Basketball Standings | Men's college basketball standings and records. |
+| Men's College Lacrosse | Men's college lacrosse scores and game status. |
+| NASCAR | Race status, leaderboard, and event progress. |
+| NBA G League | G League scores, status, and matchup details. |
+| NBA Scores | Basketball scores, period status, and matchup details. |
+| NBA Standings | Conference standings with records and rank context. |
+| NCAA Hockey | Men's college hockey scores and game status. |
+| NFL Scores | Football scores, quarter status, and matchup details. |
+| NFL Standings | Conference standings with records and playoff context. |
+| NHL Scores | Hockey scores, period status, and matchup details. |
+| NHL Standings | Conference standings with records and rank context. |
+| NLL Lacrosse | Indoor lacrosse scores and game status. |
+| PGA Golf | Tournament leaderboard with player position and score. |
+| PGA Tournament | Current tournament details, leaderboard, and status. |
+| PLL Lacrosse | Outdoor lacrosse scores and game status. |
+| Soccer Scores | Soccer scores, match status, and key details. |
+| Soccer Standings | League table with points, records, and position. |
+| Sports Standings | Top teams and records for a selected league. |
+| UFC | Fight card status, matchups, and results. |
+| UFL Scores | UFL scores, status, and matchup details. |
+| WNBA Scores | WNBA scores, period status, and matchup details. |
+| Women's College Basketball | Women's college basketball scores and game status. |
+| Women's College Basketball Standings | Women's college basketball standings and records. |
+| Women's College Hockey Standings | Women's college hockey standings and records. |
+| Women's College Lacrosse | Women's college lacrosse scores and game status. |
+| Women's College Volleyball | Women's college volleyball scores and match status. |
+| Women's College Volleyball Standings | Women's college volleyball standings and records. |
+| World Cup Golden Boot | World Cup scoring leaders in a compact table. |
+| World Cup Today | Today's World Cup matches and game status. |
+| World Cup Tracker | Track one World Cup team through its schedule. |
+| Yahoo Fantasy Lineup | Fantasy starters with points and lineup status. |
+| Yahoo Fantasy Matchup | Weekly fantasy matchup score and projected outcome. |
+| Yahoo Fantasy Standings | Fantasy league standings with records and rank. |
 
 ### Travel
 
 | Card | Description |
 |------|-------------|
-| Airport Board | Low-credit FR24 arrival and departure board |
-| Airport Delays | FAA delay status |
-| Commute Time | Drive time estimate |
-| Disney Park Hours | Today's Disney park hours |
-| Disney Showtimes | Today's Disney showtimes |
-| Disney Wait Times | Live Disney park waits |
-| Flight Tracker | Flightradar24 live and summary tracking |
-| Flights Overhead | Live ADS-B flights above you |
-| Helicopter Tracker | Live helicopter route trace near a ZIP code |
-| Gas Price Local | AAA local gas average |
-| NASA / SpaceX Launch | Next rocket launch countdown |
-| Universal Park Hours | Today's Universal park hours |
-| Universal Showtimes | Today's Universal showtimes |
-| Universal Wait Times | Live Universal park waits |
+| Airport Board | Arrival and departure board for a selected airport. |
+| Airport Delays | Airport delay status and expected wait windows. |
+| Commute Time | Drive time estimate for a saved route. |
+| Disney Park Hours | Today's opening hours for a selected park. |
+| Disney Showtimes | Today's entertainment schedule for a selected park. |
+| Disney Wait Times | Theme park attraction waits at a glance. |
+| Flight Tracker | Detailed flight tracking with map and route panels. |
+| Flight Watchlist | Track flights, pickups, countdowns, and nearby alerts. |
+| Flights Overhead | Show aircraft passing near your location. |
+| Gas Price Local | Local fuel price average for your area. |
+| Helicopter Tracker | Track nearby helicopter activity and route direction. |
+| NASA / SpaceX Launch | Countdown to the next selected space launch. |
+| Universal Park Hours | Today's opening hours for a selected park. |
+| Universal Showtimes | Today's entertainment schedule for a selected park. |
+| Universal Wait Times | Theme park attraction waits at a glance. |
 
 ### Utility
 
 | Card | Description |
 |------|-------------|
-| AMC Now Playing | AMC theatre showtimes |
-| Battery Reminder | Rotating battery checklist |
-| Cinemark Now Playing | Cinemark theatre showtimes |
-| Clock | Time plus local weather |
-| Clock Day Progress | Time with day progress |
-| Clock Week Strip | Time with weekday strip |
-| Clock with Calendar | Time and today's date |
-| Countdown | Days until any event |
-| Countdown Confetti | Event countdown with confetti |
-| Custom Text | Two-line custom message |
-| Daily Bible Verse | Scrolling verse of the day |
-| Disney Countdown | Days until your trip |
-| GitHub Issues Watch | Open issue count |
-| GitHub Release Watch | Latest release for a repo |
-| Google Calendar | Next upcoming event |
-| Joke of the Day | Tiny clean joke |
-| Mega Millions | Latest Mega Millions draw |
-| Megabucks | Latest MA Megabucks draw |
-| Moon Phase | Current moon phase |
-| Package Watch | Manual package status |
-| Ping Monitor | TCP latency monitor |
-| Pixora Update Watch | Pixora release and card updates |
-| Powerball | Latest Powerball draw |
-| Quote of the Day | Short daily quote |
-| RSS Headlines | Scrolling RSS headline |
-| Sunrise / Sunset | Sun and daylight times by ZIP |
-| Trash + Recycling | Weekly and bi-weekly pickup reminder |
-| Website Uptime | URL up/down monitor |
-| Word of the Day | Daily word with short meaning |
+| AMC Now Playing | Movie showtimes with optional filters. |
+| Battery Reminder | Rotating checklist for household battery tasks. |
+| Cinemark Now Playing | Movie showtimes with optional filters. |
+| Clock | Current time paired with local conditions. |
+| Clock Day Progress | Current time with a day-progress bar. |
+| Clock Week Strip | Current time with a compact weekday strip. |
+| Clock with Calendar | Current time with today's date. |
+| Countdown | Days remaining until a custom event. |
+| Countdown Confetti | Event countdown with celebratory pixel confetti. |
+| Custom Text | Show a custom two-line message. |
+| Daily Bible Verse | Scroll a short verse for daily reflection. |
+| Disney Countdown | Countdown the days until your trip. |
+| GitHub Issues Watch | Open issue count for a selected project. |
+| GitHub Release Watch | Latest release version for a selected project. |
+| Google Calendar | Next calendar event with time and title. |
+| Joke of the Day | A short clean joke for quick smiles. |
+| Mega Millions | Latest jackpot numbers in a compact layout. |
+| Megabucks | Latest jackpot numbers in a compact layout. |
+| Moon Phase | Current moon phase with illumination context. |
+| Package Watch | Manual package status for deliveries you track. |
+| Ping Monitor | Connection latency and up/down status. |
+| Pixora Update Watch | Pixora release and card update status. |
+| Powerball | Latest jackpot numbers in a compact layout. |
+| Quote of the Day | A short quote for daily inspiration. |
+| RSS Headlines | Scroll the latest headline from a feed. |
+| Sunrise / Sunset | Sunrise, sunset, and daylight timing. |
+| Trash + Recycling | Pickup reminders for trash and recycling days. |
+| Website Uptime | Website availability and response status. |
+| Word of the Day | Daily word with a short definition. |
 
 ### Weather
 
 | Card | Description |
 |------|-------------|
-| Air Quality | AQI, pollen, and UV by ZIP |
-| Beach Conditions | Water, waves, and beach wind |
-| Boating Conditions | Wind, seas, and tide for boating |
-| Fishing Window | Tide-based fishing window |
-| Marine Forecast | Coastal wind and seas |
-| Meteor Watch | Meteor showers and tonight sky score |
-| Rip Current Risk | Active rip current alerts |
-| Surf Report | Wave, swell, and wind |
-| Tide Tracking | Next high and low tide |
-| Weather Alert | Skips when clear. Note: also exposes rule fields alert_count, event, and severity. |
-| Weather Forecast | 4-day forecast with current weather |
-| Weather Radar Loop | Live RainViewer radar loop |
-| Weather Mood | Animated weather vibe |
+| Air Quality | Air quality, pollen, and UV conditions. |
+| Beach Conditions | Beach water, wave, and wind conditions. |
+| Boating Conditions | Boating wind, sea, and tide conditions. |
+| Fishing Window | Fishing timing guidance based on tide windows. |
+| Marine Forecast | Coastal wind and sea conditions. |
+| Meteor Watch | Meteor shower timing and night-sky viewing score. |
+| Rip Current Risk | Rip current risk status for nearby beaches. |
+| Surf Report | Surf height, swell, and wind conditions. |
+| Tide Tracking | Next high and low tide times. |
+| Weather Alert | Severe weather alerts that skip when clear. |
+| Weather Forecast | Current conditions plus a four-day outlook. |
+| Weather Mood | Animated weather scene matching local conditions. |
+| Weather Radar Loop | Animated radar loop for nearby precipitation. |
 
 ## Installing a Card
 
