@@ -605,8 +605,8 @@ def _render_event(event, width):
             draw_sharp_text(image, (63 - home_w, 10), home_abbr, (245, 250, 255), bold)
         _center_text(image, draw, score, 10, bold, (245, 250, 255), 0, 63)
         if state == "pre":
-            away_name = _fit_text(draw, away_team.get("displayName") or away_team.get("name") or away_team.get("shortDisplayName") or away_abbr, font, 23)
-            home_name = _fit_text(draw, home_team.get("displayName") or home_team.get("name") or home_team.get("shortDisplayName") or home_abbr, font, 23)
+            away_name = _fit_text(draw, away_abbr, font, 23)
+            home_name = _fit_text(draw, home_abbr, font, 23)
             _center_text(image, draw, away_name, 22, font, (130, 160, 170), 0, 24)
             _center_text(image, draw, "AT", 22, font, (70, 220, 125), 25, 38)
             _center_text(image, draw, home_name, 22, font, (130, 160, 170), 39, 63)
