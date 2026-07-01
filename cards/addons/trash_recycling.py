@@ -1,7 +1,7 @@
 from datetime import date, datetime, timedelta
 from io import BytesIO
 
-from card_utils import draw_sharp_text, format_short_date, render_text_webp
+from card_utils import draw_sharp_text, format_short_date, pixora_local_now, render_text_webp
 
 CARD_ID = "trash_recycling"
 CARD_NAME = "Trash + Recycling"
@@ -89,7 +89,7 @@ def _is_recycling_week(pickup_date, anchor_text):
 
 
 def _next_pickups(opts):
-    today = date.today()
+    today = pixora_local_now().date()
     pickups = []
 
     trash_day = str(opts.get("trashDay", "1"))

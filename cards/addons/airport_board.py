@@ -4,7 +4,7 @@ import json
 import urllib.parse
 import urllib.request
 
-from card_utils import draw_sharp_text, lookup_airline, render_text_webp
+from card_utils import draw_sharp_text, lookup_airline, pixora_local_timezone, render_text_webp
 
 CARD_ID = "airport_board"
 CARD_NAME = "Airport Board"
@@ -234,7 +234,8 @@ def _is_current_or_upcoming(row, now):
 
 
 def _flightstats_windows(now, hours):
-    local_now = now.astimezone()
+    local_tz = pixora_local_timezone()
+    local_now = now.astimezone(local_tz) if local_tz else now.astimezone()
     windows = []
     remaining = hours
     cursor = local_now.replace(minute=0, second=0, microsecond=0)

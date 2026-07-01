@@ -3,7 +3,7 @@ from io import BytesIO
 import math
 import re
 
-from card_utils import draw_sharp_text, fetch_json_request
+from card_utils import draw_sharp_text, fetch_json_request, pixora_local_now
 
 BLUE = (95, 220, 255)
 CYAN = (120, 245, 235)
@@ -97,7 +97,7 @@ def station_from_options(opts):
 
 
 def coops_latest(station_id, product, units="english"):
-    today = datetime.now().strftime("%Y%m%d")
+    today = pixora_local_now().strftime("%Y%m%d")
     url = (
         f"{TIDE_API_URL}?product={product}&application={APP}&begin_date={today}&range=24"
         f"&station={station_id}&time_zone=lst_ldt&units={units}&format=json"
@@ -115,7 +115,7 @@ def coops_latest(station_id, product, units="english"):
 
 
 def tide_events(station_id, units="english"):
-    today = datetime.now().strftime("%Y%m%d")
+    today = pixora_local_now().strftime("%Y%m%d")
     url = (
         f"{TIDE_API_URL}?product=predictions&application={APP}&begin_date={today}&range=72"
         f"&datum=MLLW&station={station_id}&time_zone=lst_ldt&units={units}&interval=hilo&format=json"
@@ -135,7 +135,7 @@ def tide_events(station_id, units="english"):
 
 
 def next_tide(station_id, units="english"):
-    now = datetime.now()
+    now = pixora_local_now().replace(tzinfo=None)
     previous = None
     upcoming = []
     for row in tide_events(station_id, units):
@@ -178,7 +178,7 @@ def marine_data(zip_value):
     times = hourly.get("time") or []
     if not times:
         return {}
-    now = datetime.now()
+    now = pixora_local_now().replace(tzinfo=None)
     index = 0
     best_delta = None
     for i, raw in enumerate(times):

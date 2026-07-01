@@ -3,7 +3,7 @@ from io import BytesIO
 import re
 import urllib.request
 
-from card_utils import cached_priority_graphic, draw_sharp_text, fetch_json_url, priority_graphic_key, warm_priority_graphic
+from card_utils import cached_priority_graphic, draw_sharp_text, fetch_json_url, pixora_local_now, pixora_local_timezone, priority_graphic_key, warm_priority_graphic
 
 
 CARD_ID = "ufc"
@@ -350,7 +350,9 @@ def _event_is_today(event):
         return False
     if event_time.tzinfo is None:
         event_time = event_time.replace(tzinfo=timezone.utc)
-    return event_time.astimezone().date() == datetime.now().astimezone().date()
+    local_tz = pixora_local_timezone()
+    local_event = event_time.astimezone(local_tz) if local_tz else event_time.astimezone()
+    return local_event.date() == pixora_local_now().date()
 
 
 def _event_has_live_fight(event):

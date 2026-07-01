@@ -71,6 +71,8 @@ CARD_OPTIONS = [
     }
 ]
 CARD_OPTIONS.append(graphic_target_option("gameStartAnimationTarget", "Start of Game Graphic"))
+CARD_OPTIONS.append(graphic_target_option("inningStartAnimationTarget", "Start of Inning Graphic"))
+CARD_OPTIONS.append(graphic_target_option("inningEndAnimationTarget", "End of Inning Graphic"))
 CARD_OPTIONS.append(graphic_target_option("scoringPlayAnimationTarget", "RBI / Scoring Play Graphic"))
 CARD_OPTIONS.append(graphic_target_option("homeRunAnimationTarget", "Home Run Graphic"))
 CARD_OPTIONS.append(graphic_target_option("walkOffAnimationTarget", "Walk-Off / Game Winner Graphic"))
@@ -83,6 +85,7 @@ _SUMMARY_CACHE = {}
 _COLOR = (117, 231, 214)
 _RUN_STATE = {}
 _GAME_STATE = {}
+_INNING_STATE = {}
 _BATTING_STATE = {}
 _BATTING_PREWARM_STATE = {}
 _LOGO_CACHE = {}
@@ -1084,6 +1087,95 @@ def _mlb_log(options, message):
             pass
 
 
+def _mlb_status_text(competition):
+    status = ((competition or {}).get("status") or {})
+    status_type = status.get("type") or {}
+    return " ".join(
+        str(value or "")
+        for value in (
+            status_type.get("name"),
+            status_type.get("description"),
+            status_type.get("detail"),
+            status_type.get("shortDetail"),
+            status.get("displayClock"),
+        )
+    ).lower()
+
+
+def _mlb_inning_half(competition):
+    text = _mlb_status_text(competition)
+    if "top" in text:
+        return "top"
+    if "bot" in text or "bottom" in text:
+        return "bottom"
+    situation = (competition or {}).get("situation") or {}
+    if "isTopInning" in situation:
+        return "top" if situation.get("isTopInning") else "bottom"
+    return ""
+
+
+def _queue_mlb_inning_animation(kind, options, team, dwell_secs=6):
+    animation_team = dict(team or {})
+    animation_team["_width"] = _run_animation_width(options)
+    target_key = "inningEndAnimationTarget" if kind == "inning_end" else "inningStartAnimationTarget"
+    target = str((options or {}).get(target_key) or "device").strip().lower()
+    wall = target in ("group", "group_wall", "wall") or target.startswith("group:")
+    cache_key = priority_graphic_key(CARD_ID, animation_team, kind, animation_team["_width"])
+    return {
+        "body": cached_priority_graphic(cache_key, lambda animation_team=animation_team, kind=kind: _render_run_animation(animation_team, kind)),
+        "dwell_secs": dwell_secs,
+        "_stay": True,
+        "_no_replay": True,
+        "_priority": True,
+        "_group_wall": {
+            "type": kind,
+            "renderer": "_render_run_animation_frames",
+            "team": dict(animation_team),
+            "kind": kind,
+            "dwell_secs": dwell_secs,
+        } if wall else None,
+    }
+
+
+def _maybe_inning_animation(options, event, competition, competitors, favorite):
+    state = str(((competition.get("status") or {}).get("type") or {}).get("state") or "").lower()
+    try:
+        period = int((competition.get("status") or {}).get("period") or 0)
+    except Exception:
+        period = 0
+    text = _mlb_status_text(competition)
+    half = _mlb_inning_half(competition)
+    game_id = str(event.get("id") or competition.get("id") or datetime.now().strftime("%Y%m%d"))
+    device_id = (options or {}).get("_device_id", "local")
+    key = f"{device_id}:{game_id}:inning"
+    previous = _INNING_STATE.get(key)
+    current = {"period": period, "half": half, "state": state, "text": text, "seen": datetime.now(timezone.utc)}
+    _INNING_STATE[key] = current
+    if previous is None or period <= 0:
+        return None
+
+    previous_state = str(previous.get("state") or "").lower()
+    previous_text = str(previous.get("text") or "")
+    previous_period = int(previous.get("period") or 0)
+    previous_half = str(previous.get("half") or "")
+    if state != "in":
+        return None
+
+    kind = ""
+    if previous_state == "in" and half in ("top", "bottom") and (period != previous_period or half != previous_half):
+        kind = "inning_start"
+    elif text != previous_text and ("mid" in text or "middle" in text or ("end" in text and ("inning" in text or period == previous_period))):
+        kind = "inning_end"
+    if not kind:
+        return None
+
+    favorite_competitor = _selected_competitor(event, favorite)
+    competitor = favorite_competitor or (competitors[0] if competitors else {})
+    team = (competitor or {}).get("team") or {}
+    _mlb_log(options, f"[mlb] inning moment queued kind={kind} inning={period} half={half or 'unknown'} device={device_id}")
+    return _queue_mlb_inning_animation(kind, options, team, dwell_secs=6)
+
+
 def _maybe_now_batting_animation(options, event, competition, competitors, favorite):
     state = str(((competition.get("status") or {}).get("type") or {}).get("state") or "").lower()
     if state != "in":
@@ -1230,6 +1322,9 @@ def _maybe_run_animation(options):
     game_start = _maybe_game_start_animation(options, event, competition, competitors or game_competitors, favorite)
     if game_start:
         return game_start
+    inning = _maybe_inning_animation(options, event, competition, competitors or game_competitors, favorite)
+    if inning:
+        return inning
     now_batting = _maybe_now_batting_animation(options, event, competition, game_competitors or competitors, favorite)
     if now_batting:
         return now_batting

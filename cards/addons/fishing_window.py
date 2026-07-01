@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from card_utils import render_text_webp
+from card_utils import pixora_local_now, render_text_webp
 from _coastal_common import (
     BLUE, GREEN, RED, YELLOW, next_tide, render_labeled_card, station_choices, station_from_options,
     time_label, zip_code,
@@ -30,7 +30,7 @@ def card_option_choices(option_key, options=None):
 def _score(tide):
     if not tide:
         return "UNKNOWN", RED
-    mins = abs((tide["time"] - datetime.now()).total_seconds()) / 60
+    mins = abs((tide["time"] - pixora_local_now().replace(tzinfo=None)).total_seconds()) / 60
     if mins <= 90:
         return "GOOD", GREEN
     if mins <= 180:
@@ -41,7 +41,7 @@ def _score(tide):
 def _until_text(tide):
     if not tide:
         return "--"
-    mins = max(0, int((tide["time"] - datetime.now()).total_seconds() // 60))
+    mins = max(0, int((tide["time"] - pixora_local_now().replace(tzinfo=None)).total_seconds() // 60))
     if mins < 60:
         return f"{mins}M"
     return f"{mins // 60}H{mins % 60:02d}"

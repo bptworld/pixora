@@ -1,7 +1,7 @@
 from datetime import datetime
 import re
 
-from card_utils import draw_sharp_text
+from card_utils import draw_sharp_text, pixora_local_now, pixora_local_timezone
 from _universal_common import (
     AMBER, BLUE, PARKS, center, draw_background, draw_globe, draw_twinkles,
     fit_text, fonts, live_items, park_abbr, park_name, parse_dt, safe_text, save_webp,
@@ -27,6 +27,9 @@ def _time_label(value):
     dt = parse_dt(value)
     if not dt:
         return "--"
+    local_tz = pixora_local_timezone()
+    if dt.tzinfo and local_tz:
+        dt = dt.astimezone(local_tz)
     label = dt.strftime("%I:%M%p").lstrip("0")
     return label.replace(":00", "").replace("AM", "A").replace("PM", "P")
 
@@ -47,7 +50,9 @@ def _show_rows(items):
             key = str(start.tzinfo)
             now = now_by_tz.get(key)
             if now is None:
-                now = datetime.now(start.tzinfo)
+                now = pixora_local_now()
+                if start.tzinfo:
+                    now = now.astimezone(start.tzinfo)
                 now_by_tz[key] = now
             if start.date() != now.date() or start < now:
                 continue

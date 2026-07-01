@@ -1,7 +1,7 @@
 from datetime import datetime, date, timedelta
 from io import BytesIO
 import urllib.request
-from card_utils import draw_sharp_text, format_time, render_text_webp
+from card_utils import draw_sharp_text, format_time, pixora_local_now, render_text_webp
 
 CARD_ID = "gcal"
 CARD_NAME = "Google Calendar"
@@ -96,7 +96,7 @@ def _occurrences(start, rrule_raw, from_dt, to_dt):
 
 
 def _fetch_events(ics_url, days_ahead):
-    now    = datetime.now()
+    now    = pixora_local_now().replace(tzinfo=None)
     cached = _CACHE.get(ics_url)
     if cached and cached["expires"] > now:
         return cached["data"]
@@ -163,7 +163,7 @@ def _fetch_events(ics_url, days_ahead):
 
 def _fmt_when(ev):
     start  = ev["start"]
-    today  = date.today()
+    today  = pixora_local_now().date()
     start_d = start.date() if isinstance(start, datetime) else start
 
     if start_d == today:
@@ -182,7 +182,7 @@ def _fmt_when(ev):
 
 def _fmt_relative(ev):
     start = ev["start"]
-    now   = datetime.now()
+    now   = pixora_local_now().replace(tzinfo=None)
     if isinstance(start, datetime):
         delta = start - now
         total = int(delta.total_seconds())
@@ -194,7 +194,7 @@ def _fmt_relative(ev):
             h = total // 3600
             m = (total % 3600) // 60
             return f"in {h}h{m:02d}m" if m else f"in {h}h"
-    days = (start if isinstance(start, date) else start.date()) - date.today()
+    days = (start if isinstance(start, date) else start.date()) - pixora_local_now().date()
     n = days.days
     if n == 0:
         return "All Day"

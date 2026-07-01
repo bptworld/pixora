@@ -1,6 +1,7 @@
 from card_utils import (
     draw_sharp_text_weighted,
     draw_sharp_text,
+    pixora_local_now,
     render_text_webp,
 )
 
@@ -39,7 +40,7 @@ def render(options=None):
 
     try:
         target = date_type.fromisoformat(target_str)
-        days   = (target - date_type.today()).days
+        days   = (target - pixora_local_now().date()).days
     except Exception:
         days = None
 

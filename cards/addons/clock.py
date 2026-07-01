@@ -198,7 +198,8 @@ def _clock_now(options=None):
             return datetime.now(ZoneInfo(tz_name))
         except Exception:
             pass
-    return datetime.now().astimezone()
+    from card_utils import pixora_local_now
+    return pixora_local_now()
 
 
 def _clock_time_text(now, options=None):

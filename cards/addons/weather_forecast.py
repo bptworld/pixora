@@ -1,6 +1,6 @@
 from datetime import datetime
 from io import BytesIO
-from card_utils import convert_f_to_c, draw_mini_weather_icon, draw_sharp_text, fetch_json_request, openweather_forecast_for_zip, paste_openweather_icon, render_text_webp, temperature_units, weather_for_zip, weather_icon_from_text
+from card_utils import convert_f_to_c, draw_mini_weather_icon, draw_sharp_text, fetch_json_request, openweather_forecast_for_zip, paste_openweather_icon, pixora_local_now, render_text_webp, temperature_units, weather_for_zip, weather_icon_from_text
 
 CARD_ID = "weather_forecast"
 CARD_NAME = "Weather Forecast"
@@ -57,7 +57,7 @@ def rule_value(options=None, field=""):
 def _day_label(name):
     n = name.upper()
     if any(x in n for x in ("TODAY", "THIS AFTERNOON", "THIS MORNING", "THIS EVENING")):
-        return ["Mo","Tu","We","Th","Fr","Sa","Su"][datetime.now().weekday()]
+        return ["Mo","Tu","We","Th","Fr","Sa","Su"][pixora_local_now().weekday()]
     for full, abbr in [("MONDAY","Mo"),("TUESDAY","Tu"),("WEDNESDAY","We"),
                        ("THURSDAY","Th"),("FRIDAY","Fr"),("SATURDAY","Sa"),("SUNDAY","Su")]:
         if full in n:

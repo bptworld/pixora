@@ -1,7 +1,7 @@
 from datetime import date
 from io import BytesIO
 
-from card_utils import draw_sharp_text
+from card_utils import draw_sharp_text, pixora_local_now
 
 CARD_ID = "word_of_day"
 CARD_NAME = "Word of the Day"
@@ -36,7 +36,7 @@ WORDS = [
 
 
 def _pick(opts):
-    today = date.today()
+    today = pixora_local_now().date()
     if (opts or {}).get("mode") == "random":
         idx = (today.toordinal() * 7) % len(WORDS)
     else:

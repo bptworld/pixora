@@ -6,7 +6,7 @@ import urllib.parse
 import urllib.error
 import urllib.request
 
-from card_utils import _settings_value, draw_sharp_text, format_compact_number, render_text_webp
+from card_utils import _settings_value, draw_sharp_text, format_compact_number, pixora_local_now, render_text_webp
 
 CARD_ID = "shopify_orders"
 CARD_NAME = "Shopify Orders"
@@ -108,7 +108,7 @@ def _admin_access_token(shop_domain, opts):
 
 
 def _week_start_utc():
-    local_now = datetime.now().astimezone()
+    local_now = pixora_local_now()
     start = local_now - timedelta(days=local_now.weekday())
     start = start.replace(hour=0, minute=0, second=0, microsecond=0)
     return start.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")

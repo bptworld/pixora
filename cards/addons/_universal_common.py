@@ -3,7 +3,7 @@ from io import BytesIO
 import random
 import re
 
-from card_utils import draw_sharp_text, fetch_json_request, render_text_webp
+from card_utils import draw_sharp_text, fetch_json_request, pixora_local_timezone, render_text_webp
 
 PARKS = [
     {"value": "eb3f4560-2383-4a36-9152-6b3e5ed6bc57", "label": "Universal Studios Florida"},
@@ -132,6 +132,9 @@ def time_label(value, compact=False):
     dt = parse_dt(value)
     if not dt:
         return "--"
+    local_tz = pixora_local_timezone()
+    if dt.tzinfo and local_tz:
+        dt = dt.astimezone(local_tz)
     if compact and dt.minute == 0:
         label = dt.strftime("%I%p").lstrip("0")
     else:

@@ -6,6 +6,8 @@ from card_utils import (
     draw_sharp_text,
     fetch_json_with_headers,
     fetch_logo,
+    pixora_local_now,
+    pixora_local_timezone,
     priority_graphic_key,
     render_text_webp,
     warm_priority_graphic,
@@ -69,7 +71,7 @@ _GOAL_STATE = {}
 
 
 def _date_range():
-    today = datetime.now().astimezone().date()
+    today = pixora_local_now().date()
     start = today - timedelta(days=1)
     end = max(today + timedelta(days=1), datetime(today.year, 7, 31).date())
     return start.strftime("%Y%m%d"), end.strftime("%Y%m%d")
@@ -113,11 +115,12 @@ def _event_has_favorite(event, favorite):
 
 
 def _events_for_today(events, favorite=""):
-    today = datetime.now().astimezone().date()
+    today = pixora_local_now().date()
+    local_tz = pixora_local_timezone()
     return [
         event
         for event in events
-        if _event_dt(event).astimezone().date() == today and _event_has_favorite(event, favorite)
+        if _event_dt(event).astimezone(local_tz).date() == today and _event_has_favorite(event, favorite)
     ]
 
 
@@ -152,7 +155,8 @@ def _status_text(event, state):
     competition = (event.get("competitions") or [{}])[0]
     status = (competition.get("status") or {}).get("type", {}).get("shortDetail") or ""
     if state == "pre":
-        dt = _event_dt(event).astimezone()
+        local_tz = pixora_local_timezone()
+        dt = _event_dt(event).astimezone(local_tz) if local_tz else _event_dt(event).astimezone()
         return f"{dt.strftime('%b')} {dt.day} {dt.strftime('%I:%M%p').lstrip('0')}"
     return status or "WORLD CUP"
 

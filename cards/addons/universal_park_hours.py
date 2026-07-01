@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from card_utils import draw_sharp_text, fetch_json_request, render_text_webp
+from card_utils import draw_sharp_text, fetch_json_request, pixora_local_now, render_text_webp
 from _universal_common import (
     AMBER, BLUE, PARKS, SCHEDULE_URL, center, draw_background, draw_globe, draw_twinkles,
     fit_text, fonts, park_abbr, park_name, parse_dt, safe_text, save_webp, time_label,
@@ -31,12 +31,12 @@ def _today_for_schedule(data):
             dt = parse_dt(item.get("openingTime"))
             if dt:
                 return dt.date().isoformat()
-    return datetime.now().date().isoformat()
+    return pixora_local_now().date().isoformat()
 
 
 def _hours(park_id):
     data = fetch_json_request(SCHEDULE_URL.format(park_id=park_id), seconds=1800)
-    today = datetime.now().date().isoformat()
+    today = pixora_local_now().date().isoformat()
     dates = {today, _today_for_schedule(data)}
     operating = None
     early = None
@@ -57,7 +57,10 @@ def _is_open(operating):
     end = parse_dt((operating or {}).get("closingTime"))
     if not start or not end:
         return False
-    return start <= datetime.now(start.tzinfo) <= end
+    now = pixora_local_now()
+    if start.tzinfo:
+        now = now.astimezone(start.tzinfo)
+    return start <= now <= end
 
 
 def _park_ids(opts):

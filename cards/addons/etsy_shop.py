@@ -9,6 +9,7 @@ from card_utils import (
     _settings_value,
     draw_sharp_text,
     format_compact_number,
+    pixora_local_now,
 )
 
 CARD_ID = "etsy_shop"
@@ -308,7 +309,7 @@ def _etsy_data(opts):
             open_orders += 1
     newest = receipts[0] if receipts else {}
     total, currency = _receipt_total(newest)
-    now_local = datetime.now().astimezone()
+    now_local = pixora_local_now()
     today_start = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
     week_start = now_local - timedelta(days=7)
     today_orders, today_revenue, today_currency = _period_totals(receipts, today_start)

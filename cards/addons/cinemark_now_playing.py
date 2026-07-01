@@ -7,7 +7,7 @@ import re
 import urllib.parse
 import urllib.request
 
-from card_utils import _settings_value, draw_sharp_text, fetch_json_request
+from card_utils import _settings_value, draw_sharp_text, fetch_json_request, pixora_local_now
 
 CARD_ID = "cinemark_now_playing"
 CARD_NAME = "Cinemark Now Playing"
@@ -71,7 +71,7 @@ def _int(value, default, lo, hi):
 
 
 def _date_text(offset):
-    return (date.today() + timedelta(days=_int(offset, 0, 0, 30))).isoformat()
+    return (pixora_local_now().date() + timedelta(days=_int(offset, 0, 0, 30))).isoformat()
 
 
 def _request_text(url):
@@ -206,7 +206,7 @@ def _fetch_showtimes(opts):
 
 
 def _demo_rows():
-    today = date.today().isoformat()
+    today = pixora_local_now().date().isoformat()
     return [
         {"movieName": "The Mandalorian and Grogu", "showDateTimeLocal": f"{today}T19:00:00", "mpaaRating": "PG13", "format": "XD"},
         {"movieName": "The Mandalorian and Grogu", "showDateTimeLocal": f"{today}T21:45:00", "mpaaRating": "PG13", "format": "XD"},
@@ -219,7 +219,7 @@ def _filter_rows(rows, opts):
     needle = str(opts.get("movie") or "").strip().lower()
     ratings = _rating_values(opts.get("ratings"))
     fmt = opts.get("includeAttributes")
-    now = datetime.now()
+    now = pixora_local_now().replace(tzinfo=None)
     out = []
     for row in rows:
         dt = _parse_time(row.get("showDateTimeLocal"))

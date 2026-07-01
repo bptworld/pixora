@@ -1,7 +1,7 @@
 from io import BytesIO
 from datetime import date
 
-from card_utils import draw_sharp_text_weighted
+from card_utils import draw_sharp_text_weighted, pixora_local_now
 
 CARD_ID = "countdown_confetti"
 CARD_NAME = "Countdown Confetti"
@@ -20,7 +20,7 @@ def render(options=None):
     event = (opts.get("eventName") or "PARTY").upper()[:10]
     target = opts.get("targetDate") or ""
     try:
-        days = (date.fromisoformat(target) - date.today()).days
+        days = (date.fromisoformat(target) - pixora_local_now().date()).days
     except Exception:
         days = None
 

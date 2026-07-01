@@ -12,6 +12,7 @@ from card_utils import (
     fetch_json_with_headers,
     format_time,
     pixora_bold_number_size,
+    pixora_local_timezone,
     warm_priority_graphic,
 )
 
@@ -246,9 +247,11 @@ def _time_parts(launch):
         return f"{days}D", date_label
     if days >= 1:
         return f"{days}D {hours}H", date_label
+    local_tz = pixora_local_timezone()
+    local_net = net.astimezone(local_tz) if local_tz else net.astimezone()
     if hours >= 1:
-        return f"{hours}H {minutes}M", format_time(net.astimezone(), include_ampm=True)
-    return f"{minutes}M", format_time(net.astimezone(), include_ampm=True)
+        return f"{hours}H {minutes}M", format_time(local_net, include_ampm=True)
+    return f"{minutes}M", format_time(local_net, include_ampm=True)
 
 
 def _seconds_until(launch):

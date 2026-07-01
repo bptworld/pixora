@@ -4,7 +4,7 @@ from pathlib import Path
 import random
 import re
 
-from card_utils import draw_sharp_text, fetch_json_request, render_text_webp
+from card_utils import draw_sharp_text, fetch_json_request, pixora_local_now, pixora_local_timezone, render_text_webp
 
 CARD_ID = "disney_park_hours"
 CARD_NAME = "Disney Park Hours"
@@ -181,6 +181,9 @@ def _time_label(value, compact=False):
     dt = _parse_dt(value)
     if not dt:
         return "--"
+    local_tz = pixora_local_timezone()
+    if dt.tzinfo and local_tz:
+        dt = dt.astimezone(local_tz)
     if compact and dt.minute == 0:
         label = dt.strftime("%I%p").lstrip("0")
     else:
@@ -194,12 +197,12 @@ def _today_for_schedule(data):
             dt = _parse_dt(item.get("openingTime"))
             if dt:
                 return dt.date().isoformat()
-    return datetime.now().date().isoformat()
+    return pixora_local_now().date().isoformat()
 
 
 def _hours(park_id):
     data = fetch_json_request(_SCHEDULE_URL.format(park_id=park_id), seconds=1800)
-    today = datetime.now().date().isoformat()
+    today = pixora_local_now().date().isoformat()
     dates = {today, _today_for_schedule(data)}
     operating = None
     early = None
@@ -220,7 +223,9 @@ def _is_open(operating):
     end = _parse_dt((operating or {}).get("closingTime"))
     if not start or not end:
         return False
-    now = datetime.now(start.tzinfo)
+    now = pixora_local_now()
+    if start.tzinfo:
+        now = now.astimezone(start.tzinfo)
     return start <= now <= end
 
 

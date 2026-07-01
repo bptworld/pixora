@@ -5,7 +5,7 @@ import re
 import urllib.parse
 import urllib.request
 
-from card_utils import _settings_value, draw_sharp_text, fetch_json_request
+from card_utils import _settings_value, draw_sharp_text, fetch_json_request, pixora_local_now, pixora_local_timezone
 
 CARD_ID = "amc_now_playing"
 CARD_NAME = "AMC Now Playing"
@@ -145,7 +145,7 @@ def _int(value, default, lo, hi):
 
 
 def _date_text(offset):
-    day = date.today() + timedelta(days=_int(offset, 0, 0, 14))
+    day = pixora_local_now().date() + timedelta(days=_int(offset, 0, 0, 14))
     return day.isoformat()
 
 
@@ -189,7 +189,8 @@ def _time_text(showtime):
     if not dt:
         dt = _parse_utc(showtime.get("showDateTimeUtc"))
         if dt:
-            dt = dt.astimezone()
+            local_tz = pixora_local_timezone()
+            dt = dt.astimezone(local_tz) if local_tz else dt.astimezone()
     if not dt:
         return "--"
     hour = dt.hour % 12 or 12
@@ -370,7 +371,7 @@ def _showtimes(opts):
 
 
 def _demo_rows():
-    today = date.today().isoformat()
+    today = pixora_local_now().date().isoformat()
     return [
         {"movieName": "Mission: Impossible", "showDateTimeLocal": f"{today}T19:00:00", "mpaaRating": "PG13", "premiumFormat": "IMAX"},
         {"movieName": "Mission: Impossible", "showDateTimeLocal": f"{today}T21:45:00", "mpaaRating": "PG13", "premiumFormat": "IMAX"},

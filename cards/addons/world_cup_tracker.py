@@ -4,7 +4,7 @@ import json
 import re
 import urllib.request
 
-from card_utils import draw_sharp_text, render_text_webp
+from card_utils import draw_sharp_text, pixora_local_now, pixora_local_timezone, render_text_webp
 
 CARD_ID = "world_cup_tracker"
 CARD_NAME = "World Cup Tracker"
@@ -17,7 +17,7 @@ CARD_OPTIONS = [
 _COLOR = (70, 220, 125)
 _CACHE = {}
 _STANDINGS_URL = "https://site.web.api.espn.com/apis/v2/sports/soccer/fifa.world/standings"
-_SCOREBOARD_URL = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=20260601-20260731"
+_TOURNAMENT_END = datetime(2026, 7, 31).date()
 
 
 def _fetch_json(url, seconds=300):
@@ -30,6 +30,12 @@ def _fetch_json(url, seconds=300):
         data = json.loads(response.read().decode("utf-8"))
     _CACHE[url] = {"data": data, "expires": now + timedelta(seconds=seconds)}
     return data
+
+
+def _scoreboard_url():
+    today = pixora_local_now().date()
+    start = min(today, _TOURNAMENT_END)
+    return f"https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates={start:%Y%m%d}-{_TOURNAMENT_END:%Y%m%d}"
 
 
 def _team_values(team):
@@ -157,7 +163,7 @@ def _event_has_placeholder(event, group_letter, rank):
 
 
 def _pick_knockout_event(selected, group_letter="", rank=0):
-    data = _fetch_json(_SCOREBOARD_URL, seconds=300)
+    data = _fetch_json(_scoreboard_url(), seconds=300)
     events = [event for event in data.get("events") or [] if str((event.get("season") or {}).get("slug") or "") != "group-stage"]
     if not events:
         return None
@@ -209,7 +215,8 @@ def _event_status(event):
     comp = (event.get("competitions") or [{}])[0]
     status = ((comp.get("status") or {}).get("type") or {}).get("shortDetail") or ""
     if _event_state(event) == "pre":
-        dt = _event_dt(event).astimezone()
+        local_tz = pixora_local_timezone()
+        dt = _event_dt(event).astimezone(local_tz) if local_tz else _event_dt(event).astimezone()
         return dt.strftime("%b").upper() + f" {dt.day} " + dt.strftime("%I:%M%p").lstrip("0")
     return status or "WORLD CUP"
 

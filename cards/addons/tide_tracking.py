@@ -3,7 +3,7 @@ from io import BytesIO
 import math
 import re
 
-from card_utils import draw_sharp_text, fetch_json_request, render_text_webp
+from card_utils import draw_sharp_text, fetch_json_request, pixora_local_now, render_text_webp
 
 CARD_ID = "tide_tracking"
 CARD_NAME = "Tide Tracking"
@@ -139,7 +139,7 @@ def card_option_choices(option_key, options=None):
 
 
 def _fetch_tides(station, units):
-    today = datetime.now().strftime("%Y%m%d")
+    today = pixora_local_now().strftime("%Y%m%d")
     url = (
         f"{_API_URL}?product=predictions&application={_APP}&begin_date={today}&range=72"
         f"&datum=MLLW&station={station}&time_zone=lst_ldt&units={units}"
@@ -178,7 +178,7 @@ def _time_label(dt):
 def _short_date(dt):
     if not dt:
         return ""
-    now = datetime.now()
+    now = pixora_local_now().replace(tzinfo=None)
     if dt.date() == now.date():
         return "TODAY"
     return dt.strftime("%a").upper()
@@ -192,7 +192,7 @@ def _height_label(value, units):
 
 
 def _next_events(rows):
-    now = datetime.now()
+    now = pixora_local_now().replace(tzinfo=None)
     previous = None
     upcoming = []
     for row in rows:

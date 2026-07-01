@@ -1,7 +1,7 @@
 from datetime import date
 from io import BytesIO
 
-from card_utils import draw_sharp_text
+from card_utils import draw_sharp_text, pixora_local_now
 
 CARD_ID = "battery_reminder"
 CARD_NAME = "Battery Reminder"
@@ -34,7 +34,7 @@ def rule_value(options=None, field=""):
         days = max(1, int(opts.get("daysPerItem", 7)))
     except Exception:
         days = 7
-    index = (date.today().toordinal() // days) % len(items)
+    index = (pixora_local_now().date().toordinal() // days) % len(items)
     key = str(field or "current_item").strip()
     if key == "current_item":
         return items[index]
@@ -53,7 +53,7 @@ def render(options=None):
         days = max(1, int(opts.get("daysPerItem", 7)))
     except Exception:
         days = 7
-    item = items[(date.today().toordinal() // days) % len(items)]
+    item = items[(pixora_local_now().date().toordinal() // days) % len(items)]
 
     image = Image.new("RGB", (width, 32), (0, 5, 9))
     draw = ImageDraw.Draw(image)

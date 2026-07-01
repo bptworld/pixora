@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from io import BytesIO
 
-from card_utils import draw_sharp_text, fetch_json_request, format_time, openweather_sun_times_for_zip, render_text_webp
+from card_utils import draw_sharp_text, fetch_json_request, format_time, openweather_sun_times_for_zip, pixora_local_timezone, render_text_webp
 
 CARD_ID = "sunrise_sunset"
 CARD_NAME = "Sunrise / Sunset"
@@ -35,7 +35,10 @@ def _time_label(value):
     if isinstance(value, datetime):
         dt = value
     else:
-        dt = datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone()
+        dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    local_tz = pixora_local_timezone()
+    if dt.tzinfo and local_tz:
+        dt = dt.astimezone(local_tz)
     return format_time(dt)
 
 

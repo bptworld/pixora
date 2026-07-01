@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from pathlib import Path
 
-from card_utils import draw_sharp_text, fetch_json_with_headers, render_text_webp
+from card_utils import draw_sharp_text, fetch_json_with_headers, pixora_local_now, pixora_local_timezone, render_text_webp
 
 CARD_ID = "world_cup_today"
 CARD_NAME = "World Cup Today"
@@ -45,7 +45,7 @@ _FONT_DIR = Path(__file__).resolve().parents[1] / "assets" / "fonts"
 
 
 def _date_range():
-    today = datetime.now().astimezone().date()
+    today = pixora_local_now().date()
     start = today - timedelta(days=1)
     end = today + timedelta(days=1)
     return start.strftime("%Y%m%d"), end.strftime("%Y%m%d")
@@ -94,8 +94,9 @@ def _city_matches(event, city):
 
 
 def _events_for_today(events, city="all"):
-    today = datetime.now().astimezone().date()
-    todays = [event for event in events if _event_dt(event).astimezone().date() == today and _city_matches(event, city)]
+    today = pixora_local_now().date()
+    local_tz = pixora_local_timezone()
+    todays = [event for event in events if _event_dt(event).astimezone(local_tz).date() == today and _city_matches(event, city)]
     return sorted(todays, key=_event_dt)
 
 

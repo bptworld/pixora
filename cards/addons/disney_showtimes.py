@@ -4,7 +4,7 @@ from pathlib import Path
 import random
 import re
 
-from card_utils import draw_sharp_text, fetch_json_request, render_text_webp
+from card_utils import draw_sharp_text, fetch_json_request, pixora_local_now, pixora_local_timezone, render_text_webp
 
 CARD_ID = "disney_showtimes"
 CARD_NAME = "Disney Showtimes"
@@ -98,6 +98,9 @@ def _time_label(value):
     dt = _parse_dt(value)
     if not dt:
         return "--"
+    local_tz = pixora_local_timezone()
+    if dt.tzinfo and local_tz:
+        dt = dt.astimezone(local_tz)
     label = dt.strftime("%I:%M%p").lstrip("0")
     return label.replace(":00", "").replace("AM", "A").replace("PM", "P")
 
@@ -124,7 +127,9 @@ def _show_rows(items):
             key = str(start.tzinfo)
             now = now_by_tz.get(key)
             if now is None:
-                now = datetime.now(start.tzinfo)
+                now = pixora_local_now()
+                if start.tzinfo:
+                    now = now.astimezone(start.tzinfo)
                 now_by_tz[key] = now
             if start.date() != now.date() or start < now:
                 continue

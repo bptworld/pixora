@@ -1,6 +1,8 @@
 from io import BytesIO
 from datetime import date
 
+from card_utils import pixora_local_now
+
 CARD_ID = "fortune_cookie"
 CARD_NAME = "Fortune Cookie"
 CARD_DETAIL = "Tiny daily fortune"
@@ -95,7 +97,7 @@ def render(options=None):
     opts = options or {}
     width = 128 if opts.get("_target") == "matrixportal-s3-128x32" else 64
     mode = str(opts.get("mode") or "fortune").lower()
-    idx = date.today().toordinal() % len(FORTUNES)
+    idx = pixora_local_now().date().toordinal() % len(FORTUNES)
     msg = FORTUNES[idx] if mode != "random" else FORTUNES[(idx * 7 + 3) % len(FORTUNES)]
 
     image = Image.new("RGB", (width, 32), (9, 4, 1))
