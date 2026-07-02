@@ -3,6 +3,7 @@ import base64
 import json
 import math
 import os
+import sys
 from pathlib import Path
 import re
 import urllib.request
@@ -321,6 +322,46 @@ def pixora_log(options, message):
             pass
 
 
+def card_context(options=None):
+    options = options if isinstance(options, dict) else {}
+    width = int(options.get("_width") or (128 if options.get("_target") == "matrixportal-s3-128x32" else 64))
+    width = 128 if width > 96 else 64
+    settings = options.get("_settings") if isinstance(options.get("_settings"), dict) else {}
+    return {
+        "options": options,
+        "settings": settings,
+        "width": width,
+        "height": 32,
+        "target": str(options.get("_target") or ("matrixportal-s3-128x32" if width > 96 else "matrixportal-s3")),
+        "device_id": str(options.get("_device_id") or ""),
+        "firmware_version": str(options.get("_firmware_version") or ""),
+        "dwell_secs": max(1, int(options.get("_dwell") or 10)),
+        "timezone": pixora_local_timezone(),
+        "now": pixora_local_now(),
+        "is_prefetch": bool(options.get("_is_prefetch")),
+        "refresh_policy": str(options.get("_refresh_policy") or "balanced"),
+        "log": lambda message: pixora_log(options, message),
+    }
+
+
+def _caller_allowed_domains():
+    domains = []
+    try:
+        frame = sys._getframe(2)
+        while frame:
+            globals_dict = frame.f_globals if isinstance(frame.f_globals, dict) else {}
+            for name in ("CARD_ALLOWED_DOMAINS", "ALLOWED_DOMAINS"):
+                value = globals_dict.get(name)
+                if isinstance(value, (list, tuple)):
+                    domains.extend(str(item or "").strip() for item in value)
+            if domains:
+                break
+            frame = frame.f_back
+    except Exception:
+        pass
+    return [item for item in domains if item]
+
+
 def _safe_public_url(url, allowed_domains=None):
     parsed = urllib.parse.urlparse(str(url or "").strip())
     if parsed.scheme not in ("http", "https"):
@@ -337,6 +378,8 @@ def _safe_public_url(url, allowed_domains=None):
     except ValueError as exc:
         if "URLs are not allowed" in str(exc):
             raise
+    if allowed_domains is None:
+        allowed_domains = _caller_allowed_domains()
     domains = [str(item or "").strip().lower() for item in (allowed_domains or []) if str(item or "").strip()]
     if domains and not any(host == domain or host.endswith("." + domain) for domain in domains):
         raise ValueError("URL host is not in the allowed domain list.")
@@ -380,6 +423,8 @@ def cached_json(url, ttl_secs=300, headers=None, cache_key=None, max_bytes=PUBLI
 
 
 def fetch_image_asset(url, size=16, ttl_secs=3600, max_bytes=PUBLIC_MAX_IMAGE_BYTES, allowed_domains=None):
+    if not str(url or "").strip():
+        return None
     url = _safe_public_url(url, allowed_domains=allowed_domains)
     size = max(1, min(int(size or 16), 64))
     ttl_secs = max(60, min(int(ttl_secs or 3600), 86400))
@@ -451,12 +496,101 @@ def option_select(key, label, choices, default=""):
     return {"key": key, "label": label, "type": "select", "default": default, "choices": choices or []}
 
 
+def option_text(key, label, default="", maxlength=120):
+    return {"key": key, "label": label, "type": "text", "default": default, "maxlength": max(1, min(int(maxlength or 120), 500))}
+
+
 def option_number(key, label, default=1, min_value=0, max_value=999):
     return {"key": key, "label": label, "type": "number", "default": default, "min": min_value, "max": max_value}
 
 
 def option_checkbox(key, label, default=False):
     return {"key": key, "label": label, "type": "checkbox", "default": bool(default)}
+
+
+def _state_root():
+    root = os.environ.get("PIXORA_CARD_STATE_DIR") or os.environ.get("PIXORA_DATA_DIR")
+    if root:
+        path = Path(root)
+        if path.name != "card-state":
+            path = path / "card-state"
+    else:
+        path = Path(__file__).resolve().parent.parent / "data" / "card-state"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+class CardState:
+    def __init__(self, card_id):
+        safe = re.sub(r"[^A-Za-z0-9_-]+", "_", str(card_id or "card")).strip("_") or "card"
+        self.path = _state_root() / f"{safe[:80]}.json"
+        self.data = {}
+        try:
+            if self.path.exists():
+                loaded = json.loads(self.path.read_text(encoding="utf-8"))
+                if isinstance(loaded, dict):
+                    self.data = loaded
+        except Exception:
+            self.data = {}
+
+    def get(self, key, default=None):
+        return self.data.get(str(key), default)
+
+    def set(self, key, value):
+        self.data[str(key)] = _json_safe_payload(value)
+        self.save()
+        return self.data[str(key)]
+
+    def update(self, values):
+        if isinstance(values, dict):
+            for key, value in values.items():
+                self.data[str(key)] = _json_safe_payload(value)
+            self.save()
+        return dict(self.data)
+
+    def save(self):
+        tmp = self.path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(self.data, indent=2, sort_keys=True), encoding="utf-8")
+        tmp.replace(self.path)
+
+
+def card_state(card_id):
+    return CardState(card_id)
+
+
+def card_asset_path(card_id, filename):
+    safe_card = re.sub(r"[^A-Za-z0-9_-]+", "_", str(card_id or "card")).strip("_") or "card"
+    safe_name = str(filename or "").replace("\\", "/").strip("/")
+    if not safe_name or ".." in safe_name or safe_name.startswith("/"):
+        return None
+    if not re.fullmatch(r"[A-Za-z0-9_./ -]+", safe_name):
+        return None
+    root = Path(os.environ.get("PIXORA_CARD_ASSET_DIR") or (Path(__file__).resolve().parent / "assets"))
+    base = (root / safe_card).resolve()
+    path = (base / safe_name).resolve()
+    try:
+        path.relative_to(base)
+    except Exception:
+        return None
+    return path if path.exists() and path.is_file() and path.stat().st_size <= 768 * 1024 else None
+
+
+def load_card_asset_image(card_id, filename, size=None):
+    path = card_asset_path(card_id, filename)
+    if path is None:
+        return None
+    try:
+        from PIL import Image
+        image = Image.open(path).convert("RGBA")
+        if size:
+            size = max(1, min(int(size), 64))
+            image.thumbnail((size, size), Image.Resampling.LANCZOS)
+            canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+            canvas.alpha_composite(image, ((size - image.width) // 2, (size - image.height) // 2))
+            image = canvas
+        return image
+    except Exception:
+        return None
 
 
 def _json_safe_payload(value, depth=0):

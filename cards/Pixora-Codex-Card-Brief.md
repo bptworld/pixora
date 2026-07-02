@@ -22,6 +22,13 @@ Every card must define:
 CARD_ID = "short_unique_id"
 CARD_NAME = "Human Name"
 CARD_DETAIL = "Short description shown in the card library"
+CARD_VERSION = "1.0.0"
+CARD_AUTHOR = "Your Name"
+CARD_LICENSE = "MIT"
+CARD_ALLOWED_DOMAINS = []
+REQUIRED_SETTINGS = []
+TAGS = []
+RULE_VALUES = []
 CARD_OPTIONS = [
     {"key": "example", "label": "Example", "type": "text", "default": ""},
 ]
@@ -48,6 +55,19 @@ or a dictionary:
 ```
 
 Use `_no_replay` for finite animations that should play once and hold, not restart repeatedly during the card dwell time.
+
+`CARD_ALLOWED_DOMAINS` is the card-level network allowlist. Public fetch helpers use it automatically when `allowed_domains` is not passed directly.
+
+`RULE_VALUES` lets the Rules Engine discover values exposed by `rule_value(options=None, field="")`:
+
+```python
+RULE_VALUES = [{"key": "score", "label": "Score"}]
+
+def rule_value(options=None, field=""):
+    if field == "score":
+        return 7
+    return ""
+```
 
 ## Device Targets
 
@@ -114,20 +134,34 @@ Common helpers:
 ```python
 from card_utils import (
     cached_json,
+    card_asset_path,
+    card_context,
+    card_state,
     contrast_text_color,
     dim_color,
     fallback_frame,
     fetch_image_asset,
+    load_card_asset_image,
     option_checkbox,
     option_number,
     option_select,
     option_target,
+    option_text,
     option_zip,
     parse_color,
     paste_image_asset,
     pixora_log,
     special_graphic,
 )
+```
+
+Context helper:
+
+```python
+ctx = card_context(options)
+width = ctx["width"]
+now = ctx["now"]
+ctx["log"]("rendering")
 ```
 
 Safe logging:
@@ -183,12 +217,39 @@ Option builders:
 ```python
 CARD_OPTIONS = [
     option_zip(),
+    option_text("label", "Label", "Pixora"),
     option_target("goalAnimationTarget", "Goal Animation", default="group_wall"),
     option_select("team", "Team", [{"value": "USA", "label": "United States"}], default="USA"),
     option_number("days", "Days", default=7, min_value=1, max_value=30),
     option_checkbox("onlyGameDay", "Only show on game day", default=True),
 ]
 ```
+
+Safe per-card state:
+
+```python
+state = card_state(CARD_ID)
+last_seen = state.get("last_seen", "")
+state.set("last_seen", "2026-07-01T12:00:00Z")
+```
+
+Use `card_state()` instead of direct file paths. Pixora stores JSON under its card-state area and sanitizes the card id.
+
+Static card assets:
+
+```python
+logo = load_card_asset_image(CARD_ID, "logo.png", size=16)
+if logo:
+    image.paste(logo, (0, 8), logo)
+```
+
+Place bundled assets under:
+
+```text
+cards/assets/<CARD_ID>/logo.png
+```
+
+Asset helpers are read-only, keep paths inside the card's asset folder, reject path traversal, and ignore files larger than 768 KB.
 
 ## Rendering Rules
 
@@ -331,6 +392,12 @@ return {
         stay=True,
     ),
 }
+```
+
+For a complete starter, see:
+
+```text
+cards/templates/custom_card_starter.py
 ```
 
 ## Data Fetching Rules
