@@ -1036,12 +1036,24 @@ def _render_soccer_win_wall_frames(team, default_label="FC"):
     alt = readable_accent(color, hex_color(team.get("alternateColor"), (255, 255, 255)))
     headline = "WINS"
     label = str(team.get("abbreviation") or team.get("shortDisplayName") or default_label or "FC").upper()
-    title_font = fit_font(headline, max(26, width - 40), (13, 12, 11, 10, 9, 8, 7))
-    label_font = fit_font(label, max(24, width - 44), (8, 7, 6))
+    title_font = fit_font(headline, max(26, width - 46), (14, 13, 12, 11, 10, 9, 8, 7))
+    label_font = fit_font(label, max(24, width - 52), (9, 8, 7, 6))
+    final_font = fit_font("FULL TIME", 44, (7, 6))
     badge_font = fit_font("PORTU", 34, (8, 7, 6))
     logo = _fetch_logo(_team_logo_url(team))
     frames = []
     durations = []
+
+    def draw_trophy(draw, x, y, phase):
+        gold = (255, 204, 76) if phase % 2 == 0 else (255, 232, 128)
+        shade = (126, 80, 24)
+        draw.rectangle((x + 6, y + 16, x + 16, y + 18), fill=shade + (255,))
+        draw.rectangle((x + 3, y + 19, x + 19, y + 22), fill=gold + (255,))
+        draw.rectangle((x + 9, y + 12, x + 13, y + 18), fill=gold + (255,))
+        draw.polygon([(x + 4, y + 2), (x + 18, y + 2), (x + 16, y + 13), (x + 6, y + 13)], fill=gold + (255,), outline=alt + (255,))
+        draw.arc((x - 1, y + 4, x + 9, y + 14), 90, 260, fill=gold + (255,))
+        draw.arc((x + 13, y + 4, x + 23, y + 14), 280, 90, fill=gold + (255,))
+        draw.rectangle((x + 9, y + 5, x + 13, y + 8), fill=color + (255,))
 
     def frame(phase):
         image = Image.new("RGBA", (width, 32), (0, 8, 13, 255))
@@ -1049,6 +1061,8 @@ def _render_soccer_win_wall_frames(team, default_label="FC"):
         _draw_full_soccer_pitch(draw, width, phase, color, alt)
         _draw_goal_net(draw, 2, 18, 13, 29, alt if phase % 2 else color)
         _draw_goal_net(draw, width - 14, 18, width - 3, 29, alt if phase % 2 else color)
+        if width >= 128:
+            draw_sharp_text(image, (max(15, width // 2 - 22), 2), "FULL TIME", dim(alt, 0.85), final_font)
         if _draw_soccer_matchup_net_badges(image, draw, team, badge_font, color, alt):
             pass
         elif logo:
@@ -1069,41 +1083,51 @@ def _render_soccer_win_wall_frames(team, default_label="FC"):
         frames.append(image.convert("RGB"))
         durations.append(55)
 
-    panel_x0 = 18 if width < 96 else max(30, width // 2 - 42)
-    panel_x1 = width - 17 if width < 96 else min(width - 31, width // 2 + 42)
-    for i in range(18):
+    panel_x0 = 17 if width < 96 else max(34, width // 2 - min(58, width // 3))
+    panel_x1 = width - 16 if width < 96 else min(width - 35, width // 2 + min(58, width // 3))
+    for i in range(22):
         image, draw = frame(i + 12)
         pulse = i % 6
         _draw_sport_mark(draw, "soccer", width - 8, 21, color, alt, i)
         if i % 2 == 0:
             draw.line((width - 12, 15, width - 3, 27), fill=(245, 245, 245, 255))
             draw.line((width - 3, 15, width - 12, 27), fill=(245, 245, 245, 255))
-        _draw_firework(draw, 31 + (i % 5), 9, 4 + (i % 5), color, alt, i, width)
-        _draw_firework(draw, width - 31, 23, 4 + ((i + 2) % 5), alt, color, i + 4, width)
-        draw.rectangle((panel_x0, 6, panel_x1, 26), fill=(0, 22, 12, 225), outline=(alt if pulse < 3 else color) + (255,))
+        _draw_firework(draw, 29 + (i % 7), 9, 4 + (i % 5), color, alt, i, width)
+        _draw_firework(draw, width - 29, 23, 4 + ((i + 2) % 5), alt, color, i + 4, width)
+        if width >= 128:
+            draw_trophy(draw, width // 2 - 11, 7 + (1 if pulse < 3 else 0), i)
+        draw.rectangle((panel_x0, 6, panel_x1, 27), fill=(0, 22, 12, 232), outline=(alt if pulse < 3 else color) + (255,))
         hbox = draw.textbbox((0, 0), headline, font=title_font)
-        hx = panel_x0 + ((panel_x1 - panel_x0 + 1) - (hbox[2] - hbox[0])) // 2 - hbox[0]
+        panel_center = panel_x0 + ((panel_x1 - panel_x0 + 1) // 2)
+        if width >= 128:
+            panel_center -= 18
+        hx = panel_center - ((hbox[2] - hbox[0]) // 2) - hbox[0]
         for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1), (1, 1)):
             draw_sharp_text(image, (hx + dx, 7 - hbox[1] + dy), headline, (0, 35, 18), title_font)
         draw_sharp_text(image, (hx, 7 - hbox[1]), headline, (255, 231, 104) if pulse < 3 else alt, title_font)
         lbox = draw.textbbox((0, 0), label, font=label_font)
-        lx = panel_x0 + ((panel_x1 - panel_x0 + 1) - (lbox[2] - lbox[0])) // 2 - lbox[0]
+        lx = panel_center - ((lbox[2] - lbox[0]) // 2) - lbox[0]
         draw_sharp_text(image, (lx + 1, 20 - lbox[1]), label, (0, 35, 18), label_font)
         draw_sharp_text(image, (lx, 19 - lbox[1]), label, color if pulse < 3 else alt, label_font)
         frames.append(image.convert("RGB"))
         durations.append(90)
 
-    for i in range(10):
-        image, draw = frame(i + 30)
+    for i in range(14):
+        image, draw = frame(i + 34)
         _draw_firework(draw, 27 + (i % 4), 10, 7 + (i % 5), color, alt, i, width)
         _draw_firework(draw, width - 28, 21, 7 + ((i + 2) % 5), alt, color, i + 3, width)
         if width >= 96:
             _draw_firework(draw, width // 2, 15, 9 + (i % 4), (255, 202, 64), alt, i + 6, width)
+        if width >= 128:
+            draw_trophy(draw, width // 2 - 11, 7, i)
         hbox = draw.textbbox((0, 0), headline, font=title_font)
         hx = max(18, (width - (hbox[2] - hbox[0])) // 2) - hbox[0]
         hy = 8 - hbox[1]
         draw.rectangle((max(15, hx - 4), 6, min(width - 16, hx + (hbox[2] - hbox[0]) + 4), 24), fill=(0, 18, 10, 225), outline=(alt if i % 2 else color) + (255,))
         draw_sharp_text(image, (hx, hy), headline, alt if i % 2 else (255, 231, 104), title_font)
+        lbox = draw.textbbox((0, 0), label, font=label_font)
+        lx = max(16, (width - (lbox[2] - lbox[0])) // 2) - lbox[0]
+        draw_sharp_text(image, (lx, 20 - lbox[1]), label, color if i % 2 else alt, label_font)
         frames.append(image.convert("RGB"))
         durations.append(130)
 

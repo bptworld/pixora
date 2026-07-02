@@ -1,5 +1,6 @@
 from io import BytesIO
 from datetime import datetime, timezone
+import math
 
 from card_utils import (
     cached_priority_graphic,
@@ -843,6 +844,18 @@ def _draw_world_cup_ball(draw, x, y):
         draw.rectangle((px, py, px + 1, py + 1), fill=dark)
 
 
+def _draw_soccer_trophy(draw, x, y, color, alt, phase=0):
+    gold = (255, 204, 76) if phase % 2 == 0 else (255, 232, 128)
+    shade = (146, 96, 28)
+    draw.rectangle((x + 5, y + 16, x + 13, y + 18), fill=shade)
+    draw.rectangle((x + 3, y + 19, x + 15, y + 21), fill=gold)
+    draw.rectangle((x + 7, y + 11, x + 11, y + 17), fill=gold)
+    draw.polygon([(x + 3, y + 2), (x + 15, y + 2), (x + 13, y + 12), (x + 5, y + 12)], fill=gold, outline=alt)
+    draw.arc((x - 2, y + 3, x + 7, y + 13), 90, 260, fill=gold)
+    draw.arc((x + 11, y + 3, x + 20, y + 13), 280, 90, fill=gold)
+    draw.rectangle((x + 7, y + 5, x + 11, y + 8), fill=color)
+
+
 def _render_soccer_win_device_frames(team):
     from PIL import Image, ImageDraw, ImageFont
 
@@ -860,19 +873,31 @@ def _render_soccer_win_device_frames(team):
         small = big = ImageFont.load_default()
 
     probe = ImageDraw.Draw(Image.new("RGB", (1, 1)))
-    abbr = str((team or {}).get("abbreviation") or (team or {}).get("shortDisplayName") or "TEAM").upper()
-    abbr = _fit_device_text(probe, abbr, small, max(20, width - 32))
-    win_text = _fit_device_text(probe, "WINS", big, max(18, width - 32))
+    raw_label = str((team or {}).get("abbreviation") or (team or {}).get("shortDisplayName") or "TEAM").upper()
+    label_max = 28 if width <= 64 else width - 52
+    abbr = _fit_device_text(probe, raw_label, small, label_max)
+    win_text = _fit_device_text(probe, "WINS", big, 28 if width <= 64 else width - 54)
     frames = []
     durations = []
 
+    panel_x0 = 23 if width <= 64 else 38
+    panel_x1 = width - 3
+    if width >= 96:
+        panel_x0 = max(40, width // 2 - 28)
+        panel_x1 = min(width - 29, width // 2 + 28)
+    panel_w = panel_x1 - panel_x0 + 1
     win_w = probe.textbbox((0, 0), win_text, font=big)[2]
-    text_x = 26 if width <= 64 else max(26, (width - win_w) // 2)
-    ball_path = [(27 + int((width - 33) * (i / 7)), 23 - min(5, abs(3 - i))) for i in range(8)]
+    abbr_w = probe.textbbox((0, 0), abbr, font=small)[2]
+    ball_path = [(24 + int((width - 35) * (i / 8)), 24 - int(7 * math.sin((i / 8) * math.pi))) for i in range(9)]
 
     for step, (x, y) in enumerate(ball_path):
-        image = Image.new("RGBA", (width, 32), (0, 0, 0, 255))
+        image = Image.new("RGBA", (width, 32), (0, 9, 13, 255))
         draw = ImageDraw.Draw(image)
+        for gx in range(-step % 8, width, 8):
+            draw.line((gx, 0, gx + 18, 31), fill=(0, 24, 16))
+        draw.line((0, 28, width, 28), fill=color)
+        draw.line((width // 2, 4, width // 2, 28), fill=(20, 78, 54))
+        draw.arc((width // 2 - 12, 12, width // 2 + 12, 36), 180, 360, fill=(20, 78, 54))
         _draw_world_cup_logo_or_fallback(image, draw, team, color, alt)
         _draw_world_cup_net(draw, width)
         if step:
@@ -880,30 +905,42 @@ def _render_soccer_win_device_frames(team):
             draw.point((px - 4, py + 1), fill=(80, 90, 85))
             draw.point((px - 8, py + 2), fill=(45, 52, 48))
         _draw_world_cup_ball(draw, x, y)
+        if width >= 96:
+            draw_sharp_text(image, (panel_x0, 2), "FINAL", (180, 240, 210), small)
         frames.append(image.convert("RGB"))
-        durations.append(85)
+        durations.append(70)
 
-    for step in range(12):
-        image = Image.new("RGBA", (width, 32), (0, 0, 0, 255))
+    for step in range(18):
+        image = Image.new("RGBA", (width, 32), (0, 9, 13, 255))
         draw = ImageDraw.Draw(image)
+        for gx in range(-(step * 2) % 10, width, 10):
+            draw.line((gx, 0, gx + 18, 31), fill=(0, 24, 16))
+        draw.rectangle((0, 25, width, 31), fill=(0, 18, 10))
+        draw.line((0, 28, width, 28), fill=color if step % 4 < 2 else alt)
         _draw_world_cup_logo_or_fallback(image, draw, team, color, alt)
-        _draw_world_cup_net(draw, width)
-        _draw_world_cup_ball(draw, width - 5, 21)
-        if step % 2 == 0:
-            draw.line((width - 9, 15, width - 2, 26), fill=(245, 245, 245))
-            draw.line((width - 2, 15, width - 9, 26), fill=(245, 245, 245))
-        for i in range(5):
-            sx = 25 + ((step * 5 + i * 9) % max(1, width - 32))
-            sy = 2 + ((step * 3 + i * 5) % 10)
+        trophy_x = 3 if width <= 64 else width - 24
+        if width >= 96:
+            _draw_soccer_trophy(draw, trophy_x, 4, color, alt, step)
+        for i in range(8 if width >= 96 else 5):
+            sx = 24 + ((step * 7 + i * 11) % max(1, width - 28))
+            sy = 2 + ((step * 3 + i * 5) % 12)
             fill = alt if i % 2 else color
             draw.point((sx, sy), fill=fill)
             draw.point((sx + 1, sy), fill=fill)
-        if step % 4 != 3:
-            draw_sharp_text(image, (text_x, 0), win_text, color if step % 2 else alt, big)
-            abbr_w = draw.textbbox((0, 0), abbr, font=small)[2]
-            draw_sharp_text(image, (max(25, text_x + max(0, (win_w - abbr_w) // 2)), 12), abbr, (255, 204, 76), small)
+        if width <= 64:
+            _draw_soccer_trophy(draw, 3, 4, color, alt, step)
+        draw.rectangle((panel_x0, 5, panel_x1, 25), fill=(0, 22, 12), outline=alt if step % 4 < 2 else color)
+        wx = panel_x0 + max(0, (panel_w - win_w) // 2)
+        ax = panel_x0 + max(0, (panel_w - abbr_w) // 2)
+        if step % 5 != 4:
+            draw_sharp_text(image, (wx + 1, 7), win_text, (0, 36, 18), big)
+            draw_sharp_text(image, (wx, 6), win_text, (255, 231, 104) if step % 4 < 2 else alt, big)
+            draw_sharp_text(image, (ax + 1, 18), abbr, (0, 36, 18), small)
+            draw_sharp_text(image, (ax, 17), abbr, color if step % 4 < 2 else (255, 231, 104), small)
+        if width >= 96:
+            draw_sharp_text(image, (4, 2), "FULL TIME", (180, 240, 210), small)
         frames.append(image.convert("RGB"))
-        durations.append(170 if step % 4 != 3 else 110)
+        durations.append(140 if step % 5 != 4 else 80)
     return frames, durations
 
 
