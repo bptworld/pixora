@@ -176,6 +176,59 @@ Avoid huge 128-wide animations with 80 or 90 frames. They can stress the ESP32-S
 
 Animation should loop smoothly if it is a fun ambient card. No snap-back unless the card intentionally cuts to a new scene.
 
+## Special Device And Wall Graphics
+
+Cards may return special break-in graphics for live events, alerts, or one-time moments. Use public keys, not Pixora's internal underscore keys:
+
+```python
+return {
+    "body": normal_card_body,
+    "dwell_secs": 6,
+    "deviceGraphic": {
+        "renderer": "render_goal_animation",
+        "kind": "goal",
+        "team": {"abbreviation": "USA", "color": "0033A0"},
+        "dwell_secs": 6,
+        "stay": True,
+    },
+    "wallGraphic": {
+        "renderer": "render_goal_wall_frames",
+        "kind": "goal",
+        "team": {"abbreviation": "USA", "color": "0033A0"},
+        "dwell_secs": 6,
+    },
+}
+```
+
+`deviceGraphic` is for a single device. `wallGraphic` is for a device group / wall and Pixora will render one wide animation, slice it per device, queue each slice, and show the current device's slice immediately. If both are present and the card is targeting a wall, the wall graphic wins.
+
+Renderer functions must live in the same card file:
+
+```python
+def render_goal_animation(team, kind="goal"):
+    # Return WebP bytes, or return (frames, durations_ms)
+    ...
+
+def render_goal_wall_frames(team, kind="goal"):
+    width = int(team.get("_width") or 192)
+    # Return a list of PIL RGB frames and matching duration values.
+    return frames, durations_ms
+```
+
+Pixora injects `_width` into the renderer's `team` payload. For `deviceGraphic`, `_width` is the device width. For `wallGraphic`, `_width` is the total wall width. Do not hard-code wall widths.
+
+Supported fields:
+
+- `renderer`: required function name in the same card file.
+- `kind` or `type`: event type such as `goal`, `run`, `win`, `launch`, or `alert`.
+- `team`: small JSON-safe payload for labels, colors, logos, player names, or event text.
+- `dwell_secs` or `dwellSecs`: how long the break-in graphic should stay up.
+- `card` or `cardId`: optional display/card id override.
+- `groupId` or `group`: optional wall group override for `wallGraphic`.
+- `stay`: optional for device graphics that should hold the final frame.
+
+Keep special graphics short, cached, and finite. Do not fetch data inside the special renderer; fetch in `render(options)` and pass only the needed data into `team`.
+
 ## Data Fetching Rules
 
 Cards may fetch data from APIs, but must cache aggressively and fail gracefully.
