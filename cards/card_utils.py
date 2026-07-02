@@ -7,6 +7,7 @@ from pathlib import Path
 import re
 import urllib.request
 import urllib.parse
+import ipaddress
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
@@ -14,11 +15,17 @@ WEATHER_CACHE = {}
 OPENWEATHER_ICON_CACHE = {}
 LOGO_CACHE = {}
 PRIORITY_GRAPHIC_CACHE = {}
+PUBLIC_JSON_CACHE = {}
+PUBLIC_IMAGE_CACHE = {}
 PRIORITY_GRAPHIC_CACHE_TTL_SECS = 900
 WEATHER_CACHE_MAX_ENTRIES = 128
 ICON_CACHE_MAX_ENTRIES = 64
 LOGO_CACHE_MAX_ENTRIES = 128
 AIRLINE_LOGO_CACHE_MAX_ENTRIES = 64
+PUBLIC_JSON_CACHE_MAX_ENTRIES = 128
+PUBLIC_IMAGE_CACHE_MAX_ENTRIES = 96
+PUBLIC_MAX_JSON_BYTES = 512 * 1024
+PUBLIC_MAX_IMAGE_BYTES = 768 * 1024
 
 _BOLD_NUMERIC_RE = re.compile(r"^[\d\s:.,+\-/$%]+$")
 _PIXORA_BOLD_DIGITS = {
@@ -303,6 +310,196 @@ def cached_priority_graphic(cache_key, render):
 def warm_priority_graphic(cache_key, render):
     if cache_key not in PRIORITY_GRAPHIC_CACHE:
         cached_priority_graphic(cache_key, render)
+
+
+def pixora_log(options, message):
+    logger = (options or {}).get("_log") if isinstance(options, dict) else None
+    if callable(logger):
+        try:
+            logger(str(message or ""))
+        except Exception:
+            pass
+
+
+def _safe_public_url(url, allowed_domains=None):
+    parsed = urllib.parse.urlparse(str(url or "").strip())
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError("Only http and https URLs are allowed.")
+    host = (parsed.hostname or "").strip().lower()
+    if not host:
+        raise ValueError("URL host is required.")
+    if host in ("localhost", "localhost.localdomain") or host.endswith(".localhost") or host.endswith(".local"):
+        raise ValueError("Localhost URLs are not allowed.")
+    try:
+        ip = ipaddress.ip_address(host)
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_reserved:
+            raise ValueError("Private network URLs are not allowed.")
+    except ValueError as exc:
+        if "URLs are not allowed" in str(exc):
+            raise
+    domains = [str(item or "").strip().lower() for item in (allowed_domains or []) if str(item or "").strip()]
+    if domains and not any(host == domain or host.endswith("." + domain) for domain in domains):
+        raise ValueError("URL host is not in the allowed domain list.")
+    return parsed.geturl()
+
+
+def _read_limited_response(response, max_bytes):
+    max_bytes = max(1024, min(int(max_bytes or PUBLIC_MAX_JSON_BYTES), 2 * 1024 * 1024))
+    data = response.read(max_bytes + 1)
+    if len(data) > max_bytes:
+        raise ValueError("Response is too large.")
+    return data
+
+
+def cached_json(url, ttl_secs=300, headers=None, cache_key=None, max_bytes=PUBLIC_MAX_JSON_BYTES, allowed_domains=None):
+    url = _safe_public_url(url, allowed_domains=allowed_domains)
+    ttl_secs = max(15, min(int(ttl_secs or 300), 86400))
+    max_bytes = max(1024, min(int(max_bytes or PUBLIC_MAX_JSON_BYTES), PUBLIC_MAX_JSON_BYTES))
+    request_headers = {"User-Agent": "Pixora/0.1", "Accept": "application/json"}
+    for key, value in (headers or {}).items():
+        key = str(key or "").strip()
+        if re.fullmatch(r"[A-Za-z0-9-]+", key):
+            request_headers[key] = str(value or "")[:500]
+    key = cache_key or url + "|" + json.dumps(request_headers, sort_keys=True)
+    now = datetime.now(timezone.utc)
+    _prune_expiring_cache(PUBLIC_JSON_CACHE, now, PUBLIC_JSON_CACHE_MAX_ENTRIES)
+    cached = PUBLIC_JSON_CACHE.get(key)
+    if cached and cached.get("expires", now) > now:
+        return cached["data"]
+    request = urllib.request.Request(url, headers=request_headers)
+    try:
+        with urllib.request.urlopen(request, timeout=8) as response:
+            body = _read_limited_response(response, max_bytes)
+        data = json.loads(body.decode("utf-8"))
+    except Exception:
+        if cached and "data" in cached:
+            return cached["data"]
+        raise
+    _cache_put(PUBLIC_JSON_CACHE, key, {"expires": now + timedelta(seconds=ttl_secs), "data": data}, PUBLIC_JSON_CACHE_MAX_ENTRIES)
+    return data
+
+
+def fetch_image_asset(url, size=16, ttl_secs=3600, max_bytes=PUBLIC_MAX_IMAGE_BYTES, allowed_domains=None):
+    url = _safe_public_url(url, allowed_domains=allowed_domains)
+    size = max(1, min(int(size or 16), 64))
+    ttl_secs = max(60, min(int(ttl_secs or 3600), 86400))
+    max_bytes = max(1024, min(int(max_bytes or PUBLIC_MAX_IMAGE_BYTES), PUBLIC_MAX_IMAGE_BYTES))
+    cache_key = (url, size)
+    now = datetime.now(timezone.utc)
+    _prune_expiring_cache(PUBLIC_IMAGE_CACHE, now, PUBLIC_IMAGE_CACHE_MAX_ENTRIES)
+    cached = PUBLIC_IMAGE_CACHE.get(cache_key)
+    if cached and cached.get("expires", now) > now:
+        return cached["image"]
+    try:
+        from PIL import Image
+        request = urllib.request.Request(url, headers={"User-Agent": "Pixora/0.1", "Accept": "image/png,image/jpeg,image/webp,image/*"})
+        with urllib.request.urlopen(request, timeout=5) as response:
+            data = _read_limited_response(response, max_bytes)
+        image = Image.open(BytesIO(data)).convert("RGBA")
+        image.thumbnail((size, size), Image.Resampling.LANCZOS)
+        canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+        canvas.alpha_composite(image, ((size - image.width) // 2, (size - image.height) // 2))
+        r, g, b, a = canvas.split()
+        a = a.point(lambda p: 255 if p > 42 else 0)
+        result = Image.merge("RGBA", (r, g, b, a))
+    except Exception:
+        if cached and "image" in cached:
+            return cached["image"]
+        return None
+    _cache_put(PUBLIC_IMAGE_CACHE, cache_key, {"expires": now + timedelta(seconds=ttl_secs), "image": result}, PUBLIC_IMAGE_CACHE_MAX_ENTRIES)
+    return result
+
+
+def paste_image_asset(canvas, url, xy, size=16, ttl_secs=3600, allowed_domains=None):
+    image = fetch_image_asset(url, size=size, ttl_secs=ttl_secs, allowed_domains=allowed_domains)
+    if image is None:
+        return False
+    canvas.paste(image, (int(xy[0]), int(xy[1])), image)
+    return True
+
+
+def color_to_hex(color):
+    r, g, b = parse_color(color)
+    return f"{r:02X}{g:02X}{b:02X}"
+
+
+def dim_color(color, factor=0.55):
+    factor = max(0.0, min(float(factor or 0), 1.0))
+    r, g, b = parse_color(color)
+    return int(r * factor), int(g * factor), int(b * factor)
+
+
+def contrast_text_color(background, light=(255, 255, 255), dark=(0, 0, 0)):
+    r, g, b = parse_color(background)
+    luminance = (0.299 * r + 0.587 * g + 0.114 * b)
+    return dark if luminance > 150 else light
+
+
+def option_zip(key="zipCode", label="ZIP", default="", required=False):
+    return {"key": key, "label": label, "type": "text", "default": default, "maxlength": 5, "inputmode": "numeric", "required": bool(required)}
+
+
+def option_target(key, label, default="device", include_wall=True):
+    choices = [{"value": "device", "label": "Device"}]
+    if include_wall:
+        choices.append({"value": "group_wall", "label": "Group Wall"})
+    choices.append({"value": "off", "label": "Off"})
+    return {"key": key, "label": label, "type": "select", "default": default, "choices": choices}
+
+
+def option_select(key, label, choices, default=""):
+    return {"key": key, "label": label, "type": "select", "default": default, "choices": choices or []}
+
+
+def option_number(key, label, default=1, min_value=0, max_value=999):
+    return {"key": key, "label": label, "type": "number", "default": default, "min": min_value, "max": max_value}
+
+
+def option_checkbox(key, label, default=False):
+    return {"key": key, "label": label, "type": "checkbox", "default": bool(default)}
+
+
+def _json_safe_payload(value, depth=0):
+    if depth > 4:
+        return str(value)[:200]
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return value
+    if isinstance(value, (list, tuple)):
+        return [_json_safe_payload(item, depth + 1) for item in value[:24]]
+    if isinstance(value, dict):
+        clean = {}
+        for key, item in list(value.items())[:48]:
+            clean[str(key)[:80]] = _json_safe_payload(item, depth + 1)
+        return clean
+    return str(value)[:200]
+
+
+def special_graphic(renderer, kind="graphic", team=None, dwell_secs=6, wall_renderer=None, include_device=True, include_wall=False, group=None, stay=False, card=None):
+    renderer = str(renderer or "").strip()
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", renderer):
+        raise ValueError("Renderer must be a function name in this card file.")
+    kind = str(kind or "graphic").strip()[:80] or "graphic"
+    dwell_secs = max(1, min(int(dwell_secs or 6), 60))
+    payload = _json_safe_payload(team or {})
+    result = {}
+    if include_device:
+        spec = {"renderer": renderer, "kind": kind, "team": payload, "dwell_secs": dwell_secs}
+        if stay:
+            spec["stay"] = True
+        if card:
+            spec["card"] = str(card)[:120]
+        result["deviceGraphic"] = spec
+    if include_wall:
+        wall_name = str(wall_renderer or renderer).strip()
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", wall_name):
+            raise ValueError("Wall renderer must be a function name in this card file.")
+        spec = {"renderer": wall_name, "kind": kind, "team": payload, "dwell_secs": dwell_secs}
+        if group:
+            spec["groupId"] = str(group)[:120]
+        if card:
+            spec["card"] = str(card)[:120]
+        result["wallGraphic"] = spec
+    return result
 
 
 def bitmap_number_size(text, scale=1, spacing=1):
@@ -1134,13 +1331,22 @@ _NAMED_COLORS = {
 }
 
 
-def parse_color(value):
-    v = str(value or "").strip()
-    if v.startswith("#"):
-        h = v.lstrip("#")
-        if len(h) == 6:
-            return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
-    return _NAMED_COLORS.get(v.lower(), (255, 255, 255))
+def parse_color(value, default=(255, 255, 255)):
+    if isinstance(value, (list, tuple)) and len(value) >= 3:
+        try:
+            return tuple(max(0, min(255, int(value[index]))) for index in range(3))
+        except Exception:
+            return default
+    text = str(value or "").strip()
+    named = _NAMED_COLORS.get(text.lower())
+    if named:
+        return named
+    text = text.lstrip("#")
+    if len(text) == 3 and re.fullmatch(r"[0-9A-Fa-f]{3}", text):
+        text = "".join(ch * 2 for ch in text)
+    if len(text) == 6 and re.fullmatch(r"[0-9A-Fa-f]{6}", text):
+        return int(text[0:2], 16), int(text[2:4], 16), int(text[4:6], 16)
+    return default
 
 
 def _msg_font():
@@ -1253,6 +1459,45 @@ def render_text_webp(text, color):
     out = BytesIO()
     image.save(out, "WEBP", lossless=True, quality=100)
     return out.getvalue()
+
+
+def fallback_frame(text, width=64, color=(180, 220, 255), background=(0, 0, 0), dwell_secs=None):
+    from PIL import Image, ImageFont
+    width = 128 if int(width or 64) > 96 else 64
+    image = Image.new("RGB", (width, 32), parse_color(background, (0, 0, 0)))
+    try:
+        font = ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", 8)
+    except Exception:
+        font = ImageFont.load_default()
+    from PIL import ImageDraw
+    draw = ImageDraw.Draw(image)
+    words = str(text or "NO DATA").upper().split()
+    lines = []
+    current = ""
+    for word in words:
+        candidate = (current + " " + word).strip()
+        bbox = draw.textbbox((0, 0), candidate, font=font)
+        if current and bbox[2] - bbox[0] > width - 4:
+            lines.append(current)
+            current = word
+        else:
+            current = candidate
+    if current:
+        lines.append(current)
+    lines = lines[:3] or ["NO DATA"]
+    total_h = len(lines) * 9
+    y = max(0, (32 - total_h) // 2)
+    for line in lines:
+        bbox = draw.textbbox((0, 0), line, font=font)
+        x = max(0, (width - (bbox[2] - bbox[0])) // 2)
+        draw_sharp_text(image, (x, y), line, parse_color(color, (180, 220, 255)), font)
+        y += 9
+    out = BytesIO()
+    image.save(out, "WEBP", lossless=True, quality=100)
+    body = out.getvalue()
+    if dwell_secs is None:
+        return body
+    return {"body": body, "dwell_secs": max(1, int(dwell_secs or 6))}
 
 
 def pick_sport_event(events, favorite):

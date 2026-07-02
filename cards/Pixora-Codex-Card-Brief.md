@@ -105,6 +105,91 @@ units = temperature_units()
 
 If a card has ZIP or lat/lon options, prefill from global defaults when the card option is blank, but let the user override per card.
 
+## Public Helper APIs
+
+Prefer public helpers from `card_utils.py` over custom networking, logging, fallback, color, and option code. These helpers use Pixora-safe defaults for caching, timeouts, image sizes, and display formatting.
+
+Common helpers:
+
+```python
+from card_utils import (
+    cached_json,
+    contrast_text_color,
+    dim_color,
+    fallback_frame,
+    fetch_image_asset,
+    option_checkbox,
+    option_number,
+    option_select,
+    option_target,
+    option_zip,
+    parse_color,
+    paste_image_asset,
+    pixora_log,
+    special_graphic,
+)
+```
+
+Safe logging:
+
+```python
+pixora_log(options, "loaded 3 events")
+```
+
+Fallback frame:
+
+```python
+return fallback_frame("No games today", width=(options or {}).get("_width", 64), dwell_secs=6)
+```
+
+Cached JSON fetch:
+
+```python
+data = cached_json(
+    "https://api.example.com/status",
+    ttl_secs=300,
+    allowed_domains=["api.example.com"],
+)
+```
+
+`cached_json` only allows HTTP/S URLs, rejects localhost/private-network targets, clamps TTLs and response size, and returns stale cached data during transient fetch failures.
+
+Safe image/logo fetch:
+
+```python
+logo = fetch_image_asset(team_logo_url, size=16, ttl_secs=3600, allowed_domains=["site.example.com"])
+if logo:
+    image.paste(logo, (0, 8), logo)
+```
+
+or:
+
+```python
+paste_image_asset(image, team_logo_url, (0, 8), size=16, allowed_domains=["site.example.com"])
+```
+
+Images are size-limited, cached, converted to RGBA, thumbnail-cropped into a square canvas, and alpha-cleaned for LED display.
+
+Color helpers:
+
+```python
+team_color = parse_color("#0033A0", (40, 120, 255))
+muted = dim_color(team_color, 0.45)
+text_color = contrast_text_color(team_color)
+```
+
+Option builders:
+
+```python
+CARD_OPTIONS = [
+    option_zip(),
+    option_target("goalAnimationTarget", "Goal Animation", default="group_wall"),
+    option_select("team", "Team", [{"value": "USA", "label": "United States"}], default="USA"),
+    option_number("days", "Days", default=7, min_value=1, max_value=30),
+    option_checkbox("onlyGameDay", "Only show on game day", default=True),
+]
+```
+
 ## Rendering Rules
 
 Use Pillow:
@@ -228,6 +313,25 @@ Supported fields:
 - `stay`: optional for device graphics that should hold the final frame.
 
 Keep special graphics short, cached, and finite. Do not fetch data inside the special renderer; fetch in `render(options)` and pass only the needed data into `team`.
+
+You may build those dictionaries manually, or use `special_graphic()`:
+
+```python
+return {
+    "body": body,
+    "dwell_secs": 6,
+    **special_graphic(
+        renderer="render_goal_animation",
+        wall_renderer="render_goal_wall_frames",
+        kind="goal",
+        team={"abbreviation": "USA", "color": "0033A0"},
+        dwell_secs=6,
+        include_device=True,
+        include_wall=True,
+        stay=True,
+    ),
+}
+```
 
 ## Data Fetching Rules
 
