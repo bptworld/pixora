@@ -188,6 +188,8 @@ data = cached_json(
 
 `cached_json` only allows HTTP/S URLs, rejects localhost/private-network targets, clamps TTLs and response size, and returns stale cached data during transient fetch failures.
 
+Marketplace/runtime validation also enforces the card's declared domains. Any network access during validation must match `CARD_ALLOWED_DOMAINS` or an explicitly passed `allowed_domains` list.
+
 Safe image/logo fetch:
 
 ```python
@@ -399,6 +401,8 @@ For a complete starter, see:
 ```text
 cards/templates/custom_card_starter.py
 ```
+
+Marketplace validation renders normal 64x32 and 128x32 previews. If `render()` returns `deviceGraphic` or `wallGraphic`, validation also calls the referenced renderer function and verifies it returns WebP bytes or `(frames, durations)` with 32-pixel-tall frames.
 
 ## Data Fetching Rules
 
