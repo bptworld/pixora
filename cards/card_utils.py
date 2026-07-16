@@ -1,9 +1,11 @@
 from io import BytesIO
 import base64
+from contextvars import ContextVar
 import json
 import math
 import os
 import sys
+import threading
 from pathlib import Path
 import re
 import urllib.request
@@ -18,6 +20,7 @@ LOGO_CACHE = {}
 PRIORITY_GRAPHIC_CACHE = {}
 PUBLIC_JSON_CACHE = {}
 PUBLIC_IMAGE_CACHE = {}
+CACHE_LOCK = threading.RLock()
 PRIORITY_GRAPHIC_CACHE_TTL_SECS = 900
 WEATHER_CACHE_MAX_ENTRIES = 128
 ICON_CACHE_MAX_ENTRIES = 64
@@ -64,7 +67,7 @@ _NUMERIC_SEGMENTS = {
     "9": "abfgcd",
 }
 _PIXORA_BOLD_NUMERIC_CHARS = set(_PIXORA_BOLD_DIGITS) | set(_PIXORA_BOLD_SYMBOLS) | {" "}
-_RUNTIME_SETTINGS_STACK = []
+_RUNTIME_SETTINGS_STACK = ContextVar("pixora_runtime_settings_stack", default=())
 
 
 def _is_bold_font(font):
@@ -154,24 +157,24 @@ def pixora_mixed_bold_number_size(text, font, scale=1, spacing=1):
 
 
 def use_runtime_settings(settings):
-    token = len(_RUNTIME_SETTINGS_STACK)
-    _RUNTIME_SETTINGS_STACK.append(dict(settings or {}))
-    return token
+    stack = _RUNTIME_SETTINGS_STACK.get()
+    return _RUNTIME_SETTINGS_STACK.set((*stack, dict(settings or {})))
 
 
 def reset_runtime_settings(token=None):
     if token is None:
-        _RUNTIME_SETTINGS_STACK.clear()
+        _RUNTIME_SETTINGS_STACK.set(())
         return
     try:
-        del _RUNTIME_SETTINGS_STACK[int(token):]
+        _RUNTIME_SETTINGS_STACK.reset(token)
     except Exception:
-        _RUNTIME_SETTINGS_STACK.clear()
+        _RUNTIME_SETTINGS_STACK.set(())
 
 
 def _settings_value(key, default=""):
-    if _RUNTIME_SETTINGS_STACK:
-        value = _RUNTIME_SETTINGS_STACK[-1].get(key)
+    stack = _RUNTIME_SETTINGS_STACK.get()
+    if stack:
+        value = stack[-1].get(key)
         if value not in (None, ""):
             return value
     env_key = "PIXORA_" + re.sub(r"[^A-Z0-9]+", "_", key.upper())
@@ -248,33 +251,37 @@ def pixora_local_timezone():
 
 
 def _priority_graphic_prune(now):
-    for key, item in list(PRIORITY_GRAPHIC_CACHE.items()):
-        if (now - item.get("seen", now)).total_seconds() > PRIORITY_GRAPHIC_CACHE_TTL_SECS:
-            PRIORITY_GRAPHIC_CACHE.pop(key, None)
+    with CACHE_LOCK:
+        for key, item in list(PRIORITY_GRAPHIC_CACHE.items()):
+            if (now - item.get("seen", now)).total_seconds() > PRIORITY_GRAPHIC_CACHE_TTL_SECS:
+                PRIORITY_GRAPHIC_CACHE.pop(key, None)
 
 
 def _prune_expiring_cache(cache, now, max_entries):
-    for key, item in list(cache.items()):
-        if isinstance(item, dict) and item.get("expires", now) <= now:
-            cache.pop(key, None)
-    while len(cache) > max_entries:
-        cache.pop(next(iter(cache)), None)
+    with CACHE_LOCK:
+        for key, item in list(cache.items()):
+            if isinstance(item, dict) and item.get("expires", now) <= now:
+                cache.pop(key, None)
+        while len(cache) > max_entries:
+            cache.pop(next(iter(cache)), None)
 
 
 def _cache_get(cache, key):
-    if key not in cache:
-        return None
-    value = cache.pop(key)
-    cache[key] = value
-    return value
+    with CACHE_LOCK:
+        if key not in cache:
+            return None
+        value = cache.pop(key)
+        cache[key] = value
+        return value
 
 
 def _cache_put(cache, key, value, max_entries):
-    if key in cache:
-        cache.pop(key, None)
-    cache[key] = value
-    while len(cache) > max_entries:
-        cache.pop(next(iter(cache)), None)
+    with CACHE_LOCK:
+        if key in cache:
+            cache.pop(key, None)
+        cache[key] = value
+        while len(cache) > max_entries:
+            cache.pop(next(iter(cache)), None)
 
 
 def priority_graphic_key(card_id, team=None, kind="", width=64):
@@ -948,7 +955,8 @@ def fetch_sport_scoreboard(url, cache, favorite="", seconds=15):
 def fetch_json_request(url, seconds=600):
     now = datetime.now(timezone.utc)
     _prune_expiring_cache(WEATHER_CACHE, now, WEATHER_CACHE_MAX_ENTRIES)
-    cached = WEATHER_CACHE.get(url)
+    with CACHE_LOCK:
+        cached = WEATHER_CACHE.get(url)
     if cached and cached["expires"] > now:
         return cached["data"]
     request = urllib.request.Request(
@@ -970,7 +978,8 @@ def fetch_json_with_headers(url, headers=None, seconds=600, cache_key=None):
     now = datetime.now(timezone.utc)
     key = cache_key or url + "|" + json.dumps(headers or {}, sort_keys=True)
     _prune_expiring_cache(WEATHER_CACHE, now, WEATHER_CACHE_MAX_ENTRIES)
-    cached = WEATHER_CACHE.get(key)
+    with CACHE_LOCK:
+        cached = WEATHER_CACHE.get(key)
     if cached and cached["expires"] > now:
         return cached["data"]
     request_headers = {"User-Agent": "Pixora/0.1", "Accept": "application/json"}
