@@ -15,6 +15,7 @@ CARD_RULE_FIELDS = [
     {"id": "today_high", "label": "Today High"},
     {"id": "today_low", "label": "Today Low"},
 ]
+PIXEL_WEATHER_ICONS = frozenset({"sun", "moon", "partly", "moon_cloud", "cloud", "rain", "drizzle", "thunder", "snow", "fog"})
 
 
 def _zip_forecast(zip_code):
@@ -75,13 +76,13 @@ def _temp(value, unit="F"):
     return str(value if value is not None else "--")
 
 
-def _draw_icon(image, draw, period, cx, y):
-    if paste_openweather_icon(image, period.get("openWeatherIcon"), cx - 7, y - 4, 14):
-        return
+def _weather_icon_name(period):
     icon = str(period.get("icon") or "").strip().lower()
-    if icon not in {"sun", "moon", "partly", "moon_cloud", "cloud", "rain", "drizzle", "thunder", "snow", "fog"}:
-        icon = _icon(period.get("shortForecast", ""))
-    draw_mini_weather_icon(draw, icon, cx, y - 3)
+    return icon if icon in PIXEL_WEATHER_ICONS else _icon(period.get("shortForecast", ""))
+
+
+def _draw_icon(draw, period, cx, y):
+    draw_mini_weather_icon(draw, _weather_icon_name(period), cx, y - 3)
 
 
 def _draw_big_icon(image, draw, weather, x, y):
@@ -107,7 +108,7 @@ def _draw_64(image, draw, days, nights, font, bold):
         label_color = (24, 182, 163) if i == 0 else (160, 190, 215)
         lw = draw.textbbox((0, 0), label, font=font)[2]
         draw_sharp_text(image, (cx - lw // 2, -3), label, label_color, font)
-        _draw_icon(image, draw, period, cx, 10)
+        _draw_icon(draw, period, cx, 10)
         hw = draw.textbbox((0, 0), high, font=font)[2]
         draw_sharp_text(image, (cx - hw // 2, 15), high, (255, 175, 70), font)
         lw2 = draw.textbbox((0, 0), low, font=font)[2]
@@ -148,7 +149,7 @@ def _draw_128(image, draw, days, nights, current, font, bold, small):
         label_color = (24, 182, 163) if i == 0 else (160, 190, 215)
         lw = draw.textbbox((0, 0), label, font=font)[2]
         draw_sharp_text(image, (cx - lw // 2, -3), label, label_color, font)
-        _draw_icon(image, draw, period, cx, 10)
+        _draw_icon(draw, period, cx, 10)
         hw = draw.textbbox((0, 0), high, font=font)[2]
         draw_sharp_text(image, (cx - hw // 2, 15), high, (255, 175, 70), font)
         lw2 = draw.textbbox((0, 0), low, font=font)[2]
