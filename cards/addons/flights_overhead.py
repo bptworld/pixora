@@ -283,18 +283,36 @@ def _fetch_aircraft(lat, lon, radius_miles, source):
         providers.append(_fetch_adsb_lol)
     if source in ("auto", "adsbfi"):
         providers.append(_fetch_adsb_fi)
+    results = []
+    errors = []
+    result_lock = threading.Lock()
+
+    def fetch(provider):
+        try:
+            found = provider(lat, lon, radius_nm)
+            with result_lock:
+                results.append(found)
+        except Exception as exc:
+            with result_lock:
+                errors.append(exc)
+
+    workers = [threading.Thread(target=fetch, args=(provider,), daemon=True) for provider in providers]
+    for worker in workers:
+        worker.start()
+    for worker in workers:
+        worker.join(timeout=4)
+    if not results:
+        raise RuntimeError("Live flight sources unavailable") from (errors[0] if errors else None)
+
     rows = []
     seen = set()
-    for provider in providers:
-        try:
-            for row in provider(lat, lon, radius_nm):
-                key = str(row.get("hex") or row.get("icao24") or row.get("flight") or id(row)).lower()
-                if key in seen:
-                    continue
-                seen.add(key)
-                rows.append(row)
-        except Exception:
-            continue
+    for result in results:
+        for row in result:
+            key = str(row.get("hex") or row.get("icao24") or row.get("flight") or id(row)).lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            rows.append(row)
     return rows
 
 
@@ -479,20 +497,20 @@ def _aircraft_bucket(row):
 
 def _allowed_buckets(opts):
     allowed = set()
-    if opts.get("showAirliners", True):
+    if _truthy(opts.get("showAirliners", True)):
         allowed.update(("airliner", "heavy"))
-    if opts.get("showRegionalJets", True):
+    if _truthy(opts.get("showRegionalJets", True)):
         allowed.add("regional")
-    if opts.get("showBusinessJets", True):
+    if _truthy(opts.get("showBusinessJets", True)):
         allowed.add("business")
-    if opts.get("showHelicopters", True):
+    if _truthy(opts.get("showHelicopters", True)):
         allowed.add("helicopter")
-    if opts.get("showSmallProps", False):
+    if _truthy(opts.get("showSmallProps", False)):
         allowed.add("prop")
     return allowed or {"airliner", "heavy", "regional"}
 
 
-def _flight_row(home_lat, home_lon, item, rank):
+def _flight_row(home_lat, home_lon, item, rank, enrich_route=True):
     dist, row = item
     callsign = (row.get("flight") or row.get("callsign") or "").strip().upper()
     alt_ft = int(_num(row.get("alt_baro") if row.get("alt_baro") != "ground" else row.get("alt_geom")))
@@ -505,7 +523,7 @@ def _flight_row(home_lat, home_lon, item, rank):
     airline_name = airline[0] if airline else callsign[:8]
     iata = airline[1] if airline else _ICAO_TO_IATA.get(callsign[:3])
     flight_num = _display_flight(callsign)
-    route = _route_for_callsign(callsign, lat=lat, lon=lon, track=track)
+    route = _route_for_callsign(callsign, lat=lat, lon=lon, track=track) if enrich_route else ""
     return {
         "rank": rank,
         "callsign": callsign,
@@ -519,6 +537,9 @@ def _flight_row(home_lat, home_lon, item, rank):
         "alt_ft": alt_ft,
         "speed_kt": speed_kt,
         "route": route,
+        "_lat": lat,
+        "_lon": lon,
+        "_track": track,
     }
 
 
@@ -623,7 +644,7 @@ def _snapshot_key(opts):
     return hashlib.sha1(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
 
 
-def _build_snapshot(opts):
+def _build_snapshot(opts, enrich_routes=False):
     zip_code = (opts.get("zipCode") or "10001").strip()
     radius = max(10, min(500, int(opts.get("radiusMiles") or 50)))
     source = str(opts.get("source") or "auto").lower()
@@ -646,26 +667,61 @@ def _build_snapshot(opts):
         if dist <= radius:
             flights.append((dist, row))
     flights.sort(key=lambda x: x[0])
-    rows = [_flight_row(lat, lon, item, index + 1) for index, item in enumerate(flights[:20])]
+    rows = [_flight_row(lat, lon, item, index + 1, enrich_route=enrich_routes) for index, item in enumerate(flights[:20])]
     return {"rows": rows, "radius": radius, "updated": time.time()}
+
+
+def _publish_snapshot(key, snapshot):
+    with _SNAPSHOT_LOCK:
+        current = _SNAPSHOT_CACHE.get(key)
+        if snapshot.get("rows") or not (current and current.get("rows")):
+            _SNAPSHOT_CACHE[key] = snapshot
+        else:
+            current["expires"] = snapshot.get("expires") or time.time() + _SNAPSHOT_TTL_SECONDS
+            current["error"] = snapshot.get("error") or ""
+
+
+def _enrich_snapshot_routes(key, snapshot):
+    rows = snapshot.get("rows") or []
+    for index, row in enumerate(rows):
+        route = _route_for_callsign(
+            row.get("callsign"), lat=row.get("_lat"), lon=row.get("_lon"), track=row.get("_track")
+        )
+        if route:
+            row["route"] = route
+            with _SNAPSHOT_LOCK:
+                current = _SNAPSHOT_CACHE.get(key)
+                if current is snapshot and index < len(current.get("rows") or []):
+                    current["rows"][index]["route"] = route
+
+
+def _enrich_snapshot_routes_async(key, snapshot):
+    def enrich():
+        try:
+            _enrich_snapshot_routes(key, snapshot)
+        finally:
+            with _SNAPSHOT_LOCK:
+                _SNAPSHOT_PENDING.discard(key)
+
+    with _SNAPSHOT_LOCK:
+        if key in _SNAPSHOT_PENDING:
+            return
+        _SNAPSHOT_PENDING.add(key)
+    threading.Thread(target=enrich, name="pixora-flights-overhead-routes", daemon=True).start()
 
 
 def _refresh_snapshot(key, opts):
     try:
         now = time.time()
         try:
-            snapshot = _build_snapshot(opts)
+            snapshot = _build_snapshot(opts, enrich_routes=False)
             expires = now + (_SNAPSHOT_TTL_SECONDS if snapshot.get("rows") else _EMPTY_SNAPSHOT_TTL_SECONDS)
             snapshot["expires"] = expires
         except Exception as exc:
             snapshot = {"rows": [], "radius": max(10, min(500, int((opts or {}).get("radiusMiles") or 50))), "error": str(exc), "updated": now, "expires": now + _EMPTY_SNAPSHOT_TTL_SECONDS}
-        with _SNAPSHOT_LOCK:
-            current = _SNAPSHOT_CACHE.get(key)
-            if snapshot.get("rows") or not (current and current.get("rows")):
-                _SNAPSHOT_CACHE[key] = snapshot
-            else:
-                current["expires"] = now + _SNAPSHOT_TTL_SECONDS
-                current["error"] = snapshot.get("error") or ""
+        _publish_snapshot(key, snapshot)
+        if snapshot.get("rows"):
+            _enrich_snapshot_routes(key, snapshot)
     finally:
         with _SNAPSHOT_LOCK:
             _SNAPSHOT_PENDING.discard(key)
@@ -692,14 +748,32 @@ def _render_snapshot(snapshot, opts, wide):
         return None
     radius = (snapshot or {}).get("radius") or max(10, min(500, int((opts or {}).get("radiusMiles") or 50)))
     if (snapshot or {}).get("error"):
-        return _render_message("Updating flights", wide)
+        return _render_message("Flight data unavailable", wide)
     return _render_message(f"No flights within {radius} mi", wide)
 
 
 def render(options=None):
     opts = options or {}
     wide = _is_wide(opts)
-    snapshot = _queue_snapshot_refresh(_snapshot_key(opts), opts)
+    key = _snapshot_key(opts)
+    if _truthy(opts.get("_is_prefetch")):
+        with _SNAPSHOT_LOCK:
+            snapshot = _SNAPSHOT_CACHE.get(key)
+            if snapshot and snapshot.get("expires", 0) <= time.time():
+                snapshot = None
+        if snapshot:
+            return _render_snapshot(snapshot, opts, wide)
+        try:
+            snapshot = _build_snapshot(opts, enrich_routes=False)
+            snapshot["expires"] = time.time() + (_SNAPSHOT_TTL_SECONDS if snapshot.get("rows") else _EMPTY_SNAPSHOT_TTL_SECONDS)
+        except Exception as exc:
+            snapshot = {"rows": [], "radius": max(10, min(500, int(opts.get("radiusMiles") or 50))), "error": str(exc), "updated": time.time(), "expires": time.time() + _EMPTY_SNAPSHOT_TTL_SECONDS}
+        _publish_snapshot(key, snapshot)
+        if snapshot.get("rows"):
+            _enrich_snapshot_routes_async(key, snapshot)
+        return _render_snapshot(snapshot, opts, wide)
+
+    snapshot = _queue_snapshot_refresh(key, opts)
     if not snapshot:
         if _skip_no_data(opts):
             return None
