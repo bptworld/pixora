@@ -78,7 +78,10 @@ def _temp(value, unit="F"):
 def _draw_icon(image, draw, period, cx, y):
     if paste_openweather_icon(image, period.get("openWeatherIcon"), cx - 7, y - 4, 14):
         return
-    draw_mini_weather_icon(draw, period.get("icon") or _icon(period.get("shortForecast", "")), cx, y - 3)
+    icon = str(period.get("icon") or "").strip().lower()
+    if icon not in {"sun", "moon", "partly", "moon_cloud", "cloud", "rain", "drizzle", "thunder", "snow", "fog"}:
+        icon = _icon(period.get("shortForecast", ""))
+    draw_mini_weather_icon(draw, icon, cx, y - 3)
 
 
 def _draw_big_icon(image, draw, weather, x, y):
