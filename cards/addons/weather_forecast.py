@@ -1,5 +1,6 @@
 from datetime import datetime
 from io import BytesIO
+from urllib.parse import urlparse
 from card_utils import convert_f_to_c, draw_mini_weather_icon, draw_sharp_text, fetch_json_request, openweather_forecast_for_zip, paste_openweather_icon, pixora_local_now, render_text_webp, temperature_units, weather_for_zip, weather_icon_from_text
 
 CARD_ID = "weather_forecast"
@@ -16,6 +17,16 @@ CARD_RULE_FIELDS = [
     {"id": "today_low", "label": "Today Low"},
 ]
 PIXEL_WEATHER_ICONS = frozenset({"sun", "moon", "partly", "moon_cloud", "cloud", "rain", "drizzle", "thunder", "snow", "fog"})
+NWS_ICON_NAMES = {
+    "skc": "sun", "few": "partly", "sct": "partly", "bkn": "cloud", "ovc": "cloud",
+    "wind_skc": "sun", "wind_few": "partly", "wind_sct": "partly", "wind_bkn": "cloud", "wind_ovc": "cloud",
+    "rain": "rain", "rain_showers": "rain", "rain_showers_hi": "rain",
+    "fzra": "rain", "rain_sleet": "snow", "sleet": "snow",
+    "tsra": "thunder", "tsra_sct": "thunder", "tsra_hi": "thunder",
+    "snow": "snow", "rain_snow": "snow", "snow_sleet": "snow", "blizzard": "snow",
+    "fog": "fog", "haze": "fog", "smoke": "fog", "dust": "fog",
+}
+NWS_ICON_PRIORITY = {"thunder": 6, "snow": 5, "rain": 4, "drizzle": 3, "fog": 2, "cloud": 1, "partly": 1, "sun": 0, "moon": 0}
 
 
 def _zip_forecast(zip_code):
@@ -78,11 +89,25 @@ def _temp(value, unit="F"):
 
 def _weather_icon_name(period):
     icon = str(period.get("icon") or "").strip().lower()
-    return icon if icon in PIXEL_WEATHER_ICONS else _icon(period.get("shortForecast", ""))
+    if icon in PIXEL_WEATHER_ICONS:
+        return icon
+    if "api.weather.gov/icons/" in icon:
+        codes = [part.split(",", 1)[0] for part in urlparse(icon).path.split("/") if part]
+        names = [NWS_ICON_NAMES[code] for code in codes if code in NWS_ICON_NAMES]
+        if names:
+            name = max(names, key=lambda item: NWS_ICON_PRIORITY[item])
+            if "/night/" in icon:
+                return {"sun": "moon", "partly": "moon_cloud"}.get(name, name)
+            return name
+    return _icon(period.get("shortForecast", ""))
 
 
-def _draw_icon(draw, period, cx, y):
-    draw_mini_weather_icon(draw, _weather_icon_name(period), cx, y - 3)
+def _draw_icon(image, period, cx, y):
+    from PIL import Image, ImageDraw
+    canvas = Image.new("RGBA", (17, 14), (0, 0, 0, 0))
+    draw_mini_weather_icon(ImageDraw.Draw(canvas), _weather_icon_name(period), 8, 0)
+    compact = canvas.resize((11, 9), Image.Resampling.NEAREST)
+    image.paste(compact, (cx - 5, y - 3), compact)
 
 
 def _draw_big_icon(image, draw, weather, x, y):
@@ -108,7 +133,7 @@ def _draw_64(image, draw, days, nights, font, bold):
         label_color = (24, 182, 163) if i == 0 else (160, 190, 215)
         lw = draw.textbbox((0, 0), label, font=font)[2]
         draw_sharp_text(image, (cx - lw // 2, -3), label, label_color, font)
-        _draw_icon(draw, period, cx, 10)
+        _draw_icon(image, period, cx, 10)
         hw = draw.textbbox((0, 0), high, font=font)[2]
         draw_sharp_text(image, (cx - hw // 2, 15), high, (255, 175, 70), font)
         lw2 = draw.textbbox((0, 0), low, font=font)[2]
@@ -149,7 +174,7 @@ def _draw_128(image, draw, days, nights, current, font, bold, small):
         label_color = (24, 182, 163) if i == 0 else (160, 190, 215)
         lw = draw.textbbox((0, 0), label, font=font)[2]
         draw_sharp_text(image, (cx - lw // 2, -3), label, label_color, font)
-        _draw_icon(draw, period, cx, 10)
+        _draw_icon(image, period, cx, 10)
         hw = draw.textbbox((0, 0), high, font=font)[2]
         draw_sharp_text(image, (cx - hw // 2, 15), high, (255, 175, 70), font)
         lw2 = draw.textbbox((0, 0), low, font=font)[2]
