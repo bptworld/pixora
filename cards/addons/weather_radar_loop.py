@@ -4,6 +4,7 @@ from concurrent.futures import ThreadPoolExecutor, wait
 import json
 import math
 import re
+import threading
 import urllib.request
 
 from card_utils import _settings_value, draw_sharp_text, render_text_webp
@@ -24,11 +25,29 @@ CARD_RULE_FIELDS = [
     {"id": "snow_mm", "label": "Snowfall mm"},
 ]
 
-_CACHE = {}
+_ZIP_CACHE = {}
+_TILE_CACHE = {}
+_CACHE_LOCK = threading.RLock()
+_ZIP_CACHE_MAX_ENTRIES = 64
+_TILE_CACHE_MAX_ENTRIES = 48
 _RAINVIEWER_URL = "https://api.rainviewer.com/public/weather-maps.json"
 _RAINVIEWER_USER_AGENT = "Pixora/1.0 (RainViewer radar card)"
 _RAINVIEWER_JSON_TIMEOUT = 2.0
 _RAINVIEWER_TILE_TIMEOUT = 1.2
+
+
+def _close_tile(item):
+    image = item.get("image") if isinstance(item, dict) else None
+    if image is not None:
+        image.close()
+
+
+def _prune_tile_cache_locked(now):
+    for key, item in list(_TILE_CACHE.items()):
+        if item["expires"] <= now:
+            _close_tile(_TILE_CACHE.pop(key, None))
+    while len(_TILE_CACHE) > _TILE_CACHE_MAX_ENTRIES:
+        _close_tile(_TILE_CACHE.pop(next(iter(_TILE_CACHE)), None))
 
 
 def _normalize_zip(value):
@@ -40,16 +59,24 @@ def _default_zip():
 
 
 def _zip_latlon(zip_code):
-    cached = _CACHE.get("zip:" + zip_code)
     now = datetime.utcnow()
-    if cached and cached["expires"] > now:
-        return cached["lat"], cached["lon"]
+    with _CACHE_LOCK:
+        for key, item in list(_ZIP_CACHE.items()):
+            if item["expires"] <= now:
+                _ZIP_CACHE.pop(key, None)
+        cached = _ZIP_CACHE.get(zip_code)
+        if cached and cached["expires"] > now:
+            return cached["lat"], cached["lon"]
     request = urllib.request.Request(f"https://api.zippopotam.us/us/{zip_code}", headers={"User-Agent": _RAINVIEWER_USER_AGENT})
     with urllib.request.urlopen(request, timeout=_RAINVIEWER_JSON_TIMEOUT) as response:
         loc = json.loads(response.read().decode("utf-8"))
     place = loc["places"][0]
     lat, lon = float(place["latitude"]), float(place["longitude"])
-    _CACHE["zip:" + zip_code] = {"lat": lat, "lon": lon, "expires": now.replace(year=now.year + 1)}
+    with _CACHE_LOCK:
+        _ZIP_CACHE.pop(zip_code, None)
+        _ZIP_CACHE[zip_code] = {"lat": lat, "lon": lon, "expires": now.replace(year=now.year + 1)}
+        while len(_ZIP_CACHE) > _ZIP_CACHE_MAX_ENTRIES:
+            _ZIP_CACHE.pop(next(iter(_ZIP_CACHE)), None)
     return lat, lon
 
 
@@ -67,17 +94,27 @@ def _rainviewer_timeline():
 
 
 def _fetch_tile(url):
-    cached = _CACHE.get("tile:" + url)
     now = datetime.utcnow()
-    if cached and cached["expires"] > now:
-        return cached["image"].copy()
+    with _CACHE_LOCK:
+        _prune_tile_cache_locked(now)
+        cached = _TILE_CACHE.get(url)
+        if cached and cached["expires"] > now:
+            _TILE_CACHE.pop(url, None)
+            _TILE_CACHE[url] = cached
+            return cached["image"].copy()
     from PIL import Image
 
     request = urllib.request.Request(url, headers={"User-Agent": _RAINVIEWER_USER_AGENT})
     with urllib.request.urlopen(request, timeout=_RAINVIEWER_TILE_TIMEOUT) as response:
         body = response.read()
     image = Image.open(BytesIO(body)).convert("RGBA")
-    _CACHE["tile:" + url] = {"image": image.copy(), "expires": now + timedelta(minutes=5)}
+    with _CACHE_LOCK:
+        cached = _TILE_CACHE.get(url)
+        if cached and cached["expires"] > now:
+            image.close()
+            return cached["image"].copy()
+        _TILE_CACHE[url] = {"image": image.copy(), "expires": now + timedelta(minutes=5)}
+        _prune_tile_cache_locked(now)
     return image
 
 

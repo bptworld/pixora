@@ -1,5 +1,5 @@
 from io import BytesIO
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import math
 
 from card_utils import (
@@ -239,7 +239,19 @@ def competitor_won(competition, competitor):
     return bool(other_scores) and score > max(other_scores)
 
 
+def prune_event_state(state, max_entries=96, max_age_hours=72):
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(hours=max(1, int(max_age_hours or 72)))
+    for key, item in list(state.items()):
+        seen = item.get("seen") if isinstance(item, dict) else None
+        if isinstance(seen, datetime) and seen < cutoff:
+            state.pop(key, None)
+    while len(state) > max(1, int(max_entries or 96)):
+        state.pop(next(iter(state)), None)
+
+
 def final_win_alert(card_id, state, key, competition, competitor, animation_team, sport="score", render=None, target="device", dwell_secs=7, renderer_name="_render_score_alert_frames"):
+    prune_event_state(state)
     previous = state.get(key) or {}
     if previous.get("win_animated"):
         return None
@@ -283,6 +295,7 @@ def _status_text(competition):
 
 
 def game_moment_alert(options, card_id, state, event, competition, animation_team, sport="score", unit="quarter", default_label="TEAM"):
+    prune_event_state(state)
     if (options or {}).get("_is_prefetch"):
         return None
     status = (competition.get("status") or {})
@@ -339,6 +352,7 @@ def game_moment_alert(options, card_id, state, event, competition, animation_tea
 
 
 def soccer_moment_alert(options, card_id, state, event, competition, animation_team, render=None, renderer_name="_render_score_alert_frames"):
+    prune_event_state(state)
     if (options or {}).get("_is_prefetch"):
         return None
     status = (competition.get("status") or {})
@@ -1123,6 +1137,7 @@ def render_score_alert(team, kind="score"):
 
 
 def maybe_score_alert(options, card_id, url, cache, state, sport="score", default_label="TEAM", render=None, renderer_name="_render_score_alert_frames"):
+    prune_event_state(state)
     if (options or {}).get("_is_prefetch"):
         return None
     favorite = (options or {}).get("favoriteTeam", "")

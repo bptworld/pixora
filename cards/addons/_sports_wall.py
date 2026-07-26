@@ -1,6 +1,7 @@
 from io import BytesIO
 import math
 from pathlib import Path
+import threading
 import urllib.request
 
 from card_utils import draw_sharp_text
@@ -8,6 +9,9 @@ from card_utils import draw_sharp_text
 
 _LOGO_CACHE = {}
 _HEADSHOT_CACHE = {}
+_IMAGE_CACHE_LOCK = threading.RLock()
+_LOGO_CACHE_MAX_ENTRIES = 96
+_HEADSHOT_CACHE_MAX_ENTRIES = 96
 _ASSETS_DIR = Path(__file__).resolve().parents[1] / "assets"
 WALL_RENDER_VERSION = "sports-scenes-player-v2"
 
@@ -166,12 +170,29 @@ def _team_logo_url(team):
     return ""
 
 
+def _image_cache_get(cache, key):
+    if key not in cache:
+        return False, None
+    value = cache.pop(key)
+    cache[key] = value
+    return True, value
+
+
+def _image_cache_put(cache, key, value, max_entries):
+    cache.pop(key, None)
+    cache[key] = value
+    while len(cache) > max_entries:
+        cache.pop(next(iter(cache)), None)
+
+
 def _fetch_logo(url):
     url = str(url or "").strip()
     if not url:
         return None
-    if url in _LOGO_CACHE:
-        return _LOGO_CACHE[url]
+    with _IMAGE_CACHE_LOCK:
+        found, cached = _image_cache_get(_LOGO_CACHE, url)
+        if found:
+            return cached
     try:
         from PIL import Image
         request = urllib.request.Request(url, headers={"User-Agent": "Pixora/0.1"})
@@ -181,7 +202,8 @@ def _fetch_logo(url):
         logo.thumbnail((22, 22), Image.LANCZOS)
         canvas = Image.new("RGBA", (22, 22), (0, 0, 0, 0))
         canvas.alpha_composite(logo, ((22 - logo.width) // 2, (22 - logo.height) // 2))
-        _LOGO_CACHE[url] = canvas
+        with _IMAGE_CACHE_LOCK:
+            _image_cache_put(_LOGO_CACHE, url, canvas, _LOGO_CACHE_MAX_ENTRIES)
         return canvas
     except Exception:
         return None
@@ -192,8 +214,10 @@ def _fetch_headshot(url, size=24):
     if not url:
         return None
     key = f"{url}|{size}"
-    if key in _HEADSHOT_CACHE:
-        return _HEADSHOT_CACHE[key]
+    with _IMAGE_CACHE_LOCK:
+        found, cached = _image_cache_get(_HEADSHOT_CACHE, key)
+        if found:
+            return cached
     try:
         from PIL import Image, ImageEnhance, ImageFilter
         request = urllib.request.Request(url, headers={"User-Agent": "Pixora/0.1"})
@@ -216,10 +240,12 @@ def _fetch_headshot(url, size=24):
         detail = detail.filter(ImageFilter.UnsharpMask(radius=0.6, percent=150, threshold=2))
         canvas = detail.convert("RGBA")
         canvas.putalpha(alpha)
-        _HEADSHOT_CACHE[key] = canvas
+        with _IMAGE_CACHE_LOCK:
+            _image_cache_put(_HEADSHOT_CACHE, key, canvas, _HEADSHOT_CACHE_MAX_ENTRIES)
         return canvas
     except Exception:
-        _HEADSHOT_CACHE[key] = None
+        with _IMAGE_CACHE_LOCK:
+            _image_cache_put(_HEADSHOT_CACHE, key, None, _HEADSHOT_CACHE_MAX_ENTRIES)
         return None
 
 

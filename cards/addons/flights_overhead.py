@@ -46,9 +46,12 @@ _SNAPSHOT_TTL_SECONDS = 20
 _EMPTY_SNAPSHOT_TTL_SECONDS = 15
 _FLIGHT_SLOT_SECONDS = 2
 _ROUTE_CACHE = {}
+_ROUTE_CACHE_LOCK = threading.RLock()
+_ROUTE_CACHE_MAX_ENTRIES = 128
 _SNAPSHOT_CACHE = {}
 _SNAPSHOT_PENDING = set()
 _SNAPSHOT_LOCK = threading.RLock()
+_SNAPSHOT_CACHE_MAX_ENTRIES = 32
 _ICAO_TO_IATA = {
     "AAL": "AA", "UAL": "UA", "DAL": "DL", "SWA": "WN", "ASA": "AS",
     "JBU": "B6", "FFT": "F9", "NKS": "NK", "HAL": "HA", "BAW": "BA",
@@ -62,6 +65,17 @@ _AIRLINER_TYPES = {
     "MD8", "MD9", "B06", "BCS", "C919", "DC10", "DC9", "IL9", "L10",
 }
 _FLIGHTSTATS_ROOT = "https://www.flightstats.com/v2/api-next/flight-tracker"
+
+
+def _prune_route_cache_locked(now, preserve=""):
+    for cache_url, item in list(_ROUTE_CACHE.items()):
+        if cache_url != preserve and item.get("expires", 0) <= now:
+            _ROUTE_CACHE.pop(cache_url, None)
+    while len(_ROUTE_CACHE) > _ROUTE_CACHE_MAX_ENTRIES:
+        oldest = next((cache_url for cache_url in _ROUTE_CACHE if cache_url != preserve), None)
+        if oldest is None:
+            break
+        _ROUTE_CACHE.pop(oldest, None)
 
 
 def _is_wide(options):
@@ -143,12 +157,13 @@ def _route_near_position(lat, lon, origin_pos, dest_pos):
 
 
 def _fetch_json_fast(url, seconds=600, timeout=1.2):
-    import time
-
     now = time.time()
-    cached = _ROUTE_CACHE.get(url)
-    if cached and cached["expires"] > now:
-        return cached["data"]
+    with _ROUTE_CACHE_LOCK:
+        cached = _ROUTE_CACHE.get(url)
+        if cached and cached["expires"] > now:
+            _ROUTE_CACHE.pop(url, None)
+            _ROUTE_CACHE[url] = cached
+            return cached["data"]
     request = urllib.request.Request(url, headers={"User-Agent": "Pixora/0.1", "Accept": "application/json"})
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
@@ -157,7 +172,10 @@ def _fetch_json_fast(url, seconds=600, timeout=1.2):
         if cached and "data" in cached:
             return cached["data"]
         raise
-    _ROUTE_CACHE[url] = {"expires": now + seconds, "data": data}
+    with _ROUTE_CACHE_LOCK:
+        _ROUTE_CACHE.pop(url, None)
+        _ROUTE_CACHE[url] = {"expires": now + seconds, "data": data}
+        _prune_route_cache_locked(now, preserve=url)
     return data
 
 
@@ -679,6 +697,21 @@ def _publish_snapshot(key, snapshot):
         else:
             current["expires"] = snapshot.get("expires") or time.time() + _SNAPSHOT_TTL_SECONDS
             current["error"] = snapshot.get("error") or ""
+        _prune_snapshot_cache_locked(time.time(), preserve=key)
+
+
+def _prune_snapshot_cache_locked(now, preserve=""):
+    for cache_key, item in list(_SNAPSHOT_CACHE.items()):
+        if cache_key != preserve and cache_key not in _SNAPSHOT_PENDING and item.get("expires", 0) <= now:
+            _SNAPSHOT_CACHE.pop(cache_key, None)
+    while len(_SNAPSHOT_CACHE) > _SNAPSHOT_CACHE_MAX_ENTRIES:
+        oldest = next(
+            (cache_key for cache_key in _SNAPSHOT_CACHE if cache_key != preserve and cache_key not in _SNAPSHOT_PENDING),
+            None,
+        )
+        if oldest is None:
+            break
+        _SNAPSHOT_CACHE.pop(oldest, None)
 
 
 def _enrich_snapshot_routes(key, snapshot):
@@ -730,6 +763,7 @@ def _refresh_snapshot(key, opts):
 def _queue_snapshot_refresh(key, opts):
     now = time.time()
     with _SNAPSHOT_LOCK:
+        _prune_snapshot_cache_locked(now, preserve=key)
         snapshot = _SNAPSHOT_CACHE.get(key)
         stale = not snapshot or snapshot.get("expires", 0) <= now
         if not stale or key in _SNAPSHOT_PENDING:
@@ -758,6 +792,7 @@ def render(options=None):
     key = _snapshot_key(opts)
     if _truthy(opts.get("_is_prefetch")):
         with _SNAPSHOT_LOCK:
+            _prune_snapshot_cache_locked(time.time(), preserve=key)
             snapshot = _SNAPSHOT_CACHE.get(key)
             if snapshot and snapshot.get("expires", 0) <= time.time():
                 snapshot = None
