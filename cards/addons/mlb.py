@@ -89,6 +89,25 @@ _INNING_STATE = {}
 _BATTING_STATE = {}
 _BATTING_PREWARM_STATE = {}
 _LOGO_CACHE = {}
+_SUMMARY_CACHE_MAX_ENTRIES = 8
+_RUNTIME_STATE_MAX_ENTRIES = 96
+
+
+def _prune_mlb_runtime(now=None):
+    current = now or datetime.now(timezone.utc)
+    for event_id, item in list(_SUMMARY_CACHE.items()):
+        if item.get("expires", current) <= current:
+            _SUMMARY_CACHE.pop(event_id, None)
+    while len(_SUMMARY_CACHE) > _SUMMARY_CACHE_MAX_ENTRIES:
+        _SUMMARY_CACHE.pop(next(iter(_SUMMARY_CACHE)), None)
+    cutoff = current - timedelta(hours=72)
+    for state in (_RUN_STATE, _GAME_STATE, _INNING_STATE, _BATTING_STATE):
+        for key, item in list(state.items()):
+            seen = item.get("seen") if isinstance(item, dict) else None
+            if isinstance(seen, datetime) and seen < cutoff:
+                state.pop(key, None)
+        while len(state) > _RUNTIME_STATE_MAX_ENTRIES:
+            state.pop(next(iter(state)), None)
 
 
 def _hex_color(value, fallback=_COLOR):
@@ -732,6 +751,7 @@ def _fetch_summary(event_id, force=False):
     if not event_id:
         return {}
     now = datetime.now(timezone.utc)
+    _prune_mlb_runtime(now)
     cached = _SUMMARY_CACHE.get(event_id)
     if not force and cached and cached.get("expires", now) > now:
         return cached.get("body") or {}
@@ -1301,6 +1321,7 @@ def _maybe_game_start_animation(options, event, competition, competitors, favori
 
 
 def _maybe_run_animation(options):
+    _prune_mlb_runtime()
     if (options or {}).get("_is_prefetch"):
         return None
     favorite = (options or {}).get("favoriteTeam", "")
