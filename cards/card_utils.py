@@ -8,6 +8,7 @@ import sys
 import threading
 from pathlib import Path
 import re
+import urllib.error
 import urllib.request
 import urllib.parse
 import ipaddress
@@ -920,9 +921,22 @@ def fetch_json_url(url, cache, seconds=45, force=False):
     now = datetime.now(timezone.utc)
     if not force and cache is not None and cache.get("body") and cache.get("expires", now) > now and cache.get("url", url) == url:
         return json.loads(cache["body"].decode("utf-8"))
-    request = urllib.request.Request(url, headers={"User-Agent": "Pixora/0.1"})
-    with urllib.request.urlopen(request, timeout=10) as response:
-        body = response.read()
+    headers = {"User-Agent": "Pixora/0.1", "Accept": "application/json"}
+    request = urllib.request.Request(url, headers=headers)
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            body = response.read()
+    except urllib.error.HTTPError as exc:
+        fallback_url = url.replace(
+            "://site.api.espn.com/",
+            "://site.web.api.espn.com/",
+            1,
+        )
+        if exc.code != 403 or fallback_url == url:
+            raise
+        fallback_request = urllib.request.Request(fallback_url, headers=headers)
+        with urllib.request.urlopen(fallback_request, timeout=10) as response:
+            body = response.read()
     if cache is not None:
         cache["body"] = body
         cache["expires"] = now + timedelta(seconds=seconds)

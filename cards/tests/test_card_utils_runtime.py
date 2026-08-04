@@ -1,8 +1,11 @@
 import sys
 import threading
 import unittest
+import urllib.error
+from io import BytesIO
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from unittest.mock import patch
 
 
 CARDS_DIR = Path(__file__).resolve().parents[1]
@@ -83,6 +86,40 @@ class RuntimeSettingsIsolationTests(unittest.TestCase):
 
         self.assertEqual(errors, [])
         self.assertLessEqual(len(cache), 32)
+
+
+class SportsFetchTests(unittest.TestCase):
+    def test_espn_403_retries_the_espn_web_edge(self):
+        urls = []
+
+        class Response(BytesIO):
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, traceback):
+                self.close()
+                return False
+
+        def fake_urlopen(request, timeout=0):
+            urls.append(request.full_url)
+            self.assertEqual(request.get_header("Accept"), "application/json")
+            self.assertEqual(timeout, 10)
+            if len(urls) == 1:
+                raise urllib.error.HTTPError(request.full_url, 403, "Forbidden", {}, None)
+            return Response(b'{"events": []}')
+
+        cache = {"expires": datetime.min.replace(tzinfo=timezone.utc), "body": b""}
+        with patch("urllib.request.urlopen", fake_urlopen):
+            result = card_utils.fetch_json_url(
+                "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard",
+                cache,
+            )
+
+        self.assertEqual(result, {"events": []})
+        self.assertEqual(urls, [
+            "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard",
+            "https://site.web.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard",
+        ])
 
 
 if __name__ == "__main__":
