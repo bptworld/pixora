@@ -1,5 +1,6 @@
 from io import BytesIO
 import math
+import time
 
 CARD_ID = "aquarium"
 CARD_NAME = "Pixel Aquarium"
@@ -136,6 +137,13 @@ def render(options=None):
         frames.append(image)
 
     out = BytesIO()
+    if width == 64:
+        # MatrixPortal S3 devices can stall while opening this card's larger
+        # multi-frame WebP. Serve one rotating scene per request instead; the
+        # card still changes over time without risking the deck playback loop.
+        scene = int(time.time() // max(1, dwell_ms // 1000)) % len(frames)
+        frames[scene].save(out, "WEBP", lossless=True, quality=100)
+        return out.getvalue()
     frames[0].save(out, "WEBP", save_all=True, append_images=frames[1:],
                    duration=frame_duration, loop=1, lossless=True, quality=100)
     return out.getvalue()
