@@ -1,5 +1,6 @@
 from io import BytesIO
 import math
+import random
 import time
 
 CARD_ID = "aquarium"
@@ -106,15 +107,37 @@ def _draw_bubbles(draw, width, frame, frame_count):
             draw.rectangle((bx, by, bx + size, by + size), outline=color)
 
 
+def _swim_routes(width, rng):
+    # Periodic, independently randomized curves keep turns smooth, including
+    # when the hub repeats the animation. All fish stay inside the glass.
+    return [tuple(rng.uniform(0, math.tau) for _ in range(4)) for _ in FISH]
+
+
+def _swim_position(width, route, t, cycles, reach=1):
+    a, b, c, d = route
+    angle = math.tau * t * cycles
+    wave = .78 * math.sin(angle + a) + .22 * math.sin(2 * angle + b)
+    slope = .78 * math.cos(angle + a) + .44 * math.cos(2 * angle + b)
+    x = (width - 1) / 2 + (width - 23) / 2 * wave * reach
+    y = 15 + 5 * math.sin(angle + c) + 2 * math.sin(2 * angle + d)
+    return round(x), round(y), slope < 0
+
+
 def render(options=None):
     from PIL import Image, ImageDraw
 
     opts = options or {}
-    width = 128 if opts.get("_target") == "matrixportal-s3-128x32" else 64
+    width = 128 if opts.get("_target") == "matrixportal-s3-128x32" or opts.get("_width") == 128 else 64
+    streamed = opts.get("_local_frame_stream") is True
     dwell_ms = max(3000, min(60000, int(opts.get("_dwell", 10) or 10) * 1000))
     base_duration = _duration(opts.get("speed"))
     frame_count = max(24, min(72, int(round(dwell_ms / base_duration))))
+    if streamed:
+        frame_count = max(30, min(600, round(dwell_ms / 100)))
     frame_duration = max(45, int(round(dwell_ms / frame_count)))
+    routes = _swim_routes(width, random.Random()) if streamed else None
+    cycles = max(1, round(dwell_ms / 14000))
+    reach = {"slow": .5, "normal": .75, "fast": 1}.get(opts.get("speed"), .75)
     frames = []
     for frame in range(frame_count):
         t = frame / frame_count
@@ -125,6 +148,10 @@ def render(options=None):
         _draw_bubbles(draw, width, frame, frame_count)
         swim = width + 34
         for i, fish in enumerate(FISH):
+            if streamed:
+                x, y, left = _swim_position(width, routes[i], t, cycles, reach)
+                _fish(draw, x, y, fish["color"], left=left, size=fish["size"], step=frame + i)
+                continue
             progress = (t * fish["speed"] + fish["phase"]) % 1.0
             if fish["left"]:
                 x = width + 14 - int(progress * swim)
@@ -137,7 +164,7 @@ def render(options=None):
         frames.append(image)
 
     out = BytesIO()
-    if width == 64:
+    if width == 64 and not streamed:
         # MatrixPortal S3 devices can stall while opening this card's larger
         # multi-frame WebP. Serve one rotating scene per request instead; the
         # card still changes over time without risking the deck playback loop.
