@@ -1,555 +1,105 @@
-# Pixora Codex Card Creator Brief
+# Pixora LED Studio — AI Card Creator Brief for Home Assistant
 
-Use this file when asking Codex to create or modify a Pixora card. Upload it with your request and describe the card you want.
+Upload this file to your AI and describe the LED card you want. Ask it to return one complete UTF-8 `.py` file that follows this brief, plus a short explanation of its options and data providers.
 
-## What Pixora Cards Are
+## Where cards run
 
-Pixora cards are standalone Python files in the `addons` folder. Each card renders a 64x32 or 128x32 RGB image, usually as a WebP byte string. Cards are optional, can be added or removed from a device deck at any time, and must not require firmware changes.
+Pixora LED Studio is a Home Assistant app installed from [PixoraHQ for Home Assistant](https://github.com/bptworld/PixoraHQforHA). Python runs locally inside the LED Studio app on the HA hub. Rendered images are delivered to the LED displays over local Wi-Fi. There is no Windows Pixora server, Cloud rendering account or firmware change involved. Internet-based cards still need their data provider.
 
-Cards run on the Windows Pixora server when cards are being prepared or refreshed, then the rendered WebP frames are sent to the device. The device should only need to display the WebP and follow the headers from the server.
+A custom app is a Python LED card, not a Home Assistant integration or a separately installed HA app. It uses the same deck player, display selection, preview and Quiet Hours as library cards.
 
-## Required Card Shape
+## Import and use your card
 
-Create one file:
+Requires LED Studio 1.2.24 or later.
 
-```text
-addons/<card_id>.py
-```
+1. Open LED Studio → **My Apps**. Download this brief and the starter card there if needed.
+2. Ask your AI to create or modify one Python card. Save it as a `.py` file, up to 256 KB.
+3. Review the code. Custom Python runs with LED Studio's access to files and the network. A separate renderer process and metadata checks are not a security sandbox. Import only code you trust.
+4. Select the file, tick the trust checkbox and press **Import app**. Import reads literal metadata without running the code.
+5. Choose **Options & add to deck**. Imported cards also appear in **Card Library → My Apps** and the deck card picker. Configure options, save the deck and preview it at both supported widths before playing it.
+6. To update a card, keep its CARD_ID and remove it from saved decks before importing its replacement. Download its original Python file from My Apps for editing or sharing. Deleting is also blocked while a saved deck uses it.
 
-Every card must define:
+Custom source stays in LED Studio's persistent `/data` storage across app restarts and normal updates. Removing it from every deck does not delete the imported source. It is private to that HA installation and is not published to GitHub. Include the app's data in your normal HA backups. Removing the HA app and its data removes custom cards too.
+
+## Required single-file contract
+
+Use literal top-level assignments for metadata. Do not call helper functions to construct CARD_OPTIONS: the importer deliberately does not execute Python to read metadata.
 
 ```python
-CARD_ID = "short_unique_id"
-CARD_NAME = "Human Name"
-CARD_DETAIL = "Short description shown in the card library"
+from io import BytesIO
+from PIL import Image, ImageDraw
+
+CARD_ID = "my_first_card"
+CARD_NAME = "My First Card"
+CARD_DETAIL = "A short description for the card picker."
 CARD_VERSION = "1.0.0"
-CARD_AUTHOR = "Your Name"
-CARD_LICENSE = "MIT"
-CARD_ALLOWED_DOMAINS = []
-REQUIRED_SETTINGS = []
-TAGS = []
-RULE_VALUES = []
+CARD_AUTHOR = "Your name"
 CARD_OPTIONS = [
-    {"key": "example", "label": "Example", "type": "text", "default": ""},
+    {"key": "label", "label": "Label", "type": "text", "default": "Hello"},
 ]
 
 def render(options=None):
-    ...
-    return webp_bytes
-```
-
-`render(options)` must return either:
-
-```python
-bytes
-```
-
-or a dictionary:
-
-```python
-{
-    "body": webp_bytes,
-    "dwell_secs": 10,
-    "_no_replay": True,
-}
-```
-
-Use `_no_replay` for finite animations that should play once and hold, not restart repeatedly during the card dwell time.
-
-`CARD_ALLOWED_DOMAINS` is the card-level network allowlist. Public fetch helpers use it automatically when `allowed_domains` is not passed directly.
-
-`RULE_VALUES` lets the Rules Engine discover values exposed by `rule_value(options=None, field="")`:
-
-```python
-RULE_VALUES = [{"key": "score", "label": "Score"}]
-
-def rule_value(options=None, field=""):
-    if field == "score":
-        return 7
-    return ""
-```
-
-## Device Targets
-
-Cards must support both common layouts:
-
-```python
-is_wide = (options or {}).get("_target") == "matrixportal-s3-128x32"
-width = 128 if is_wide else 64
-height = 32
-```
-
-Do not assume only one panel size. If a card has a special 128 layout, keep the 64 layout polished too.
-
-## Options Passed By Pixora
-
-Pixora adds internal metadata to options:
-
-```python
-_target            # device target, such as matrixportal-s3-64x32 or matrixportal-s3-128x32
-_dwell             # user-selected dwell seconds
-_device_id         # active device id
-_firmware_version  # device firmware version
-_refresh_policy    # global refresh policy
-_log               # optional logging function
-```
-
-Cards should use normal user options for setup, and only use internal options when needed.
-
-## Supported Option Types
-
-Common option entries:
-
-```python
-{"key": "zipCode", "label": "ZIP", "type": "text", "default": "", "maxlength": 5, "inputmode": "numeric"}
-{"key": "team", "label": "Team", "type": "select", "default": "BOS", "choices": [{"value": "BOS", "label": "Boston Red Sox"}]}
-{"key": "enabled", "label": "Enabled", "type": "checkbox", "default": True}
-{"key": "count", "label": "Count", "type": "number", "default": 5, "min": 1, "max": 20}
-```
-
-Pixora also adds schedule controls in the app, so do not build day/time scheduling inside each card unless the card has a special reason.
-
-## Global Settings
-
-Use helpers from `card_utils.py` for shared settings:
-
-```python
-from card_utils import _settings_value, format_time, temperature_units
-
-default_zip = _settings_value("defaultZipCode", "")
-default_lat = _settings_value("defaultLatitude", "")
-default_lon = _settings_value("defaultLongitude", "")
-time_text = format_time(datetime.now())
-units = temperature_units()
-```
-
-If a card has ZIP or lat/lon options, prefill from global defaults when the card option is blank, but let the user override per card.
-
-## Public Helper APIs
-
-Prefer public helpers from `card_utils.py` over custom networking, logging, fallback, color, and option code. These helpers use Pixora-safe defaults for caching, timeouts, image sizes, and display formatting.
-
-Common helpers:
-
-```python
-from card_utils import (
-    cached_json,
-    card_asset_path,
-    card_context,
-    card_state,
-    contrast_text_color,
-    dim_color,
-    fallback_frame,
-    fetch_image_asset,
-    load_card_asset_image,
-    option_checkbox,
-    option_number,
-    option_select,
-    option_target,
-    option_text,
-    option_zip,
-    parse_color,
-    paste_image_asset,
-    pixora_log,
-    special_graphic,
-)
-```
-
-Context helper:
-
-```python
-ctx = card_context(options)
-width = ctx["width"]
-now = ctx["now"]
-ctx["log"]("rendering")
-```
-
-Safe logging:
-
-```python
-pixora_log(options, "loaded 3 events")
-```
-
-Fallback frame:
-
-```python
-return fallback_frame("No games today", width=(options or {}).get("_width", 64), dwell_secs=6)
-```
-
-Cached JSON fetch:
-
-```python
-data = cached_json(
-    "https://api.example.com/status",
-    ttl_secs=300,
-    allowed_domains=["api.example.com"],
-)
-```
-
-`cached_json` only allows HTTP/S URLs, rejects localhost/private-network targets, clamps TTLs and response size, and returns stale cached data during transient fetch failures.
-
-Marketplace/runtime validation also enforces the card's declared domains. Any network access during validation must match `CARD_ALLOWED_DOMAINS` or an explicitly passed `allowed_domains` list.
-
-Safe image/logo fetch:
-
-```python
-logo = fetch_image_asset(team_logo_url, size=16, ttl_secs=3600, allowed_domains=["site.example.com"])
-if logo:
-    image.paste(logo, (0, 8), logo)
-```
-
-or:
-
-```python
-paste_image_asset(image, team_logo_url, (0, 8), size=16, allowed_domains=["site.example.com"])
-```
-
-Images are size-limited, cached, converted to RGBA, thumbnail-cropped into a square canvas, and alpha-cleaned for LED display.
-
-Color helpers:
-
-```python
-team_color = parse_color("#0033A0", (40, 120, 255))
-muted = dim_color(team_color, 0.45)
-text_color = contrast_text_color(team_color)
-```
-
-Option builders:
-
-```python
-CARD_OPTIONS = [
-    option_zip(),
-    option_text("label", "Label", "Pixora"),
-    option_target("goalAnimationTarget", "Goal Animation", default="group_wall"),
-    option_select("team", "Team", [{"value": "USA", "label": "United States"}], default="USA"),
-    option_number("days", "Days", default=7, min_value=1, max_value=30),
-    option_checkbox("onlyGameDay", "Only show on game day", default=True),
-]
-```
-
-Safe per-card state:
-
-```python
-state = card_state(CARD_ID)
-last_seen = state.get("last_seen", "")
-state.set("last_seen", "2026-07-01T12:00:00Z")
-```
-
-Use `card_state()` instead of direct file paths. Pixora stores JSON under its card-state area and sanitizes the card id.
-
-Static card assets:
-
-```python
-logo = load_card_asset_image(CARD_ID, "logo.png", size=16)
-if logo:
-    image.paste(logo, (0, 8), logo)
-```
-
-Place bundled assets under:
-
-```text
-cards/assets/<CARD_ID>/logo.png
-```
-
-Asset helpers are read-only, keep paths inside the card's asset folder, reject path traversal, and ignore files larger than 768 KB.
-
-## Rendering Rules
-
-Use Pillow:
-
-```python
-from io import BytesIO
-from PIL import Image, ImageDraw, ImageFont
-
-image = Image.new("RGB", (width, 32), (0, 0, 0))
-draw = ImageDraw.Draw(image)
-
-out = BytesIO()
-image.save(out, "WEBP", lossless=True, quality=100)
-return out.getvalue()
-```
-
-Prefer crisp pixel art. Avoid blur, anti-aliased resizing, shadows, gradients that make LEDs fuzzy, and tiny text that clips.
-
-Use `draw_sharp_text` from `card_utils.py` for crisp text:
-
-```python
-from card_utils import draw_sharp_text
-draw_sharp_text(image, (x, y), "Text", (255, 255, 255), font)
-```
-
-Use `Image.Resampling.NEAREST` for pixel art scaling.
-
-## Fonts
-
-Available fonts in the Pixora root include:
-
-```text
-assets/fonts/Silkscreen-Regular.ttf
-assets/fonts/Silkscreen-Bold.ttf
-assets/fonts/PixelifySans.ttf
-assets/fonts/PixelifySans-Bold.ttf
-assets/fonts/Jersey10-Regular.ttf
-assets/fonts/Jersey15-Regular.ttf
-assets/fonts/Jersey20-Regular.ttf
-```
-
-Silkscreen Regular is usually best for small text. Be careful with bold fonts at tiny sizes. For numbers, prefer Pixora's bitmap number helpers when the card needs chunky LED-style numbers:
-
-```python
-from card_utils import draw_bitmap_number_fit, draw_bitmap_number_fit_bold
-```
-
-## Animation Rules
-
-Animated WebPs are allowed, but keep them light.
-
-For 64x32:
-
-```python
-max_frames = 45
-```
-
-For 128x32:
-
-```python
-max_frames = 32
-```
-
-Avoid huge 128-wide animations with 80 or 90 frames. They can stress the ESP32-S3 decoder. If the animation should play once, return:
-
-```python
-{"body": body, "dwell_secs": dwell, "_no_replay": True}
-```
-
-Animation should loop smoothly if it is a fun ambient card. No snap-back unless the card intentionally cuts to a new scene.
-
-## Special Device And Wall Graphics
-
-Cards may return special break-in graphics for live events, alerts, or one-time moments. Use public keys, not Pixora's internal underscore keys:
-
-```python
-return {
-    "body": normal_card_body,
-    "dwell_secs": 6,
-    "deviceGraphic": {
-        "renderer": "render_goal_animation",
-        "kind": "goal",
-        "team": {"abbreviation": "USA", "color": "0033A0"},
-        "dwell_secs": 6,
-        "stay": True,
-    },
-    "wallGraphic": {
-        "renderer": "render_goal_wall_frames",
-        "kind": "goal",
-        "team": {"abbreviation": "USA", "color": "0033A0"},
-        "dwell_secs": 6,
-    },
-}
-```
-
-`deviceGraphic` is for a single device. `wallGraphic` is for a device group / wall and Pixora will render one wide animation, slice it per device, queue each slice, and show the current device's slice immediately. If both are present and the card is targeting a wall, the wall graphic wins.
-
-Renderer functions must live in the same card file:
-
-```python
-def render_goal_animation(team, kind="goal"):
-    # Return WebP bytes, or return (frames, durations_ms)
-    ...
-
-def render_goal_wall_frames(team, kind="goal"):
-    width = int(team.get("_width") or 192)
-    # Return a list of PIL RGB frames and matching duration values.
-    return frames, durations_ms
-```
-
-Pixora injects `_width` into the renderer's `team` payload. For `deviceGraphic`, `_width` is the device width. For `wallGraphic`, `_width` is the total wall width. Do not hard-code wall widths.
-
-Supported fields:
-
-- `renderer`: required function name in the same card file.
-- `kind` or `type`: event type such as `goal`, `run`, `win`, `launch`, or `alert`.
-- `team`: small JSON-safe payload for labels, colors, logos, player names, or event text.
-- `dwell_secs` or `dwellSecs`: how long the break-in graphic should stay up.
-- `card` or `cardId`: optional display/card id override.
-- `groupId` or `group`: optional wall group override for `wallGraphic`.
-- `stay`: optional for device graphics that should hold the final frame.
-
-Keep special graphics short, cached, and finite. Do not fetch data inside the special renderer; fetch in `render(options)` and pass only the needed data into `team`.
-
-You may build those dictionaries manually, or use `special_graphic()`:
-
-```python
-return {
-    "body": body,
-    "dwell_secs": 6,
-    **special_graphic(
-        renderer="render_goal_animation",
-        wall_renderer="render_goal_wall_frames",
-        kind="goal",
-        team={"abbreviation": "USA", "color": "0033A0"},
-        dwell_secs=6,
-        include_device=True,
-        include_wall=True,
-        stay=True,
-    ),
-}
-```
-
-For a complete starter, see:
-
-```text
-cards/templates/custom_card_starter.py
-```
-
-Marketplace validation renders normal 64x32 and 128x32 previews. If `render()` returns `deviceGraphic` or `wallGraphic`, validation also calls the referenced renderer function and verifies it returns WebP bytes or `(frames, durations)` with 32-pixel-tall frames.
-
-## Data Fetching Rules
-
-Cards may fetch data from APIs, but must cache aggressively and fail gracefully.
-
-Rules:
-
-- Do not block card rendering for a long time.
-- Cache API responses in module-level dictionaries.
-- Use sensible TTLs.
-- If data is missing, render a clean message instead of crashing.
-- If an API uses credits, never poll more often than needed.
-- Startup may refresh once, then each card should follow its own polling rules.
-- If a flight/game/event is final, landed, cancelled, postponed, or otherwise done, stop unnecessary polling.
-
-Use standard Python libraries unless a dependency already exists in Pixora.
-
-## Layout Expectations
-
-For 64x32:
-
-- Keep text short.
-- Use 1 or 2 pixel spacing carefully.
-- Avoid bottom text clipping.
-- Icons must be recognizable at small size.
-- If showing scores, standings, or financial values, align columns tightly.
-
-For 128x32:
-
-- Use the extra width, not extra height.
-- Larger logos/icons can sit far left/right.
-- More detail can fit, but still keep vertical spacing tight.
-- If a 64 card has two pages, consider showing both halves side by side on 128.
-
-## Category And Registry
-
-After adding a card, update the card registry/catalog used by Pixora if the project has one. Put the card in the correct category and keep categories/cards alphabetized.
-
-Common categories:
-
-```text
-Finance
-Fun
-Home
-Social
-Sports
-Travel
-Utility
-Weather
-```
-
-Sports may have subcategories such as Pro Sports, College Sports, and Fantasy.
-
-## Thumbnail
-
-If the card library uses thumbnails, create a realistic thumbnail that looks like the real card with sample data. Do not make a generic title card unless thumbnails are intentionally disabled.
-
-## Testing Checklist
-
-After creating or changing a card:
-
-1. Run Python syntax check:
-
-```powershell
-python -m py_compile C:\Pixora\addons\<card_id>.py
-```
-
-2. Render both targets:
-
-```powershell
-@'
-import importlib.util
-from pathlib import Path
-from PIL import Image, ImageSequence
-
-path = Path(r"C:\Pixora\addons\<card_id>.py")
-spec = importlib.util.spec_from_file_location("card", path)
-card = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(card)
-
-for target in ("matrixportal-s3-64x32", "matrixportal-s3-128x32"):
-    body = card.render({"_target": target, "_dwell": 10})
-    out = Path(r"C:\Pixora\data") / f"check-{card.CARD_ID}-{target}.webp"
-    out.write_bytes(body["body"] if isinstance(body, dict) else body)
-    im = Image.open(out)
-    print(out.name, out.stat().st_size, im.size, sum(1 for _ in ImageSequence.Iterator(im)))
-'@ | python -
-```
-
-3. Confirm:
-
-- 64 output is exactly 64x32.
-- 128 output is exactly 128x32.
-- Text is not clipped.
-- Animation frame count is reasonable.
-- No card-specific logic was added to firmware.
-- No old project names or unrelated branding were introduced.
-
-## Minimal New Card Template
-
-```python
-from io import BytesIO
-
-from card_utils import draw_sharp_text
-
-CARD_ID = "example_card"
-CARD_NAME = "Example Card"
-CARD_DETAIL = "Short example card"
-CARD_OPTIONS = [
-    {"key": "message", "label": "Message", "type": "text", "default": "Hello Pixora", "maxlength": 40},
-]
-
-
-def _font(size):
-    from PIL import ImageFont
-    try:
-        return ImageFont.truetype("assets/fonts/Silkscreen-Regular.ttf", size)
-    except Exception:
-        return ImageFont.load_default()
-
-
-def _text_width(draw, text, font):
-    box = draw.textbbox((0, 0), text, font=font)
-    return box[2] - box[0]
-
-
-def render(options=None):
-    from PIL import Image, ImageDraw
-
-    opts = options or {}
-    is_wide = opts.get("_target") == "matrixportal-s3-128x32"
-    width = 128 if is_wide else 64
-    text = str(opts.get("message") or "Hello Pixora").strip()
-
-    image = Image.new("RGB", (width, 32), (0, 0, 0))
+    options = options or {}
+    width = 128 if options.get("_width") == 128 else 64
+    image = Image.new("RGB", (width, 32), "black")
     draw = ImageDraw.Draw(image)
-    font = _font(10 if is_wide else 8)
-
-    while text and _text_width(draw, text, font) > width - 4:
-        text = text[:-1].rstrip()
-    if not text:
-        text = "..."
-
-    x = (width - _text_width(draw, text, font)) // 2
-    draw_sharp_text(image, (x, 11), text, (0, 220, 210), font)
-
+    draw.text((3, 10), str(options.get("label") or "Hello")[:8], fill=(80, 200, 255))
     out = BytesIO()
-    image.save(out, "WEBP", lossless=True, quality=100)
+    image.save(out, "PNG")
     return out.getvalue()
 ```
+
+- CARD_ID: lowercase letter followed by lowercase letters, digits or underscores; up to 48 characters. Keep it stable when updating. LED Studio adds a `custom_` prefix internally so custom cards cannot replace public library files.
+- CARD_NAME: required, up to 80 characters. CARD_DETAIL: up to 300 characters. CARD_VERSION: up to 32 characters. CARD_AUTHOR: up to 80 characters.
+- Define a synchronous `render(options=None)` function at the top level. Return image bytes, not an Image object, filename, HTML or base64 string.
+- Return a static PNG or WebP, or an animated WebP with its frame durations. Output must be at most 5 MB and animations at most 2,048 frames. Use black backgrounds and RGB output.
+- For ordinary cards, an optional result dictionary is `{"body": image_bytes, "dwell_secs": 10}`. Deck items normally use the user's selected duration. Do not add legacy Cloud response headers, HTTP handlers or device commands.
+
+## Options supported by the HA editor
+
+CARD_OPTIONS is a literal list of up to 30 dictionaries. Keys must be unique, start with a letter and contain only letters, digits and underscores, up to 48 characters. Keys starting with `_` are reserved for runtime values.
+
+Supported types are `text`, `password`, `number`, `checkbox`, `select`, `multiselect` and `date`. Each option needs `key`, `label` and `type`; `default` is optional. Text inputs can set `maxlength`. Selects and multiselects need 1–100 choices, either strings or dictionaries such as `{"value": "F", "label": "Fahrenheit"}`. A multiselect reaches render as a comma-separated string. Checkboxes reach render as booleans; numbers as numbers. Provide sensible defaults and validate all inputs inside render.
+
+Use password options for provider tokens and API keys. Their defaults must be empty. Saved secrets stay on the HA hub and are blanked in browser state; blank values in a saved item's password field preserve its existing value. Do not hard-code secrets, use them in URLs, log them, or include them in shared source. Imported Python itself is not encrypted secret storage.
+
+## Runtime values
+
+The renderer supplies these reserved options; users do not configure them:
+
+- `_width`: 64 or 128. This is the authoritative canvas width; height is always 32.
+- `_target`: `matrixportal-s3-64x32` or `matrixportal-s3-128x32` for compatibility.
+- `_pixora_target`: `pixora-s3` or `pixora-s3-wide` for older helpers.
+- `_settings`: LED Studio defaults, including `timezone`, `timeFormat`, `temperatureUnits`, `defaultZipCode`, and configured provider settings. Use only the settings relevant to the requested card.
+- `_device_id`: render context identifier. Preview is not a physical display.
+- `_dwell`: requested card duration in seconds.
+- `_is_prefetch`: true for ordinary preview/prefetch renders. Do not send alerts or perform write actions from render.
+
+Render may run repeatedly, in separate processes or for previews. Module globals do not provide durable cross-render state. Do not start background threads, servers or infinite loops. Return promptly; LED Studio applies a renderer deadline. Ordinary results are cached, so do not depend on render being called every second. For changing visuals, return an animation.
+
+## Dependencies, assets and fetching
+
+Keep the importable custom card self-contained. Python's standard library, Pillow and aiohttp are available. Do not require pip installs, another custom module, a Windows font path, a shell command or absolute local paths. This first custom importer accepts one `.py` file, not ZIP packages or separate assets. Draw artwork with Pillow or embed small artwork in the Python file.
+
+LED Studio also installs its verified shared public card helpers and fonts when a custom card is first used. You may use `card_utils` helpers already provided by the library, but a Pillow-only card is simplest to share. Public helpers are compatibility utilities, not proof that arbitrary custom code is sandboxed. If using public fetch helpers, declare a literal `CARD_ALLOWED_DOMAINS` list and follow their documented allowlist/timeout behavior.
+
+Use HTTPS, short network timeouts and a clear fallback when a provider is offline or credentials are missing. Reuse provider data and honor rate limits. Do not make writes to providers from a rendering function. Never fetch metadata from the browser, create your own firmware endpoint or send frames directly to a panel. HA entities are available through LED Studio's built-in Home Assistant card; custom cards do not receive HA access tokens automatically.
+
+## Layout and visual quality
+
+Test real 64×32 and 128×32 layouts separately. Do not draw at one size and stretch it to fit the other. Measure text with Pillow textbbox/textlength, account for font offsets, and shorten or wrap long names and values. Keep every text box and logo inside its allocated area with a few pixels of spacing. Use legible small fonts, strong contrast, restrained colors and useful fallback artwork. A wide card should use its extra space deliberately.
+
+Custom cards join regular decks. This simple import format does not register custom group-wall event controls or custom rules. If requesting a scoring interrupt or wall animation, use the existing library sports cards or extend and test the HA event pipeline separately; do not invent unsupported metadata or assume legacy Cloud event headers work.
+
+## Required checks before returning a card
+
+1. Compile the Python file and check that metadata consists of literal values.
+2. Call render at `_width=64` and `_width=128`, decode the output with Pillow and verify exact dimensions and valid image data.
+3. Test default options, empty inputs, long names, large values, missing credentials and provider/network failures.
+4. Inspect both rendered images for clipped text, overlap, unreadable labels and stretched artwork. For animations, inspect representative frames and durations.
+5. Do not run network requests or write files at module import time. Ensure render has no message-sending or other external write side effects.
+6. Return the complete single-file card and instructions to import it in My Apps. Do not claim it has been physically tested unless someone verified it on a display.
+
+## Prompt to send with this brief
+
+> Create a Pixora LED Studio custom card for Home Assistant that shows [describe the information and appearance]. Follow the attached brief. Return one complete Python file with literal metadata and options, a render function, both 64×32 and 128×32 layouts, sensible offline behavior, and no firmware or server changes. Show previews at both sizes and explain any data-provider setup.

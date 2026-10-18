@@ -197,3 +197,7 @@ See help section in app.
 ## Updating Cards
 
 Card updates must be submitted by pull request.
+
+## Create a custom card for Home Assistant
+
+Download the [AI card creator brief](Pixora-Codex-Card-Brief.md) and [starter Python card](templates/custom_card_starter.py). Upload the brief to your AI with your idea, review the generated code, and import its `.py` file through **My Apps** in Pixora LED Studio 1.2.24 or later. Custom apps stay on your HA hub and can be added to normal decks. See [PixoraHQ for Home Assistant](https://github.com/bptworld/PixoraHQforHA) for installation.
