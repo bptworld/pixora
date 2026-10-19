@@ -20,14 +20,25 @@ class PacmanTests(unittest.TestCase):
                 for step in range(1000):
                     before=actor[0];actor,direction=pacman._advance(actor,graph,rng)
                     x,y=actor[0];route.append((x,y))
-                    self.assertEqual(abs(x-before[0])+abs(y-before[1]),1)
-                    for dx in range(-2,3):
-                        for dy in range(-2,3):
+                    if abs(x-before[0])==81:
+                        self.assertEqual(y,43);self.assertEqual(before[1],43)
+                    else:self.assertEqual(abs(x-before[0])+abs(y-before[1]),1)
+                    for dx in range(-1,2):
+                        for dy in range(-1,2):
                             self.assertNotEqual(background.getpixel((x+dx,y+dy)),(20,64,190))
                     dots.add((x,y));pacman._eat(dots,(x,y))
                     self.assertNotIn((x,y),dots)
                 paths.append(route)
             self.assertNotEqual(*paths)
+
+    def test_classic_layout(self):
+        self.assertEqual(len(pacman.MAZE),31)
+        self.assertTrue(all(len(row)==28 for row in pacman.MAZE))
+        self.assertEqual(sum(row.count("o") for row in pacman.MAZE),4)
+        graph=pacman._maze(64)
+        self.assertEqual(graph,pacman._maze(128))
+        self.assertIn((40,70),graph)
+        self.assertNotIn((40,43),graph)  # ghost house is not a hallway
 
     def test_both_sizes_animate(self):
         for width in (64,128):
