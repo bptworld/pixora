@@ -143,8 +143,10 @@ def _advance(actor, graph, rng, dots=None):
             choices = fresh or choices
         destination = rng.choice(choices)
         previous, target = target, destination
-    if (position,target) in getattr(graph,'tunnels',()):
-        return (target,target,previous), (-1 if target[0]>position[0] else 1,0)
+    if (previous,target) in getattr(graph,'tunnels',()):
+        direction=-1 if target[0]>previous[0] else 1
+        next_x=(position[0]+direction)%graph.world[0]
+        return ((next_x,position[1]),target,previous),(direction,0)
     dx = (target[0] > position[0]) - (target[0] < position[0])
     dy = (target[1] > position[1]) - (target[1] < position[1])
     return ((position[0] + dx, position[1] + dy), target, previous), (dx, dy)
@@ -161,6 +163,7 @@ def _background(width, graph):
         x,y=node;draw.rectangle((x-2,y-2,x+2,y+2),fill=255)
         for other in neighbors:
             if (node,other) not in graph.tunnels:draw.line((*node,*other),fill=255,width=5)
+            else:draw.line((*node,0 if node[0]<other[0] else graph.world[0]-1,node[1]),fill=255,width=5)
     border=mask.filter(ImageFilter.MaxFilter(5))
     image=Image.new('RGB',graph.world)
     for y in range(image.height):
@@ -169,16 +172,23 @@ def _background(width, graph):
     return image
 
 
-def _viewport(image,width,position,companions=()):
+def _camera(position,width,world,camera=None):
+    x,y=position;period,height=world
+    target_y=max(0,min(height-32,y-16))
+    if camera is None:return [x,x,x-width//2,target_y]
+    unwrapped,previous,left,top=camera
+    unwrapped+=(x-previous+period//2)%period-period//2
+    target_x=unwrapped-width//2
+    left+=max(-1,min(1,target_x-left))
+    top+=max(-1,min(1,target_y-top))
+    return [unwrapped,x,left,top]
+
+
+def _viewport(image,width,camera):
     from PIL import Image
-    # Unwrap the tunnel around Pac-Man so chasing ghosts remain beside him
-    # on screen even while they cross opposite ends of the maze.
-    period=image.width
-    points=[position]+[(position[0]+((x-position[0]+period//2)%period-period//2),y) for x,y in companions]
-    left=round((min(x for x,y in points)+max(x for x,y in points)-width)/2)
-    top=max(0,min(image.height-32,round((min(y for x,y in points)+max(y for x,y in points)-31)/2)))
+    period=image.width;left=camera[2]%period;top=camera[3]
     view=Image.new('RGB',(width,32))
-    for offset in (-period,0,period):view.paste(image,(offset-left,-top))
+    for offset in (-period,0,period,2*period):view.paste(image,(offset-left,-top))
     return view
 
 
@@ -213,16 +223,14 @@ def _caught(draw,position,step):
         draw.pieslice((x-RADIUS,y-RADIUS,x+RADIUS,y+RADIUS),opening,360-opening,fill=(255,224,35))
 
 
-def _focus(actors,width,period=90):
-    from itertools import combinations
-    pac=actors[0][0]
-    for pair in combinations(range(1,5),2):
-        ghosts=[actors[i][0] for i in pair]
-        xs=[pac[0]]+[pac[0]+((x-pac[0]+period//2)%period-period//2) for x,y in ghosts]
-        ys=[pac[1]]+[y for x,y in ghosts]
-        if max(xs)-min(xs)<=width-2*RADIUS-2 and max(ys)-min(ys)<=32-2*RADIUS-2:
-            return ghosts
-    return None
+def _starting_ghosts_visible(actors,width,world):
+    pac=actors[0][0];camera=_camera(pac,width,world)
+    count=0
+    for actor in actors[1:]:
+        x,y=actor[0]
+        dx=(x-pac[0]+world[0]//2)%world[0]-world[0]//2
+        if abs(dx)<=width//2-RADIUS-1 and camera[3]+RADIUS<=y<camera[3]+32-RADIUS:count+=1
+    return count>=2
 
 
 def _spawn(graph,width,rng):
@@ -235,8 +243,8 @@ def _spawn(graph,width,rng):
         others=rng.sample([n for n in nodes if n!=start and n not in near],2)
         rng.shuffle(near)
         actors=[(n,n,None) for n in [start,*near,*others]]
-        safe=all(min(abs(start[0]-a[0][0]),graph.world[0]-abs(start[0]-a[0][0]))**2+(start[1]-a[0][1])**2>=144 for a in actors[1:])
-        if safe and _focus(actors,width) and not any(_touching(actors[i][0],actors[j][0],graph.world[0]) for i in range(5) for j in range(i+1,5)):
+        safe=all(min(abs(start[0]-a[0][0]),graph.world[0]-abs(start[0]-a[0][0]))**2+(start[1]-a[0][1])**2>=64 for a in actors[1:])
+        if safe and _starting_ghosts_visible(actors,width,graph.world) and not any(_touching(actors[i][0],actors[j][0],graph.world[0]) for i in range(5) for j in range(i+1,5)):
             return actors
 
 
@@ -250,6 +258,7 @@ def render(options=None):
     actors=_spawn(graph,width,rng)
     background=_background(width,graph)
     caught=None
+    camera=_camera(actors[0][0],width,graph.world)
     dwell=max(3000,min(60000,int(opts.get('_dwell',10) or 10)*1000))
     duration=_speed_ms(opts.get('speed'))
     count=max(24,min(1000,round(dwell/duration)))
@@ -257,18 +266,21 @@ def render(options=None):
     for step in range(count):
         image=background.copy();draw=ImageDraw.Draw(image)
         if caught is not None and caught>=8:
-            actors=_spawn(graph,width,rng)
+            # Pac-Man stays at the collision location; random ghosts restart
+            # away from him so a lost life never relocates the camera.
+            pac=actors[0]
+            choices=[n for n in nodes if not _touching(n,pac[0],graph.world[0]) and abs(n[1]-pac[0][1])+abs(n[0]-pac[0][0])>12]
+            actors=[pac,*[(n,n,None) for n in rng.sample(choices,4)]]
             caught=None
         directions=[(1,0)]*5
         if caught is None:
-            # Move independently, but do not strand Pac-Man outside a view
-            # containing two ghosts. Rejected moves wait rather than teleport.
+            # Ghosts choose their own paths and may leave the camera freely.
             order=list(range(5));rng.shuffle(order)
             for i in order:
                 proposed,direction=_advance(actors[i],graph,rng,dots if i==0 else None)
                 candidate=list(actors);candidate[i]=proposed
                 crowded=i>0 and any(_touching(proposed[0],candidate[j][0],graph.world[0]) for j in range(1,5) if j!=i)
-                if not crowded and _focus(candidate,width) is not None:
+                if not crowded:
                     actors=candidate;directions[i]=direction
             if any(_touching(actors[0][0],actor[0],graph.world[0]) for actor in actors[1:]):caught=0
         _eat(dots,actors[0][0])
@@ -278,7 +290,8 @@ def render(options=None):
         else:_caught(draw,actors[0][0],caught);caught+=1
         for i,color in enumerate(((255,65,65),(255,153,214),(75,220,255),(255,170,55)),1):
             _ghost(draw,actors[i][0],color,step)
-        frames.append(_viewport(image,width,actors[0][0],_focus(actors,width)))
+        camera=_camera(actors[0][0],width,graph.world,camera)
+        frames.append(_viewport(image,width,camera))
     out=BytesIO()
-    frames[0].save(out,'WEBP',save_all=True,append_images=frames[1:],duration=round(dwell/count),loop=1,lossless=True,quality=100)
+    frames[0].save(out,'WEBP',save_all=True,append_images=frames[1:],duration=(dwell+count-1)//count,loop=1,lossless=True,quality=100)
     return out.getvalue()
