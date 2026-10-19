@@ -11,6 +11,18 @@ import pacman
 
 
 class PacmanTests(unittest.TestCase):
+    def test_contact_triggers_death_and_restart(self):
+        self.assertTrue(pacman._touching((20,20),(24,20)))
+        self.assertFalse(pacman._touching((20,20),(24,24)))
+        self.assertTrue(pacman._touching((1,72),(139,72)))
+        deaths=[]
+        original=pacman._caught
+        def caught(draw,position,step):
+            deaths.append(step);original(draw,position,step)
+        with patch('pacman._touching',return_value=True),patch('pacman._caught',side_effect=caught):
+            pacman.render({'_width':64,'_dwell':3})
+        self.assertEqual(deaths[:16],list(range(8))*2)
+
     def test_two_ghosts_visible_in_every_frame(self):
         colors={(255,65,65),(255,153,214),(75,220,255),(255,170,55)}
         for width in (64,128):

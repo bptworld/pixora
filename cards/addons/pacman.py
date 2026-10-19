@@ -161,6 +161,20 @@ def _ghost(draw, position, color, step):
 
 
 
+def _touching(first,second):
+    dx=abs(first[0]-second[0]);dx=min(dx,28*TILE-dx)
+    dy=abs(first[1]-second[1])
+    return dx*dx+dy*dy<=(2*RADIUS)**2
+
+
+def _caught(draw,position,step):
+    x,y=position
+    # Mouth opens until the last sliver disappears, then a brief empty beat.
+    if step<6:
+        opening=35+step*28
+        draw.pieslice((x-RADIUS,y-RADIUS,x+RADIUS,y+RADIUS),opening,360-opening,fill=(255,224,35))
+
+
 def render(options=None):
     from PIL import ImageDraw
     opts=options or {}
@@ -178,25 +192,37 @@ def render(options=None):
         actors[0],direction=_advance(actors[0],graph,rng,dots)
         trail.append(actors[0][0])
     background=_background(width,graph)
+    caught=None
     dwell=max(3000,min(60000,int(opts.get('_dwell',10) or 10)*1000))
     duration=_speed_ms(opts.get('speed'))
     count=max(24,min(1000,round(dwell/duration)))
     frames=[]
     for step in range(count):
         image=background.copy();draw=ImageDraw.Draw(image)
-        directions=[]
-        for i,actor in enumerate(actors):
-            if i in (1,2):
-                directions.append((0,0));continue
-            actors[i],direction=_advance(actor,graph,rng,dots if i==0 else None)
-            directions.append(direction)
-        trail.append(actors[0][0]);trail=trail[-17:]
-        actors[1]=(trail[-9],trail[-9],None)
-        actors[2]=(trail[-17],trail[-17],None)
+        if caught is not None and caught>=8:
+            # Resume from the same safe opening, with fresh random routes.
+            actors=[(node,node,None) for node in starts];trail=[]
+            for _ in range(17):
+                actors[0],direction=_advance(actors[0],graph,rng,dots)
+                trail.append(actors[0][0])
+            caught=None
+        directions=[(1,0)]*5
+        if caught is None:
+            directions=[]
+            for i,actor in enumerate(actors):
+                if i in (1,2):
+                    directions.append((0,0));continue
+                actors[i],direction=_advance(actor,graph,rng,dots if i==0 else None)
+                directions.append(direction)
+            trail.append(actors[0][0]);trail=trail[-17:]
+            actors[1]=(trail[-9],trail[-9],None)
+            actors[2]=(trail[-17],trail[-17],None)
+            if any(_touching(actors[0][0],actor[0]) for actor in actors[1:]):caught=0
         _eat(dots,actors[0][0])
         if _on(opts.get('dots','on')):
             for dot in dots:draw.point(dot,fill=(255,214,150))
-        _pacman(draw,actors[0][0],directions[0],step)
+        if caught is None:_pacman(draw,actors[0][0],directions[0],step)
+        else:_caught(draw,actors[0][0],caught);caught+=1
         for i,color in enumerate(((255,65,65),(255,153,214),(75,220,255),(255,170,55)),1):
             _ghost(draw,actors[i][0],color,step)
         frames.append(_viewport(image,width,actors[0][0],[actors[1][0],actors[2][0]]))
