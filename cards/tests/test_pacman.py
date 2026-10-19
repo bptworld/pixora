@@ -1,6 +1,7 @@
 import random
 import sys
 import unittest
+from unittest.mock import patch
 from io import BytesIO
 from pathlib import Path
 from PIL import Image
@@ -10,6 +11,18 @@ import pacman
 
 
 class PacmanTests(unittest.TestCase):
+    def test_two_ghosts_visible_in_every_frame(self):
+        colors={(255,65,65),(255,153,214),(75,220,255),(255,170,55)}
+        for width in (64,128):
+            for seed in range(4):
+                with patch('pacman.random.Random',return_value=random.Random(seed)):
+                    body=pacman.render({'_width':width,'_dwell':60,'speed':'fast'})
+                with Image.open(BytesIO(body)) as image:
+                    for index in range(image.n_frames):
+                        image.seek(index)
+                        visible=colors.intersection(set(image.convert('RGB').getdata()))
+                        self.assertGreaterEqual(len(visible),2,(width,seed,index))
+
     def test_routes_follow_corridors_and_eat_dots(self):
         for width in (64,128):
             graph=pacman._maze(width);background=pacman._background(width,graph)

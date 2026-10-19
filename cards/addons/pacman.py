@@ -131,12 +131,16 @@ def _background(width, graph):
     return image
 
 
-def _viewport(image,width,position):
+def _viewport(image,width,position,companions=()):
     from PIL import Image
-    left=max(0,min(image.width-width,position[0]-width//2)) if width<image.width else 0
-    top=max(0,min(image.height-32,position[1]-16))
+    # Unwrap the tunnel around Pac-Man so chasing ghosts remain beside him
+    # on screen even while they cross opposite ends of the maze.
+    period=image.width
+    points=[position]+[(position[0]+((x-position[0]+period//2)%period-period//2),y) for x,y in companions]
+    left=round((min(x for x,y in points)+max(x for x,y in points)-width)/2)
+    top=max(0,min(image.height-32,round((min(y for x,y in points)+max(y for x,y in points)-31)/2)))
     view=Image.new('RGB',(width,32))
-    view.paste(image.crop((left,top,min(image.width,left+width),top+32)),(max(0,(width-image.width)//2),0))
+    for offset in (-period,0,period):view.paste(image,(offset-left,-top))
     return view
 
 
@@ -167,6 +171,12 @@ def render(options=None):
     start=(13*TILE+RADIUS,23*TILE+RADIUS)
     starts=[start,*rng.sample([n for n in nodes if n!=start],4)]
     actors=[(node,node,None) for node in starts]
+    # Two close pursuers follow recent corridor positions; the other two
+    # ghosts roam independently. Seed the chase before the first frame.
+    trail=[]
+    for _ in range(17):
+        actors[0],direction=_advance(actors[0],graph,rng,dots)
+        trail.append(actors[0][0])
     background=_background(width,graph)
     dwell=max(3000,min(60000,int(opts.get('_dwell',10) or 10)*1000))
     duration=_speed_ms(opts.get('speed'))
@@ -176,15 +186,20 @@ def render(options=None):
         image=background.copy();draw=ImageDraw.Draw(image)
         directions=[]
         for i,actor in enumerate(actors):
+            if i in (1,2):
+                directions.append((0,0));continue
             actors[i],direction=_advance(actor,graph,rng,dots if i==0 else None)
             directions.append(direction)
+        trail.append(actors[0][0]);trail=trail[-17:]
+        actors[1]=(trail[-9],trail[-9],None)
+        actors[2]=(trail[-17],trail[-17],None)
         _eat(dots,actors[0][0])
         if _on(opts.get('dots','on')):
             for dot in dots:draw.point(dot,fill=(255,214,150))
         _pacman(draw,actors[0][0],directions[0],step)
         for i,color in enumerate(((255,65,65),(255,153,214),(75,220,255),(255,170,55)),1):
             _ghost(draw,actors[i][0],color,step)
-        frames.append(_viewport(image,width,actors[0][0]))
+        frames.append(_viewport(image,width,actors[0][0],[actors[1][0],actors[2][0]]))
     out=BytesIO()
     frames[0].save(out,'WEBP',save_all=True,append_images=frames[1:],duration=round(dwell/count),loop=1,lossless=True,quality=100)
     return out.getvalue()
