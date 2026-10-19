@@ -82,7 +82,7 @@ MAZE = (
 )
 
 
-def _maze(width):
+def _raw_maze(width):
     # Flood fill excludes the ghost pen and the blank space outside the maze.
     start=(1,1); reachable={start};pending=[start]
     while pending:
@@ -97,6 +97,43 @@ def _maze(width):
     return graph
 
 
+class MazeGraph(dict):
+    pass
+
+
+def _maze(width):
+    raw=_raw_maze(width)
+    ends={(RADIUS,14*TILE+RADIUS),(27*TILE+RADIUS,14*TILE+RADIUS)}
+    junctions={p for p,neighbors in raw.items() if len(neighbors)!=2 or not (neighbors[0][0]==neighbors[1][0] or neighbors[0][1]==neighbors[1][1])}|ends
+    xs=sorted({x for x,y in junctions});ys=sorted({y for x,y in junctions})
+    # Keep five-pixel lanes, but replace long wall interiors with two-pixel
+    # bars. Junction order and corridor connections remain the classic maze.
+    def pixel(p):return (6+xs.index(p[0])*7,6+ys.index(p[1])*7)
+    graph=MazeGraph({pixel(p):[] for p in junctions});graph.tunnels=set()
+    graph.world=(max(x for x,y in graph)+7,max(y for x,y in graph)+7)
+    for start in junctions:
+        for following in raw[start]:
+            previous=start;current=following;warp=abs(start[0]-following[0])>TILE
+            while current not in junctions:
+                nxt=next(n for n in raw[current] if n!=previous)
+                warp |= abs(nxt[0]-current[0])>TILE
+                previous,current=current,nxt
+            a,b=pixel(start),pixel(current);graph[a].append(b)
+            if warp:graph.tunnels.add((a,b))
+    return graph
+
+
+def _dots(graph):
+    dots=set(graph)
+    for start,neighbors in graph.items():
+        for end in neighbors:
+            if (start,end) in graph.tunnels:continue
+            length=abs(end[0]-start[0])+abs(end[1]-start[1])
+            dx=(end[0]>start[0])-(end[0]<start[0]);dy=(end[1]>start[1])-(end[1]<start[1])
+            for step in range(4,length,4):dots.add((start[0]+step*dx,start[1]+step*dy))
+    return dots
+
+
 def _advance(actor, graph, rng, dots=None):
     position, target, previous = actor
     if position == target:
@@ -106,8 +143,8 @@ def _advance(actor, graph, rng, dots=None):
             choices = fresh or choices
         destination = rng.choice(choices)
         previous, target = target, destination
-    if abs(target[0]-position[0])>TILE:
-        return (target,target,previous), (-1 if position[0]==RADIUS else 1,0)
+    if (position,target) in getattr(graph,'tunnels',()):
+        return (target,target,previous), (-1 if target[0]>position[0] else 1,0)
     dx = (target[0] > position[0]) - (target[0] < position[0])
     dy = (target[1] > position[1]) - (target[1] < position[1])
     return ((position[0] + dx, position[1] + dy), target, previous), (dx, dy)
@@ -118,16 +155,17 @@ def _eat(dots, position):
 
 
 def _background(width, graph):
-    from PIL import Image, ImageDraw
-    image=Image.new('RGB',(28*TILE,31*TILE));draw=ImageDraw.Draw(image)
-    for y,row in enumerate(MAZE):
-        for x,tile in enumerate(row):
-            if tile=='#':
-                # Only the edges of wall masses are blue, leaving hollow blocks.
-                for dx,dy,box in ((1,0,(x*TILE+TILE-1,y*TILE,x*TILE+TILE-1,y*TILE+TILE-1)),(-1,0,(x*TILE,y*TILE,x*TILE,y*TILE+TILE-1)),(0,1,(x*TILE,y*TILE+TILE-1,x*TILE+TILE-1,y*TILE+TILE-1)),(0,-1,(x*TILE,y*TILE,x*TILE+TILE-1,y*TILE))):
-                    xx,yy=x+dx,y+dy
-                    if 0<=xx<28 and 0<=yy<31 and MAZE[yy][xx]!='#':draw.line(box,fill=(20,64,190))
-            elif tile=='-':draw.line((x*TILE,y*TILE+RADIUS,x*TILE+TILE-1,y*TILE+RADIUS),fill=(255,153,214))
+    from PIL import Image, ImageDraw, ImageFilter
+    mask=Image.new('L',graph.world);draw=ImageDraw.Draw(mask)
+    for node,neighbors in graph.items():
+        x,y=node;draw.rectangle((x-2,y-2,x+2,y+2),fill=255)
+        for other in neighbors:
+            if (node,other) not in graph.tunnels:draw.line((*node,*other),fill=255,width=5)
+    border=mask.filter(ImageFilter.MaxFilter(5))
+    image=Image.new('RGB',graph.world)
+    for y in range(image.height):
+        for x in range(image.width):
+            if border.getpixel((x,y)) and not mask.getpixel((x,y)):image.putpixel((x,y),(35,48,185))
     return image
 
 
@@ -161,8 +199,8 @@ def _ghost(draw, position, color, step):
 
 
 
-def _touching(first,second):
-    dx=abs(first[0]-second[0]);dx=min(dx,28*TILE-dx)
+def _touching(first,second,period=28*TILE):
+    dx=abs(first[0]-second[0]);dx=min(dx,period-dx)
     dy=abs(first[1]-second[1])
     return dx*dx+dy*dy<=(2*RADIUS)**2
 
@@ -175,9 +213,9 @@ def _caught(draw,position,step):
         draw.pieslice((x-RADIUS,y-RADIUS,x+RADIUS,y+RADIUS),opening,360-opening,fill=(255,224,35))
 
 
-def _focus(actors,width):
+def _focus(actors,width,period=90):
     from itertools import combinations
-    pac=actors[0][0];period=28*TILE
+    pac=actors[0][0]
     for pair in combinations(range(1,5),2):
         ghosts=[actors[i][0] for i in pair]
         xs=[pac[0]]+[pac[0]+((x-pac[0]+period//2)%period-period//2) for x,y in ghosts]
@@ -191,13 +229,14 @@ def _spawn(graph,width,rng):
     nodes=list(graph)
     while True:
         start=rng.choice(nodes)
-        nearby=[n for n in nodes if not _touching(n,start) and abs(n[1]-start[1])<=10 and abs(n[0]-start[0])<=width//3]
+        nearby=[n for n in nodes if not _touching(n,start,graph.world[0]) and abs(n[1]-start[1])<=12 and abs(n[0]-start[0])<=width//3]
         if len(nearby)<2:continue
         near=rng.sample(nearby,2)
         others=rng.sample([n for n in nodes if n!=start and n not in near],2)
         rng.shuffle(near)
         actors=[(n,n,None) for n in [start,*near,*others]]
-        if _focus(actors,width) and not any(_touching(actors[i][0],actors[j][0]) for i in range(5) for j in range(i+1,5)):
+        safe=all(min(abs(start[0]-a[0][0]),graph.world[0]-abs(start[0]-a[0][0]))**2+(start[1]-a[0][1])**2>=144 for a in actors[1:])
+        if safe and _focus(actors,width) and not any(_touching(actors[i][0],actors[j][0],graph.world[0]) for i in range(5) for j in range(i+1,5)):
             return actors
 
 
@@ -207,7 +246,7 @@ def render(options=None):
     width=128 if opts.get('_target')=='matrixportal-s3-128x32' or opts.get('_width')==128 else 64
     rng=random.Random()
     graph=_maze(width); nodes=list(graph)
-    dots={node for node in nodes if MAZE[node[1]//TILE][node[0]//TILE] in ".o"}
+    dots=_dots(graph)
     actors=_spawn(graph,width,rng)
     background=_background(width,graph)
     caught=None
@@ -228,10 +267,10 @@ def render(options=None):
             for i in order:
                 proposed,direction=_advance(actors[i],graph,rng,dots if i==0 else None)
                 candidate=list(actors);candidate[i]=proposed
-                crowded=i>0 and any(_touching(proposed[0],candidate[j][0]) for j in range(1,5) if j!=i)
+                crowded=i>0 and any(_touching(proposed[0],candidate[j][0],graph.world[0]) for j in range(1,5) if j!=i)
                 if not crowded and _focus(candidate,width) is not None:
                     actors=candidate;directions[i]=direction
-            if any(_touching(actors[0][0],actor[0]) for actor in actors[1:]):caught=0
+            if any(_touching(actors[0][0],actor[0],graph.world[0]) for actor in actors[1:]):caught=0
         _eat(dots,actors[0][0])
         if _on(opts.get('dots','on')):
             for dot in dots:draw.point(dot,fill=(255,214,150))

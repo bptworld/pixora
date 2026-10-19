@@ -201,3 +201,17 @@ Card updates must be submitted by pull request.
 ## Create a custom card for Home Assistant
 
 Download the [AI card creator brief](Pixora-Codex-Card-Brief.md) and [starter Python card](templates/custom_card_starter.py). Upload the brief to your AI with your idea, review the generated code, and import its `.py` file through **My Apps** in Pixora LED Studio 1.2.24 or later. Custom apps stay on your HA hub and can be added to normal decks. See [PixoraHQ for Home Assistant](https://github.com/bptworld/PixoraHQforHA) for installation.
+
+
+## Home Assistant card-library releases
+
+LED Studio 1.2.37 and later can use **Card Library → Update cards** without an HA app release. The public `cards/ha-catalog.json` contains metadata, immutable source revisions and SHA-256 dependency checksums; it does not bundle card source onto the hub. Custom My Apps imports are separate.
+
+For a compatible card-only release:
+
+1. Commit and test the card source, registry metadata and any new assets in this repository.
+2. From a checkout of [PixoraHQforHA](https://github.com/bptworld/PixoraHQforHA), run `python tools/build_led_card_catalog.py <path-to-this-repository> --public-only`.
+3. Commit the generated `cards/ha-catalog.json`, then push the card repository. The catalog references the previous immutable source commit, so it must be generated after committing source changes.
+4. Users choose **Update cards** in LED Studio. Only cards referenced by saved decks and retained shared helpers are refreshed. No app or firmware update is required.
+
+Keep `schema: 1` and `renderer_api: 1` for cards compatible with this renderer contract. Changes that need new hub-side renderer capabilities must use a new renderer API and ship the corresponding HA app support first; do not label incompatible code as API 1. The app rejects unsupported catalogs and keeps the current library if downloading or verification fails. The bundled app catalog remains the initial offline fallback.
