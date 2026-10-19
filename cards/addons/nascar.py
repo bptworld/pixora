@@ -118,6 +118,15 @@ def render(options=None):
     from PIL import ImageFont
 
     opts = options or {}
+    meta = opts.get("_sports_meta")
+    if isinstance(meta, dict):
+        from event_sport_utils import _fetch_events, _event_state
+        try:
+            events = _fetch_events("racing", "nascar-premier")
+            live = any(_event_state(event).get("state") == "in" for event in events)
+            meta.update({"live": live, "has_event": bool(events)})
+        except Exception:
+            meta.update({"live": False, "has_event": False})
     width = 128 if opts.get("_target") == "matrixportal-s3-128x32" else 64
     color = (255, 210, 70)
     try:

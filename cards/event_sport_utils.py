@@ -247,10 +247,19 @@ def render_event_sport_card(sport, league, title, color, fallback, icon="race", 
     event = None
     rows = []
     if leaderboard_only:
+        # Detect the current event even when season standings are available.
+        # Live leaderboard data takes precedence over static season totals.
         try:
-            rows = _fetch_standings_rows(sport, league, 24)
+            event = _pick_event(_fetch_events(sport, league))
         except Exception:
-            rows = []
+            event = None
+        if event and _event_state(event).get("state") == "in":
+            rows = _leader_rows(event, 24 if scroll_leaders else 3)
+        if not rows:
+            try:
+                rows = _fetch_standings_rows(sport, league, 24)
+            except Exception:
+                rows = []
         if not rows:
             try:
                 events = _fetch_events(sport, league)
