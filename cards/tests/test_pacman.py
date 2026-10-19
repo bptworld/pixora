@@ -20,11 +20,11 @@ class PacmanTests(unittest.TestCase):
                 for step in range(1000):
                     before=actor[0];actor,direction=pacman._advance(actor,graph,rng)
                     x,y=actor[0];route.append((x,y))
-                    if abs(x-before[0])==81:
-                        self.assertEqual(y,43);self.assertEqual(before[1],43)
+                    if abs(x-before[0])==27*pacman.TILE:
+                        self.assertEqual(y,14*pacman.TILE+pacman.RADIUS);self.assertEqual(before[1],y)
                     else:self.assertEqual(abs(x-before[0])+abs(y-before[1]),1)
-                    for dx in range(-1,2):
-                        for dy in range(-1,2):
+                    for dx in range(-pacman.RADIUS,pacman.RADIUS+1):
+                        for dy in range(-pacman.RADIUS,pacman.RADIUS+1):
                             self.assertNotEqual(background.getpixel((x+dx,y+dy)),(20,64,190))
                     dots.add((x,y));pacman._eat(dots,(x,y))
                     self.assertNotIn((x,y),dots)
@@ -37,8 +37,8 @@ class PacmanTests(unittest.TestCase):
         self.assertEqual(sum(row.count("o") for row in pacman.MAZE),4)
         graph=pacman._maze(64)
         self.assertEqual(graph,pacman._maze(128))
-        self.assertIn((40,70),graph)
-        self.assertNotIn((40,43),graph)  # ghost house is not a hallway
+        self.assertIn((13*pacman.TILE+pacman.RADIUS,23*pacman.TILE+pacman.RADIUS),graph)
+        self.assertNotIn((13*pacman.TILE+pacman.RADIUS,14*pacman.TILE+pacman.RADIUS),graph)  # ghost house is not a hallway
 
     def test_both_sizes_animate(self):
         for width in (64,128):
