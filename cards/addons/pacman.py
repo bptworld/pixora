@@ -175,6 +175,32 @@ def _caught(draw,position,step):
         draw.pieslice((x-RADIUS,y-RADIUS,x+RADIUS,y+RADIUS),opening,360-opening,fill=(255,224,35))
 
 
+def _focus(actors,width):
+    from itertools import combinations
+    pac=actors[0][0];period=28*TILE
+    for pair in combinations(range(1,5),2):
+        ghosts=[actors[i][0] for i in pair]
+        xs=[pac[0]]+[pac[0]+((x-pac[0]+period//2)%period-period//2) for x,y in ghosts]
+        ys=[pac[1]]+[y for x,y in ghosts]
+        if max(xs)-min(xs)<=width-2*RADIUS-2 and max(ys)-min(ys)<=32-2*RADIUS-2:
+            return ghosts
+    return None
+
+
+def _spawn(graph,width,rng):
+    nodes=list(graph)
+    while True:
+        start=rng.choice(nodes)
+        nearby=[n for n in nodes if not _touching(n,start) and abs(n[1]-start[1])<=10 and abs(n[0]-start[0])<=width//3]
+        if len(nearby)<2:continue
+        near=rng.sample(nearby,2)
+        others=rng.sample([n for n in nodes if n!=start and n not in near],2)
+        rng.shuffle(near)
+        actors=[(n,n,None) for n in [start,*near,*others]]
+        if _focus(actors,width) and not any(_touching(actors[i][0],actors[j][0]) for i in range(5) for j in range(i+1,5)):
+            return actors
+
+
 def render(options=None):
     from PIL import ImageDraw
     opts=options or {}
@@ -182,15 +208,7 @@ def render(options=None):
     rng=random.Random()
     graph=_maze(width); nodes=list(graph)
     dots={node for node in nodes if MAZE[node[1]//TILE][node[0]//TILE] in ".o"}
-    start=(13*TILE+RADIUS,23*TILE+RADIUS)
-    starts=[start,*rng.sample([n for n in nodes if n!=start],4)]
-    actors=[(node,node,None) for node in starts]
-    # Two close pursuers follow recent corridor positions; the other two
-    # ghosts roam independently. Seed the chase before the first frame.
-    trail=[]
-    for _ in range(17):
-        actors[0],direction=_advance(actors[0],graph,rng,dots)
-        trail.append(actors[0][0])
+    actors=_spawn(graph,width,rng)
     background=_background(width,graph)
     caught=None
     dwell=max(3000,min(60000,int(opts.get('_dwell',10) or 10)*1000))
@@ -200,23 +218,19 @@ def render(options=None):
     for step in range(count):
         image=background.copy();draw=ImageDraw.Draw(image)
         if caught is not None and caught>=8:
-            # Resume from the same safe opening, with fresh random routes.
-            actors=[(node,node,None) for node in starts];trail=[]
-            for _ in range(17):
-                actors[0],direction=_advance(actors[0],graph,rng,dots)
-                trail.append(actors[0][0])
+            actors=_spawn(graph,width,rng)
             caught=None
         directions=[(1,0)]*5
         if caught is None:
-            directions=[]
-            for i,actor in enumerate(actors):
-                if i in (1,2):
-                    directions.append((0,0));continue
-                actors[i],direction=_advance(actor,graph,rng,dots if i==0 else None)
-                directions.append(direction)
-            trail.append(actors[0][0]);trail=trail[-17:]
-            actors[1]=(trail[-9],trail[-9],None)
-            actors[2]=(trail[-17],trail[-17],None)
+            # Move independently, but do not strand Pac-Man outside a view
+            # containing two ghosts. Rejected moves wait rather than teleport.
+            order=list(range(5));rng.shuffle(order)
+            for i in order:
+                proposed,direction=_advance(actors[i],graph,rng,dots if i==0 else None)
+                candidate=list(actors);candidate[i]=proposed
+                crowded=i>0 and any(_touching(proposed[0],candidate[j][0]) for j in range(1,5) if j!=i)
+                if not crowded and _focus(candidate,width) is not None:
+                    actors=candidate;directions[i]=direction
             if any(_touching(actors[0][0],actor[0]) for actor in actors[1:]):caught=0
         _eat(dots,actors[0][0])
         if _on(opts.get('dots','on')):
@@ -225,7 +239,7 @@ def render(options=None):
         else:_caught(draw,actors[0][0],caught);caught+=1
         for i,color in enumerate(((255,65,65),(255,153,214),(75,220,255),(255,170,55)),1):
             _ghost(draw,actors[i][0],color,step)
-        frames.append(_viewport(image,width,actors[0][0],[actors[1][0],actors[2][0]]))
+        frames.append(_viewport(image,width,actors[0][0],_focus(actors,width)))
     out=BytesIO()
     frames[0].save(out,'WEBP',save_all=True,append_images=frames[1:],duration=round(dwell/count),loop=1,lossless=True,quality=100)
     return out.getvalue()

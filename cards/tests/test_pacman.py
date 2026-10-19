@@ -19,9 +19,20 @@ class PacmanTests(unittest.TestCase):
         original=pacman._caught
         def caught(draw,position,step):
             deaths.append(step);original(draw,position,step)
-        with patch('pacman._touching',return_value=True),patch('pacman._caught',side_effect=caught):
+        initial=pacman._spawn(pacman._maze(64),64,random.Random(42))
+        with patch('pacman._spawn',side_effect=lambda *args:list(initial)),patch('pacman._touching',return_value=True),patch('pacman._caught',side_effect=caught):
             pacman.render({'_width':64,'_dwell':3})
         self.assertEqual(deaths[:16],list(range(8))*2)
+
+    def test_random_starting_positions(self):
+        graph=pacman._maze(64)
+        starts=[pacman._spawn(graph,64,random.Random(seed)) for seed in range(20)]
+        self.assertGreater(len({actors[0][0] for actors in starts}),15)
+        self.assertGreater(len({tuple(a[0] for a in actors) for actors in starts}),15)
+        for actors in starts:
+            self.assertIsNotNone(pacman._focus(actors,64))
+            self.assertTrue(all(a[0] in graph for a in actors))
+            self.assertFalse(any(pacman._touching(actors[i][0],actors[j][0]) for i in range(5) for j in range(i+1,5)))
 
     def test_two_ghosts_visible_in_every_frame(self):
         colors={(255,65,65),(255,153,214),(75,220,255),(255,170,55)}
