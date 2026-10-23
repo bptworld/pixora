@@ -482,6 +482,11 @@ def _maybe_score_animation(options):
         warm_priority_graphic(warm_key, lambda animation_team=animation_team: _render_score_animation(animation_team, "score"))
         if score > last_score and score > animated:
             _SCORE_STATE[key]["animated"] = score
+            # ESPN may revise the same touchdown play from six points to seven
+            # after its kick. Consume that conversion without celebrating the
+            # touchdown a second time; a later scoring play still starts here.
+            if score - last_score == 1:
+                continue
             play = _latest_score_play(event, competitor, last_score, score)
             kind = _classify_score_play(play)
             animation_team = {**animation_team, **_scorer_for_play(play, team)}
