@@ -13027,7 +13027,7 @@
     {
       "id": "turkey_chase",
       "name": "Turkey Chase",
-      "category": "Fun",
+      "category": "Holiday",
       "detail": "A 13-second Thanksgiving chase for three panels ordered 64, 128, 64. Animated preview available here; group playback requires LED Studio wall-card support.",
       "description": "A turkey and pilgrim chase across a three-panel LED wall.",
       "author": "PixoraHQ",
@@ -13071,7 +13071,7 @@
     {
       "id": "snowball_snowman",
       "name": "Snowball Snowman",
-      "category": "Fun",
+      "category": "Holiday",
       "detail": "Mr. and Mrs. Snowman hold hands between Christmas trees while kids trade snowballs.",
       "description": "Mr. and Mrs. Snowman hold hands between Christmas trees while kids trade snowballs.",
       "author": "PixoraHQ",
@@ -13115,7 +13115,7 @@
     {
       "id": "santas_midnight_flight",
       "name": "Santa's Midnight Flight",
-      "category": "Fun",
+      "category": "Holiday",
       "detail": "Santa and four single-file reindeer cross a snowy night sky on a 64 + 128 + 64 display group.",
       "description": "Santa and four single-file reindeer cross a snowy night sky on a 64 + 128 + 64 display group.",
       "author": "PixoraHQ",
@@ -13159,7 +13159,7 @@
     {
       "id": "thanksgiving_harvest_parade",
       "name": "Thanksgiving Harvest Parade",
-      "category": "Fun",
+      "category": "Holiday",
       "detail": "Three floats bring a pumpkin and turkey drummer, a cornucopia, and a Pilgrim dinner through falling autumn leaves.",
       "description": "Three floats bring a pumpkin and turkey drummer, a cornucopia, and a Pilgrim dinner through falling autumn leaves.",
       "author": "PixoraHQ",
@@ -13939,8 +13939,8 @@
     "card_utils.py",
     "event_sport_utils.py"
   ],
-  "commit": "1562049db84edc6c8569137d7d0eb509051b593d",
-  "published_at": "2026-11-12T01:45:35Z",
+  "commit": "48bf5bf81e6e75906569a8a2aab2e57d938a223c",
+  "published_at": "2026-11-12T01:48:51Z",
   "schema": 1,
   "renderer_api": 1
 }
