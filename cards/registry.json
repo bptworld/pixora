@@ -10810,6 +10810,36 @@
           "inputmode": "numeric"
         }
       ]
+    },
+    {
+      "id": "turkey_chase",
+      "name": "Turkey Chase",
+      "category": "Fun",
+      "detail": "A 13-second Thanksgiving chase for three panels ordered 64, 128, 64. Animated preview available here; group playback requires LED Studio wall-card support.",
+      "description": "A turkey and pilgrim chase across a three-panel LED wall.",
+      "author": "PixoraHQ",
+      "version": "1.0.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/addons/turkey_chase.py",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/turkey_chase.webp",
+      "wallWidths": [
+        64,
+        128,
+        64
+      ],
+      "options": [
+        {
+          "key": "wallTarget",
+          "label": "Play on display group",
+          "type": "select",
+          "default": "group_wall",
+          "choices": [
+            {
+              "value": "group_wall",
+              "label": "Display group"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
