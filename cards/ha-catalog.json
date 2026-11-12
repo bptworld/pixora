@@ -7505,7 +7505,7 @@
             },
             {
               "value": "SJSU",
-              "label": "San Jos\u00e9 State Spartans"
+              "label": "San José State Spartans"
             },
             {
               "value": "STAN",
@@ -13023,6 +13023,50 @@
         "card_utils.py",
         "LICENSE"
       ]
+    },
+    {
+      "id": "turkey_chase",
+      "name": "Turkey Chase",
+      "category": "Fun",
+      "detail": "A 13-second Thanksgiving chase for three panels ordered 64, 128, 64. Animated preview available here; group playback requires LED Studio wall-card support.",
+      "description": "A turkey and pilgrim chase across a three-panel LED wall.",
+      "author": "PixoraHQ",
+      "version": "1.0.0",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/61739d866c60f8cb7a003389ec916021cd4bf393/cards/assets/previews/turkey_chase.webp",
+      "wallWidths": [
+        64,
+        128,
+        64
+      ],
+      "options": [
+        {
+          "key": "wallTarget",
+          "label": "Play on display group",
+          "type": "select",
+          "default": "group_wall",
+          "choices": [
+            {
+              "value": "group_wall",
+              "label": "Display group"
+            }
+          ]
+        }
+      ],
+      "module": "turkey_chase",
+      "files": [
+        "addons/turkey_chase.py",
+        "assets/flight_landing_airplane.png",
+        "assets/flight_landing_airplane.source.txt",
+        "assets/fonts/Jersey10-Regular.ttf",
+        "assets/fonts/Jersey15-Regular.ttf",
+        "assets/fonts/Jersey20-Regular.ttf",
+        "assets/fonts/PixelifySans-Bold.ttf",
+        "assets/fonts/PixelifySans.ttf",
+        "assets/fonts/Silkscreen-Bold.ttf",
+        "assets/fonts/Silkscreen-Regular.ttf",
+        "assets/helicopter_r22.png",
+        "LICENSE"
+      ]
     }
   ],
   "files": {
@@ -13522,6 +13566,10 @@
       "sha256": "950ace8073a0f12aa63d3fd54df1247d0a5bfa7a1502d62c9b0070346afa046f",
       "size": 7054
     },
+    "addons/turkey_chase.py": {
+      "sha256": "fc7381cfa2927264899ea49d9fa4c13e380c848ea21dd34b5f3befa6ea177271",
+      "size": 8616
+    },
     "addons/twitter_followers.py": {
       "sha256": "a90a5ce659dfba1a8b32ce5a50fbd068cfc0e8179e50ecc4d43c9a91e5e149f6",
       "size": 1231
@@ -13747,8 +13795,8 @@
     "card_utils.py",
     "event_sport_utils.py"
   ],
-  "commit": "efbb0511cd8bfa803f617f1fa7c7a729f873fec9",
-  "published_at": "2026-10-22T21:17:31-04:00",
+  "commit": "61739d866c60f8cb7a003389ec916021cd4bf393",
+  "published_at": "2026-11-12T00:08:40Z",
   "schema": 1,
   "renderer_api": 1
 }
