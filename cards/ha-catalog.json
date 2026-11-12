@@ -13067,6 +13067,50 @@
         "assets/helicopter_r22.png",
         "LICENSE"
       ]
+    },
+    {
+      "id": "snowball_snowman",
+      "name": "Snowball Snowman",
+      "category": "Fun",
+      "detail": "Mr. and Mrs. Snowman hold hands between Christmas trees while kids trade snowballs.",
+      "description": "Mr. and Mrs. Snowman hold hands between Christmas trees while kids trade snowballs.",
+      "author": "PixoraHQ",
+      "version": "1.1.0",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/7a495ebc7eb9c234e00d865442b2bb52d60bf022/cards/assets/previews/snowball_snowman.webp",
+      "wallWidths": [
+        64,
+        128,
+        64
+      ],
+      "options": [
+        {
+          "key": "wallTarget",
+          "label": "Play on display group",
+          "type": "select",
+          "default": "group_wall",
+          "choices": [
+            {
+              "value": "group_wall",
+              "label": "Display group"
+            }
+          ]
+        }
+      ],
+      "module": "snowball_snowman",
+      "files": [
+        "addons/snowball_snowman.py",
+        "assets/flight_landing_airplane.png",
+        "assets/flight_landing_airplane.source.txt",
+        "assets/fonts/Jersey10-Regular.ttf",
+        "assets/fonts/Jersey15-Regular.ttf",
+        "assets/fonts/Jersey20-Regular.ttf",
+        "assets/fonts/PixelifySans-Bold.ttf",
+        "assets/fonts/PixelifySans.ttf",
+        "assets/fonts/Silkscreen-Bold.ttf",
+        "assets/fonts/Silkscreen-Regular.ttf",
+        "assets/helicopter_r22.png",
+        "LICENSE"
+      ]
     }
   ],
   "files": {
@@ -13530,6 +13574,10 @@
       "sha256": "08cad5749c4c83a2f443ad4c15048788bf0775c93f6a589a969d8c81ea2629b2",
       "size": 6291
     },
+    "addons/snowball_snowman.py": {
+      "sha256": "aafae415df55000e14a72c70bcaa332773b3200d3db9c0817f552614fc18d1d1",
+      "size": 8521
+    },
     "addons/soccer.py": {
       "sha256": "c405caf21983f71a9aa76f994ba80291da97a1546f706509ecb56516d262fdf9",
       "size": 19090
@@ -13795,8 +13843,8 @@
     "card_utils.py",
     "event_sport_utils.py"
   ],
-  "commit": "61739d866c60f8cb7a003389ec916021cd4bf393",
-  "published_at": "2026-11-12T00:08:40Z",
+  "commit": "7a495ebc7eb9c234e00d865442b2bb52d60bf022",
+  "published_at": "2026-11-12T01:11:48Z",
   "schema": 1,
   "renderer_api": 1
 }
