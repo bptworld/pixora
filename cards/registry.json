@@ -10870,6 +10870,36 @@
           ]
         }
       ]
+    },
+    {
+      "id": "santas_midnight_flight",
+      "name": "Santa's Midnight Flight",
+      "category": "Fun",
+      "detail": "Santa and four single-file reindeer cross a snowy night sky on a 64 + 128 + 64 display group.",
+      "description": "Santa and four single-file reindeer cross a snowy night sky on a 64 + 128 + 64 display group.",
+      "author": "PixoraHQ",
+      "version": "1.0.0",
+      "wallWidths": [
+        64,
+        128,
+        64
+      ],
+      "options": [
+        {
+          "key": "wallTarget",
+          "label": "Play on display group",
+          "type": "select",
+          "default": "group_wall",
+          "choices": [
+            {
+              "value": "group_wall",
+              "label": "Display group"
+            }
+          ]
+        }
+      ],
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/addons/santas_midnight_flight.py",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/santas_midnight_flight.webp"
     }
   ]
 }
