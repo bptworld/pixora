@@ -10900,6 +10900,36 @@
       ],
       "url": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/addons/santas_midnight_flight.py",
       "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/santas_midnight_flight.webp"
+    },
+    {
+      "id": "thanksgiving_harvest_parade",
+      "name": "Thanksgiving Harvest Parade",
+      "category": "Fun",
+      "detail": "Three floats bring a pumpkin and turkey drummer, a cornucopia, and a Pilgrim dinner through falling autumn leaves.",
+      "description": "Three floats bring a pumpkin and turkey drummer, a cornucopia, and a Pilgrim dinner through falling autumn leaves.",
+      "author": "PixoraHQ",
+      "version": "1.1.0",
+      "wallWidths": [
+        64,
+        128,
+        64
+      ],
+      "options": [
+        {
+          "key": "wallTarget",
+          "label": "Play on display group",
+          "type": "select",
+          "default": "group_wall",
+          "choices": [
+            {
+              "value": "group_wall",
+              "label": "Display group"
+            }
+          ]
+        }
+      ],
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/addons/thanksgiving_harvest_parade.py",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/thanksgiving_harvest_parade.webp"
     }
   ]
 }
