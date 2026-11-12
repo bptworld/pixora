@@ -10840,6 +10840,36 @@
           ]
         }
       ]
+    },
+    {
+      "id": "snowball_snowman",
+      "name": "Snowball Snowman",
+      "category": "Fun",
+      "detail": "Mr. and Mrs. Snowman hold hands between Christmas trees while kids trade snowballs.",
+      "description": "Mr. and Mrs. Snowman hold hands between Christmas trees while kids trade snowballs.",
+      "author": "PixoraHQ",
+      "version": "1.1.0",
+      "url": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/addons/snowball_snowman.py",
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/main/cards/assets/previews/snowball_snowman.webp",
+      "wallWidths": [
+        64,
+        128,
+        64
+      ],
+      "options": [
+        {
+          "key": "wallTarget",
+          "label": "Play on display group",
+          "type": "select",
+          "default": "group_wall",
+          "choices": [
+            {
+              "value": "group_wall",
+              "label": "Display group"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
