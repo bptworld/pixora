@@ -13199,6 +13199,50 @@
         "LICENSE"
       ],
       "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/1562049db84edc6c8569137d7d0eb509051b593d/cards/assets/previews/thanksgiving_harvest_parade.webp"
+    },
+    {
+      "id": "happy_new_year",
+      "name": "Happy New Year",
+      "category": "Holiday",
+      "detail": "A wall-wide gold Happy New Year greeting with fireworks across three panels.",
+      "description": "A wall-wide gold Happy New Year greeting with fireworks across three panels.",
+      "author": "PixoraHQ",
+      "version": "1.1.0",
+      "wallWidths": [
+        64,
+        128,
+        64
+      ],
+      "options": [
+        {
+          "key": "wallTarget",
+          "label": "Play on display group",
+          "type": "select",
+          "default": "group_wall",
+          "choices": [
+            {
+              "value": "group_wall",
+              "label": "Display group"
+            }
+          ]
+        }
+      ],
+      "module": "happy_new_year",
+      "files": [
+        "addons/happy_new_year.py",
+        "assets/flight_landing_airplane.png",
+        "assets/flight_landing_airplane.source.txt",
+        "assets/fonts/Jersey10-Regular.ttf",
+        "assets/fonts/Jersey15-Regular.ttf",
+        "assets/fonts/Jersey20-Regular.ttf",
+        "assets/fonts/PixelifySans-Bold.ttf",
+        "assets/fonts/PixelifySans.ttf",
+        "assets/fonts/Silkscreen-Bold.ttf",
+        "assets/fonts/Silkscreen-Regular.ttf",
+        "assets/helicopter_r22.png",
+        "LICENSE"
+      ],
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/abc90a27921174f89180c46ce677223dec78450d/cards/assets/previews/happy_new_year.webp"
     }
   ],
   "files": {
@@ -13445,6 +13489,10 @@
     "addons/github_release_watch.py": {
       "sha256": "098347cc8e1961300093bafcbf9f470610af0b00da5f03c162f7d4485405c866",
       "size": 3738
+    },
+    "addons/happy_new_year.py": {
+      "sha256": "cb21a3bbc03da3cbf8e6961a2a5feec3af8acb6898a8086f5f85e9886c88cb91",
+      "size": 5275
     },
     "addons/heartbeat.py": {
       "sha256": "aca85385c1886ce1ae8e93c46af2a8f6eb2b46de49f1735bc7f9b0d14955b5d4",
@@ -13939,8 +13987,8 @@
     "card_utils.py",
     "event_sport_utils.py"
   ],
-  "commit": "48bf5bf81e6e75906569a8a2aab2e57d938a223c",
-  "published_at": "2026-11-12T01:48:51Z",
+  "commit": "abc90a27921174f89180c46ce677223dec78450d",
+  "published_at": "2026-11-12T02:01:18Z",
   "schema": 1,
   "renderer_api": 1
 }
