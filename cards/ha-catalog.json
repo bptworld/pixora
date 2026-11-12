@@ -13111,6 +13111,50 @@
         "assets/helicopter_r22.png",
         "LICENSE"
       ]
+    },
+    {
+      "id": "santas_midnight_flight",
+      "name": "Santa's Midnight Flight",
+      "category": "Fun",
+      "detail": "Santa and four single-file reindeer cross a snowy night sky on a 64 + 128 + 64 display group.",
+      "description": "Santa and four single-file reindeer cross a snowy night sky on a 64 + 128 + 64 display group.",
+      "author": "PixoraHQ",
+      "version": "1.0.0",
+      "wallWidths": [
+        64,
+        128,
+        64
+      ],
+      "options": [
+        {
+          "key": "wallTarget",
+          "label": "Play on display group",
+          "type": "select",
+          "default": "group_wall",
+          "choices": [
+            {
+              "value": "group_wall",
+              "label": "Display group"
+            }
+          ]
+        }
+      ],
+      "module": "santas_midnight_flight",
+      "files": [
+        "addons/santas_midnight_flight.py",
+        "assets/flight_landing_airplane.png",
+        "assets/flight_landing_airplane.source.txt",
+        "assets/fonts/Jersey10-Regular.ttf",
+        "assets/fonts/Jersey15-Regular.ttf",
+        "assets/fonts/Jersey20-Regular.ttf",
+        "assets/fonts/PixelifySans-Bold.ttf",
+        "assets/fonts/PixelifySans.ttf",
+        "assets/fonts/Silkscreen-Bold.ttf",
+        "assets/fonts/Silkscreen-Regular.ttf",
+        "assets/helicopter_r22.png",
+        "LICENSE"
+      ],
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/6897a815403e47ac03e097bac1b80eabbc2647cc/cards/assets/previews/santas_midnight_flight.webp"
     }
   ],
   "files": {
@@ -13558,6 +13602,10 @@
       "sha256": "7692291230ff90f34d5b132de6ddf017a01512b5803f32d1e588f2a2e7d25325",
       "size": 3443
     },
+    "addons/santas_midnight_flight.py": {
+      "sha256": "d92fcdd51e4506ed5876a203fc1419c682ed90ed8fe99088baf9a553333e0a41",
+      "size": 6028
+    },
     "addons/sector_heat.py": {
       "sha256": "df3f091ac26b98edabf1714e8c81d0854d01c7c26913f9de0de8b702ce1d4489",
       "size": 4729
@@ -13843,8 +13891,8 @@
     "card_utils.py",
     "event_sport_utils.py"
   ],
-  "commit": "7a495ebc7eb9c234e00d865442b2bb52d60bf022",
-  "published_at": "2026-11-12T01:11:48Z",
+  "commit": "6897a815403e47ac03e097bac1b80eabbc2647cc",
+  "published_at": "2026-11-12T01:18:03Z",
   "schema": 1,
   "renderer_api": 1
 }
