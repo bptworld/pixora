@@ -13155,6 +13155,50 @@
         "LICENSE"
       ],
       "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/6897a815403e47ac03e097bac1b80eabbc2647cc/cards/assets/previews/santas_midnight_flight.webp"
+    },
+    {
+      "id": "thanksgiving_harvest_parade",
+      "name": "Thanksgiving Harvest Parade",
+      "category": "Fun",
+      "detail": "Three floats bring a pumpkin and turkey drummer, a cornucopia, and a Pilgrim dinner through falling autumn leaves.",
+      "description": "Three floats bring a pumpkin and turkey drummer, a cornucopia, and a Pilgrim dinner through falling autumn leaves.",
+      "author": "PixoraHQ",
+      "version": "1.1.0",
+      "wallWidths": [
+        64,
+        128,
+        64
+      ],
+      "options": [
+        {
+          "key": "wallTarget",
+          "label": "Play on display group",
+          "type": "select",
+          "default": "group_wall",
+          "choices": [
+            {
+              "value": "group_wall",
+              "label": "Display group"
+            }
+          ]
+        }
+      ],
+      "module": "thanksgiving_harvest_parade",
+      "files": [
+        "addons/thanksgiving_harvest_parade.py",
+        "assets/flight_landing_airplane.png",
+        "assets/flight_landing_airplane.source.txt",
+        "assets/fonts/Jersey10-Regular.ttf",
+        "assets/fonts/Jersey15-Regular.ttf",
+        "assets/fonts/Jersey20-Regular.ttf",
+        "assets/fonts/PixelifySans-Bold.ttf",
+        "assets/fonts/PixelifySans.ttf",
+        "assets/fonts/Silkscreen-Bold.ttf",
+        "assets/fonts/Silkscreen-Regular.ttf",
+        "assets/helicopter_r22.png",
+        "LICENSE"
+      ],
+      "previewUrl": "https://raw.githubusercontent.com/bptworld/pixora/1562049db84edc6c8569137d7d0eb509051b593d/cards/assets/previews/thanksgiving_harvest_parade.webp"
     }
   ],
   "files": {
@@ -13650,6 +13694,10 @@
       "sha256": "4200ca91e5654ee102dd6c53a4cdb6f9b8bf557335169eca53ffc15f89be1ce8",
       "size": 1749
     },
+    "addons/thanksgiving_harvest_parade.py": {
+      "sha256": "61fc10f224ee8e5998b8859bda8ae38070de09bda1c197cb6b5a1065132a7338",
+      "size": 8384
+    },
     "addons/tide_tracking.py": {
       "sha256": "0c31ab15c0c6001b65cab550a6c14a3fcba3b6b353450d03543e093a34b7ad3b",
       "size": 12781
@@ -13891,8 +13939,8 @@
     "card_utils.py",
     "event_sport_utils.py"
   ],
-  "commit": "6897a815403e47ac03e097bac1b80eabbc2647cc",
-  "published_at": "2026-11-12T01:18:03Z",
+  "commit": "1562049db84edc6c8569137d7d0eb509051b593d",
+  "published_at": "2026-11-12T01:45:35Z",
   "schema": 1,
   "renderer_api": 1
 }
